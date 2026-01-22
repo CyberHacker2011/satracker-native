@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useRouter, Stack } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView, Card } from "../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Bell, BellOff, X, Play, CheckCheck } from "lucide-react-native";
+import { ChevronLeft, Bell, BellOff, X, Play, CheckCheck, Calendar as CalendarIcon } from "lucide-react-native";
 import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
 import { checkConnection } from "../lib/network";
 
@@ -106,7 +106,8 @@ export default function NotificationsScreen() {
     const [expanded, setExpanded] = useState(false);
     const planMatch = n.message.match(/{{planId:(.*?)}}/);
     const planId = planMatch?.[1];
-    const cleanMessage = n.message.replace(/{{planId:.*?}}/g, "").trim();
+    const goToPlan = n.message.includes("{{goToPlan:true}}");
+    const cleanMessage = n.message.replace(/{{planId:.*?}}/g, "").replace(/{{goToPlan:true}}/g, "").trim();
     const isLong = cleanMessage.length > 70;
 
     return (
@@ -129,13 +130,42 @@ export default function NotificationsScreen() {
             </TouchableOpacity>
         )}
 
+        {isNew && goToPlan && (
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push("/(tabs)/plan")}
+          >
+            <CalendarIcon size={12} color="#fff" />
+            <ThemedText style={styles.actionText}>Go to Planner</ThemedText>
+          </TouchableOpacity>
+        )}
+
         {isNew && planId && (
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.push(`/(tabs)/study-room?planId=${planId}`)}
+            onPress={async () => {
+                const { data: log } = await supabase.from("daily_log").select("status").eq("plan_id", planId).maybeSingle();
+                
+                // Check if plan is past
+                const { data: planData } = await supabase.from("study_plan").select("date, end_time").eq("id", planId).single();
+                const now = new Date();
+                const isPast = planData ? (now > new Date(planData.date + "T" + planData.end_time)) : false;
+
+                if (log || isPast) {
+                    const msg = log ? (log.status === 'done' ? "This mission is already completed." : "This mission is closed.") : "This mission has expired.";
+                    if (Platform.OS === 'web') window.alert(msg);
+                    else Alert.alert("Plan Unavailable", msg);
+                    return;
+                }
+                if (cleanMessage.includes("no check-in")) {
+                    router.push(`/(tabs)/check-in?openPlanId=${planId}`);
+                } else {
+                    router.push(`/(tabs)/study-room?planId=${planId}`);
+                }
+            }}
           >
             <Play size={12} color="#fff" fill="#fff" />
-            <ThemedText style={styles.actionText}>Enter Study Room</ThemedText>
+            <ThemedText style={styles.actionText}>{cleanMessage.includes("no check-in") ? "Check-in Now" : "Enter Study Room"}</ThemedText>
           </TouchableOpacity>
         )}
       </Card>

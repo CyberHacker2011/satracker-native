@@ -144,21 +144,32 @@ export default function DashboardScreen() {
 
   const [feedbackVisible, setFeedbackVisible] = useState(true);
   
-  // Real-time timer update
+  // Real-time timer update & fresh data ticker
   useEffect(() => {
-    if (!examDate || !examDates[examDate]) return;
+    if (!examDate || !examDates[examDate]) {
+        // Still run ticker even if no exam date set
+        const interval = setInterval(() => fetchData(), 60000);
+        return () => clearInterval(interval);
+    }
     
     const targetDate = new Date(examDates[examDate]);
     targetDate.setHours(10, 0, 0, 0);
 
-    const interval = setInterval(() => {
+    const countdownInterval = setInterval(() => {
       const now = new Date();
       const diff = targetDate.getTime() - now.getTime();
       const diffInDays = diff / (1000 * 60 * 60 * 24);
       setDaysUntilExam(diffInDays > 0 ? diffInDays : 0);
     }, 1000);
 
-    return () => clearInterval(interval);
+    const dataInterval = setInterval(() => {
+      fetchData();
+    }, 60000);
+
+    return () => {
+        clearInterval(countdownInterval);
+        clearInterval(dataInterval);
+    };
   }, [examDate]);
 
   return (
@@ -336,30 +347,36 @@ export default function DashboardScreen() {
                                             <ThemedText style={styles.timeText}>{plan.start_time} - {plan.end_time}</ThemedText>
                                         </View>
                                     </View>
-                                    <TouchableOpacity 
-                                        style={[
-                                            styles.enterRoomBtn, 
-                                            { 
-                                                backgroundColor: plan.isActive ? theme.primary : 'transparent',
-                                                borderColor: plan.isActive ? theme.primary : theme.border,
-                                                borderWidth: 1,
-                                                opacity: plan.isActive ? 1 : 0.5
-                                            }
-                                        ]}
-                                        onPress={() => {
-                                            if (plan.isMarked || plan.isPast) {
-                                                Alert.alert("Plan Closed", "This session is already completed or expired.");
-                                                return;
-                                            }
-                                            if (!plan.isActive) {
-                                                Alert.alert("Stand By", `This plan is scheduled for ${plan.start_time}. Access will open then.`);
-                                                return;
-                                            }
-                                            router.push(`/(tabs)/study-room?planId=${plan.id}`);
-                                        }}
-                                    >
-                                        <ThemedText style={[styles.enterRoomText, { color: plan.isActive ? '#fff' : theme.textSecondary }]}>Enter Study Room</ThemedText>
-                                    </TouchableOpacity>
+                                    {!plan.isMarked && !plan.isPast && (
+                                        <TouchableOpacity 
+                                            style={[
+                                                styles.enterRoomBtn, 
+                                                { 
+                                                    backgroundColor: plan.isActive ? theme.primary : 'transparent',
+                                                    borderColor: plan.isActive ? theme.primary : theme.border,
+                                                    borderWidth: 1,
+                                                    opacity: plan.isActive ? 1 : 0.5
+                                                }
+                                            ]}
+                                            onPress={() => {
+                                                if (plan.isMarked || plan.isPast) {
+                                                    const msg = "This session is already completed or expired.";
+                                                    if (Platform.OS === 'web') window.alert(msg);
+                                                    else Alert.alert("Plan Closed", msg);
+                                                    return;
+                                                }
+                                                if (!plan.isActive) {
+                                                    const msg = `This plan is scheduled for ${plan.start_time}. Access will open then.`;
+                                                    if (Platform.OS === 'web') window.alert(msg);
+                                                    else Alert.alert("Stand By", msg);
+                                                    return;
+                                                }
+                                                router.push(`/(tabs)/study-room?planId=${plan.id}`);
+                                            }}
+                                        >
+                                            <ThemedText style={[styles.enterRoomText, { color: plan.isActive ? '#fff' : theme.textSecondary }]}>Enter Study Room</ThemedText>
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             ))
                         )}

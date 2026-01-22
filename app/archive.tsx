@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useRouter, Stack } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -7,7 +7,8 @@ import { getLocalDateString, getMonthYearString } from "../lib/dateUtils";
 import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView, Card } from "../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Calendar as CalendarIcon, CheckCircle2, XCircle, Clock } from "lucide-react-native";
+import { ChevronLeft, Calendar as CalendarIcon, CheckCircle2, XCircle, Clock, Trash2 } from "lucide-react-native";
+import { Toast } from "../components/Toast";
 import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
 import { checkConnection } from "../lib/network";
 
@@ -29,6 +30,17 @@ export default function ArchiveScreen() {
   const [loading, setLoading] = useState(true);
   const [errorVisible, setErrorVisible] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<'error' | 'success' | 'info'>('error');
+
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
   
   // Start from Yesterday
   const initialDate = (() => {
@@ -103,6 +115,35 @@ export default function ArchiveScreen() {
     loadPlanForDate(selectedDate);
   }, [selectedDate]);
 
+  const handleDeletePlan = async (id: string) => {
+    const confirmDelete = async () => {
+        try {
+            await supabase.from("daily_log").delete().eq("plan_id", id);
+            const { error } = await supabase.from("study_plan").delete().eq("id", id);
+            if (error) throw error;
+            showToast("Record deleted successfully", "success");
+            loadPlanForDate(selectedDate);
+        } catch (e: any) {
+            showToast(e.message || "Failed to delete record");
+        }
+    };
+
+    if (Platform.OS === 'web') {
+        if (window.confirm("Are you sure you want to delete this study record? This cannot be undone.")) {
+            confirmDelete();
+        }
+    } else {
+        Alert.alert(
+            "Delete Record",
+            "Are you sure you want to delete this study record? This cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: confirmDelete }
+            ]
+        );
+    }
+  };
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <FeedbackErrorModal 
@@ -174,7 +215,7 @@ export default function ArchiveScreen() {
                             <ThemedText style={styles.emptyText}>No records for this date</ThemedText>
                         </View>
                     ) : (
-                        plans.map((plan) => (
+                        plans.map((plan: StudyPlan) => (
                             <Card key={plan.id} style={styles.planCard}>
                                 <View style={styles.cardMain}>
                                     <View style={styles.leftInfo}>
@@ -186,9 +227,14 @@ export default function ArchiveScreen() {
                                     </View>
                                     
                                     <View style={styles.rightInfo}>
-                                        <ThemedText style={styles.planTime}>
-                                            {plan.start_time} - {plan.end_time}
-                                        </ThemedText>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                                            <TouchableOpacity onPress={() => handleDeletePlan(plan.id)}>
+                                                <Trash2 size={16} color="#ef4444" opacity={0.6} />
+                                            </TouchableOpacity>
+                                            <ThemedText style={styles.planTime}>
+                                                {plan.start_time} - {plan.end_time}
+                                            </ThemedText>
+                                        </View>
                                         <View style={styles.statusBadge}>
                                             {plan.status === "done" ? (
                                                 <View style={[styles.outcomeBadge, { backgroundColor: themeName === 'dark' ? '#064e3b' : '#f0fdf4', borderColor: '#10b981' }]}>
@@ -212,6 +258,13 @@ export default function ArchiveScreen() {
                 </ScrollView>
             )}
         </View>
+        <Toast 
+            visible={toastVisible} 
+            onDismiss={() => setToastVisible(false)}
+            type={toastType}
+        >
+            {toastMessage}
+        </Toast>
       </SafeAreaView>
     </ThemedView>
   );

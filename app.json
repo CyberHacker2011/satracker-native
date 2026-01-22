@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "satracker.uz"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -33,6 +34,12 @@
     "githubUrl": "https://github.com/CyberHacker2011/satracker-native",
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f5de9044-5595-4d47-811c-a7132a72bf02"
+      }
+    }
   }
 }

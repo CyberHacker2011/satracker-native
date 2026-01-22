@@ -7,7 +7,9 @@ import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView } from "../components/ThemedView";
 import { Button } from "../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react-native";
+import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react-native";
+import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
+import { Toast } from "../components/Toast";
 
 type Screen = "login" | "forgot-password" | "check-email";
 
@@ -22,6 +24,19 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<'error' | 'success' | 'info'>('error');
+
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
   
   const passwordRef = useRef<TextInput>(null);
 
@@ -37,18 +52,36 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setErrorMessage(null);
-    if (!email || !password) {
-      setErrorMessage("Please fill in both email and password.");
+    if (!email) {
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+    if (!password) {
+      setErrorMessage("Please enter your password.");
       return;
     }
 
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          throw new Error("Wrong credentials for log-in. Please check your email and password.");
+        } else if (error.message.includes("Email not confirmed")) {
+          throw new Error("Please verify your email address before logging in.");
+        } else if (error.message.includes("User not found")) {
+          throw new Error("This email do not exist for log in.");
+        }
+        throw error;
+      }
       router.replace("/(tabs)");
     } catch (error: any) {
-      setErrorMessage(error.message || "Login failed. Please try again.");
+      const msg = error.message || "Login failed. Please try again.";
+      if (msg.includes("Wrong credentials")) {
+        setErrorMessage(msg);
+      } else {
+        showToast(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -69,7 +102,7 @@ export default function LoginScreen() {
       if (error) throw error;
       setScreen("check-email");
     } catch (error: any) {
-      setErrorMessage(error.message || "Failed to send reset email.");
+      showToast(error.message || "Failed to send reset email.");
     } finally {
       setLoading(false);
     }
@@ -111,7 +144,7 @@ export default function LoginScreen() {
                     <View style={styles.inputGroup}>
                       <View style={styles.labelRow}>
                         <Mail size={16} color={theme.textSecondary} />
-                        <ThemedText style={styles.label}>Email</ThemedText>
+                        <ThemedText style={styles.label}>Email address</ThemedText>
                       </View>
                       <TextInput
                         style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
@@ -152,6 +185,7 @@ export default function LoginScreen() {
 
                     {errorMessage && (
                       <View style={styles.errorContainer}>
+                        <AlertCircle size={14} color="#ef4444" />
                         <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
                       </View>
                     )}
@@ -210,6 +244,7 @@ export default function LoginScreen() {
 
                     {errorMessage && (
                       <View style={styles.errorContainer}>
+                        <AlertCircle size={14} color="#ef4444" />
                         <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
                       </View>
                     )}
@@ -273,6 +308,18 @@ export default function LoginScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+        <Toast 
+          visible={toastVisible} 
+          onDismiss={() => setToastVisible(false)}
+          type={toastType}
+        >
+          {toastMessage}
+        </Toast>
+        <FeedbackErrorModal 
+          visible={modalVisible} 
+          error={modalError} 
+          onDismiss={() => setModalVisible(false)} 
+        />
       </SafeAreaView>
     </ThemedView>
   );
@@ -357,6 +404,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   errorText: {
     color: '#ef4444',

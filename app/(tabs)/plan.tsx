@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View, TextInput, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { getLocalDateString, getLocalTimeString, getMonthYearString } from "../../lib/dateUtils";
 import { ThemedText, Heading } from "../../components/ThemedText";
@@ -10,6 +10,7 @@ import { Button } from "../../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar as CalendarIcon, Clock, BookOpen, ChevronLeft, ChevronRight, X, Check } from "lucide-react-native";
 import { FeedbackErrorModal } from "../../components/FeedbackErrorModal";
+import { Toast } from "../../components/Toast";
 import { checkConnection } from "../../lib/network";
 
 type Section = "math" | "reading" | "writing";
@@ -17,6 +18,7 @@ type Section = "math" | "reading" | "writing";
 export default function PlanScreen() {
   const { theme, themeName } = useTheme();
   const router = useRouter();
+  const { editId } = useLocalSearchParams<{ editId: string }>();
 
   const now = new Date();
   const curTimeStr = getLocalTimeString(now);
@@ -35,6 +37,48 @@ export default function PlanScreen() {
   const [errorVisible, setErrorVisible] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<'error' | 'success' | 'info'>('error');
+
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
+  useEffect(() => {
+    if (editId) {
+      loadEditData();
+    }
+  }, [editId]);
+
+  const loadEditData = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("study_plan")
+        .select("*")
+        .eq("id", editId)
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        setDate(data.date);
+        setSection(data.section);
+        setStartTime(data.start_time);
+        setEndTime(data.end_time);
+        setTasks(data.tasks_text);
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Failed to load plan for editing.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
   const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
@@ -52,7 +96,7 @@ export default function PlanScreen() {
 
   const handleSave = async () => {
     if (!tasks) {
-      Alert.alert("Error", "Please enter some tasks");
+      showToast("Please enter some tasks");
       return;
     }
 
@@ -60,7 +104,7 @@ export default function PlanScreen() {
     const [endH, endM] = endTime.split(":").map(Number);
 
     if (startM > 59 || endM > 59) {
-        Alert.alert("Invalid Time", "Minutes cannot exceed 59.");
+        showToast("Minutes cannot exceed 59.");
         return;
     }
     
@@ -71,16 +115,17 @@ export default function PlanScreen() {
     const endObj = new Date(planDateObj);
     endObj.setHours(endH, endM, 0, 0);
 
-    // Past time check - REVISED: Allow if End Time is in future
-    if (endObj <= new Date()) {
-      Alert.alert("Invalid Time", "The mission end time must be in the future.");
+    const nowCompare = new Date();
+    nowCompare.setSeconds(0, 0);
+
+    if (endObj < nowCompare) {
+      showToast("The mission end time must be in the future.");
       return;
     }
 
-    // Min duration 5 min
     const durationMin = (endObj.getTime() - startObj.getTime()) / (1000 * 60);
     if (durationMin < 5) {
-        Alert.alert("Short Duration", "Minimum plan duration is 5 minutes.");
+        showToast("Minimum plan duration is 5 minutes.");
         return;
     }
 
@@ -89,22 +134,26 @@ export default function PlanScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      const { error } = await supabase.from("study_plan").insert([
-        {
-          user_id: user.id,
-          date,
-          section,
-          start_time: startTime,
-          end_time: endTime,
-          tasks_text: tasks,
-        },
-      ]);
+      const planData = {
+        user_id: user.id,
+        date,
+        section,
+        start_time: startTime,
+        end_time: endTime,
+        tasks_text: tasks,
+      };
+
+      const { error } = editId 
+        ? await supabase.from("study_plan").update(planData).eq("id", editId)
+        : await supabase.from("study_plan").insert([planData]);
 
       if (error) throw error;
       
-      Alert.alert("Success", "Mission committed successfully!");
+      showToast(editId ? "Mission updated successfully!" : "Mission committed successfully!", "success");
       setTasks("");
-      router.push("/(tabs)");
+      setTimeout(() => {
+        router.push("/(tabs)");
+      }, 1500);
     } catch (error: any) {
       console.error(error);
       const isOnline = await checkConnection();
@@ -173,6 +222,13 @@ export default function PlanScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
+      <Toast 
+        visible={toastVisible} 
+        onDismiss={() => setToastVisible(false)}
+        type={toastType}
+      >
+        {toastMessage}
+      </Toast>
       <FeedbackErrorModal 
         visible={errorVisible} 
         error={errorMsg} 
@@ -185,8 +241,8 @@ export default function PlanScreen() {
             <TouchableOpacity onPress={() => router.push("/(tabs)")} style={{ marginBottom: 12, alignSelf: 'flex-start', padding: 8, backgroundColor: theme.card, borderRadius: 12, borderWidth: 1, borderColor: theme.border }}>
                 <ChevronLeft size={24} color={theme.textPrimary} />
             </TouchableOpacity>
-            <Heading style={styles.title}>Plan</Heading>
-            <ThemedText style={styles.subtitle}>Design your path to mastery.</ThemedText>
+            <Heading style={styles.title}>{editId ? "Edit Plan" : "Plan"}</Heading>
+            <ThemedText style={styles.subtitle}>{editId ? "Refine your mission." : "Design your path to mastery."}</ThemedText>
           </View>
 
           {/* New Calendar Grid */}
@@ -249,7 +305,7 @@ export default function PlanScreen() {
                             style={[styles.manualTimeInput, { color: theme.textPrimary, borderColor: theme.border }]}
                             value={startTime}
                             onChangeText={(t) => setStartTime(t.replace(/[^0-9:]/g, ''))}
-                            placeholder="HH:MM"
+                            placeholder={curTimeStr}
                             placeholderTextColor={theme.textSecondary}
                             keyboardType="numbers-and-punctuation"
                             maxLength={5}
@@ -270,7 +326,7 @@ export default function PlanScreen() {
                             style={[styles.manualTimeInput, { color: theme.textPrimary, borderColor: theme.border }]}
                             value={endTime}
                             onChangeText={(t) => setEndTime(t.replace(/[^0-9:]/g, ''))}
-                            placeholder="HH:MM"
+                            placeholder={curEndStr}
                             placeholderTextColor={theme.textSecondary}
                             keyboardType="numbers-and-punctuation"
                             maxLength={5}
@@ -302,7 +358,7 @@ export default function PlanScreen() {
               </View>
 
               <Button 
-                title={loading ? "Saving..." : "Commit Mission"} 
+                title={loading ? "Saving..." : editId ? "Update Mission" : "Commit Mission"} 
                 onPress={handleSave} 
                 loading={loading}
                 style={styles.saveBtn}

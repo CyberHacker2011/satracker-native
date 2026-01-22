@@ -115,6 +115,19 @@ export default function FocusScreen() {
       }
   };
 
+  const getProgress = () => {
+    if (mode === 'idle') return 0;
+    const fMin = parseInt(focusMin) || 1;
+    const bMin = parseInt(breakMin) || 1;
+    let ratio = 0;
+    if (mode === 'focus') {
+        ratio = (fMin * 60 - timeLeft) / (fMin * 60);
+    } else {
+        ratio = (bMin * 60 - timeLeft) / (bMin * 60);
+    }
+    return Math.min(100, Math.max(0, Math.round(ratio * 100)));
+  };
+
   if (loading) return null;
 
   return (
@@ -124,6 +137,21 @@ export default function FocusScreen() {
           <View style={styles.header}>
               <Heading>Focus Timer</Heading>
               <ThemedText style={styles.subtitle}>Pure Concentration Zone</ThemedText>
+          </View>
+
+          <View style={styles.globalProgressBox}>
+              <View style={styles.progressLabelRow}>
+                  <ThemedText style={styles.progressNote}>FOCUS PROGRESS</ThemedText>
+                  <ThemedText style={[styles.progressPct, { color: mode === 'break' ? '#10b981' : theme.primary }]}>
+                    {getProgress()}%
+                  </ThemedText>
+              </View>
+              <View style={[styles.barContainer, { backgroundColor: theme.card }]}>
+                  <View style={[styles.barFill, { 
+                    width: `${getProgress()}%`, 
+                    backgroundColor: mode === 'break' ? '#10b981' : theme.primary 
+                  }]} />
+              </View>
           </View>
 
           <View style={styles.mainLayout}>
@@ -160,8 +188,8 @@ export default function FocusScreen() {
                   </View>
               </View>
 
-              <View style={styles.configSide}>
-                  <Card style={styles.configCard}>
+
+                  <Card style={[styles.configCard, { marginTop: 24 }]}>
                       <View style={styles.configHeader}>
                           <Settings2 size={18} color={theme.primary} />
                           <ThemedText style={styles.configTitle}>ADJUST SESSIONS</ThemedText>
@@ -212,7 +240,6 @@ export default function FocusScreen() {
                       </ThemedText>
                   </Card>
               </View>
-          </View>
         </ScrollView>
       </SafeAreaView>
       
@@ -261,9 +288,9 @@ const styles = StyleSheet.create({
       alignItems: 'center',
   },
   timerCircle: {
-      width: 300,
-      height: 300,
-      borderRadius: 150,
+      width: 320,
+      height: 320,
+      borderRadius: 160,
       borderWidth: 8,
       alignItems: "center",
       justifyContent: "center",
@@ -277,7 +304,7 @@ const styles = StyleSheet.create({
       marginBottom: 10,
   },
   timerValue: {
-      fontSize: 72,
+      fontSize: 82,
       fontWeight: "900",
   },
   controls: {
@@ -368,5 +395,34 @@ const styles = StyleSheet.create({
   },
   adjustRow: {
       marginBottom: 10,
+  },
+  globalProgressBox: {
+      width: '100%',
+      marginBottom: 30,
+      maxWidth: 600,
+  },
+  progressLabelRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+  },
+  progressNote: {
+      fontSize: 10,
+      fontWeight: '900',
+      opacity: 0.3,
+  },
+  progressPct: {
+      fontSize: 12,
+      fontWeight: '900',
+  },
+  barContainer: {
+      height: 8,
+      borderRadius: 4,
+      overflow: 'hidden',
+  },
+  barFill: {
+      height: '100%',
+      borderRadius: 4,
   }
 });

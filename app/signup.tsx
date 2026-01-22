@@ -7,8 +7,10 @@ import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView } from "../components/ThemedView";
 import { Button } from "../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Eye, EyeOff } from "lucide-react-native";
+import { ChevronLeft, Eye, EyeOff, AlertCircle } from "lucide-react-native";
 import Slider from '@react-native-community/slider';
+import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
+import { Toast } from "../components/Toast";
 
 type EducationLevel = '5th' | '6th' | '7th' | '8th' | '9th' | '10th' | '11th' | '12th' | 'undergraduate' | 'graduate';
 
@@ -17,6 +19,19 @@ export default function SignupScreen() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<'error' | 'success' | 'info'>('error');
+
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
   
   const passwordRef = useRef<TextInput>(null);
   const confirmRef = useRef<TextInput>(null);
@@ -27,6 +42,8 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [step1Error, setStep1Error] = useState<string | null>(null);
+  const [emailExistsError, setEmailExistsError] = useState<boolean>(false);
 
   // Step 2: Personal Info
   const [name, setName] = useState("");
@@ -52,32 +69,51 @@ export default function SignupScreen() {
     "October 2026", "November 2026", "December 2026", "Other"
   ];
 
+  const validateEmail = (email: string) => {
+    return String(email)
+      .toLowerCase()
+      .match(
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      );
+  };
+
   const validatePassword = (pass: string): { valid: boolean; message?: string } => {
-    if (pass.length < 8) return { valid: false, message: "Password must be at least 8 characters long" };
-    if (!/[A-Z]/.test(pass)) return { valid: false, message: "Password must contain at least one uppercase letter" };
-    if (!/[a-z]/.test(pass)) return { valid: false, message: "Password must contain at least one lowercase letter" };
+    if (pass.length < 6) return { valid: false, message: "Password must be at least 6 characters long" };
+    if (!/[a-zA-Z]/.test(pass)) return { valid: false, message: "Password must contain at least one letter" };
     if (!/[0-9]/.test(pass)) return { valid: false, message: "Password must contain at least one number" };
     return { valid: true };
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    setStep1Error(null);
+    setEmailExistsError(false);
     if (currentStep === 1) {
-      if (!email || !password || !confirmPassword) {
-        Alert.alert("Missing Fields", "Please fill in all fields");
+      if (!email) {
+        setStep1Error("Please enter your email address.");
+        return;
+      }
+      if (!validateEmail(email)) {
+        setStep1Error("enter correct email");
+        return;
+      }
+      if (!password) {
+        setStep1Error("Please create a new password.");
         return;
       }
       const validation = validatePassword(password);
       if (!validation.valid) {
-        Alert.alert("Weak Password", validation.message || "");
+        setStep1Error("the password should be 6 character and should contain letter and number");
         return;
       }
       if (password !== confirmPassword) {
-        Alert.alert("Password Mismatch", "Passwords do not match");
+        setStep1Error("Confirm password does not match. Please try again.");
         return;
       }
+
+      // Move signUp to the final step to prevent early redirect
     } else if (currentStep === 2) {
       if (!name || !educationLevel) {
-        Alert.alert("Missing Fields", "Please complete all required fields");
+        showToast("Please complete all required fields to personalize your experience.");
         return;
       }
     }
@@ -93,16 +129,37 @@ export default function SignupScreen() {
   const handleSignup = async () => {
     setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Step 1: Create the auth account with metadata for redundancy
+      const { data: { user, session }, error: signupError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: name,
+            education_level: educationLevel,
+          }
+        }
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("User creation failed");
+      if (signupError) {
+        if (signupError.message.toLowerCase().includes("already registered") || signupError.message.toLowerCase().includes("taken")) {
+          setCurrentStep(1);
+          setEmailExistsError(true);
+          showToast("This email is already registered. Please sign in instead.");
+        } else {
+          showToast(signupError.message || "Failed to create account. Please try again.");
+        }
+        setLoading(false);
+        return;
+      }
 
+      const userId = user?.id;
+      if (!userId) throw new Error("Account creation failed. Please try again.");
+
+      // Step 2: Create the user profile in separate table
+      // We do this concurrently but wait for it before showing success
       const { error: profileError } = await supabase.from("user_profiles").insert({
-        user_id: authData.user.id,
+        user_id: userId,
         name: name || null,
         education_level: educationLevel || null,
         exam_date: examDate || null,
@@ -112,15 +169,21 @@ export default function SignupScreen() {
         previous_reading_writing: hasPreviousScore ? previousReadingWriting : null,
       });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Profile creation error:", profileError);
+        // We continue anyway since metadata is saved and account exists
+      }
 
-      Alert.alert(
-        "Success!",
-        "Account created successfully! Please check your email for verification.",
-        [{ text: "OK", onPress: () => router.replace("/login") }]
-      );
+      showToast("Account created successfully!", "success");
+      
+      // If session exists, _layout.tsx will handle the redirect.
+      // If email verification is needed, session will be null.
+      if (!session) {
+        showToast("Please check your email to verify your account.", "info");
+      }
+      
     } catch (error: any) {
-      Alert.alert("Signup Failed", error.message);
+      showToast(error.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -142,7 +205,7 @@ export default function SignupScreen() {
             </TouchableOpacity>
             
             {(currentStep === 2 || currentStep === 3) && (
-              <TouchableOpacity onPress={handleSkip}>
+              <TouchableOpacity onPress={() => handleSkip()}>
                 <ThemedText style={[styles.skipText, { color: theme.primary }]}>Skip</ThemedText>
               </TouchableOpacity>
             )}
@@ -168,7 +231,7 @@ export default function SignupScreen() {
             {currentStep === 1 && (
               <View style={styles.form}>
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Email Address</ThemedText>
+                  <ThemedText style={styles.label}>Email address</ThemedText>
                   <TextInput
                     style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
                     placeholder="your.email@example.com"
@@ -181,10 +244,15 @@ export default function SignupScreen() {
                     onSubmitEditing={() => passwordRef.current?.focus()}
                     blurOnSubmit={false}
                   />
+                  {emailExistsError && (
+                    <ThemedText style={[styles.hint, { color: '#ef4444', marginTop: 4, fontWeight: '700' }]}>
+                      the user alrleady exist. enter correct email
+                    </ThemedText>
+                  )}
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Password</ThemedText>
+                  <ThemedText style={styles.label}>Create new password</ThemedText>
                   <View style={styles.passwordContainer}>
                     <TextInput
                       style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary, flex: 1 }]}
@@ -202,11 +270,11 @@ export default function SignupScreen() {
                       {showPassword ? <EyeOff size={20} color={theme.textSecondary} /> : <Eye size={20} color={theme.textSecondary} />}
                     </TouchableOpacity>
                   </View>
-                  <ThemedText style={styles.hint}>At least 8 characters, with uppercase, lowercase, and numbers</ThemedText>
+                  <ThemedText style={styles.hint}>At least 6 characters, with letters and numbers</ThemedText>
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Confirm Password</ThemedText>
+                  <ThemedText style={styles.label}>Confirm new password</ThemedText>
                   <View style={styles.passwordContainer}>
                     <TextInput
                       style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary, flex: 1 }]}
@@ -225,7 +293,14 @@ export default function SignupScreen() {
                   </View>
                 </View>
 
-                <Button title="Continue" onPress={handleNext} style={styles.button} />
+                {step1Error && (
+                  <View style={styles.errorContainer}>
+                    <AlertCircle size={14} color="#ef4444" />
+                    <ThemedText style={styles.errorText}>{step1Error}</ThemedText>
+                  </View>
+                )}
+
+                <Button title={loading && currentStep === 1 ? "Checking..." : "Continue"} onPress={handleNext} style={styles.button} loading={loading && currentStep === 1} />
                 
                 <TouchableOpacity onPress={() => router.push("/login")} style={{ marginTop: 20 }}>
                   <ThemedText style={[styles.linkText, { color: theme.primary }]}>
@@ -412,6 +487,18 @@ export default function SignupScreen() {
             )}
           </View>
         </ScrollView>
+        <Toast 
+          visible={toastVisible} 
+          onDismiss={() => setToastVisible(false)}
+          type={toastType}
+        >
+          {toastMessage}
+        </Toast>
+        <FeedbackErrorModal 
+          visible={modalVisible} 
+          error={modalError} 
+          onDismiss={() => setModalVisible(false)} 
+        />
       </SafeAreaView>
     </ThemedView>
   );
@@ -491,6 +578,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     opacity: 0.5,
     fontWeight: '600',
+  },
+  errorContainer: {
+    padding: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    flex: 1,
   },
   optionsGrid: {
     flexDirection: 'row',

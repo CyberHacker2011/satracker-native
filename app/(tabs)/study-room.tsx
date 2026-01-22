@@ -151,9 +151,11 @@ export default function StudyRoomScreen() {
         if (planIdParam) {
             const selected = enhanced.find(p => p.id === planIdParam);
             if (selected) {
-                if (selected.isMarked) {
-                    Alert.alert("Completed", "This mission is already archived.");
-                    router.replace("/(tabs)/study-room");
+                if (selected.isMarked || selected.isPast) {
+                    const msg = selected.isMarked ? "This mission is already completed." : "This mission has expired.";
+                    if (Platform.OS === 'web') window.alert(msg);
+                    else Alert.alert("Mission Unavailable", msg);
+                    router.replace("/(tabs)");
                     return;
                 }
                 setPlan(selected);
@@ -198,6 +200,11 @@ export default function StudyRoomScreen() {
 
   useEffect(() => {
     loadData();
+    // Add 1-minute ticker to keep plan status (upcoming/expired) fresh
+    const interval = setInterval(() => {
+        loadData();
+    }, 60000);
+    return () => clearInterval(interval);
   }, [planIdParam]);
 
   // Handle persistence
@@ -423,7 +430,7 @@ export default function StudyRoomScreen() {
                         </View>
                     </Card>
 
-                    <Button title="Engage Mission" style={{ marginTop: 40, height: 64 }} onPress={() => {
+                    <Button title="Enter Study Room" style={{ marginTop: 40, height: 60 }} onPress={() => {
                         start(settings);
                         setIsSettingUp(false);
                     }} />
@@ -461,72 +468,80 @@ export default function StudyRoomScreen() {
   // --- View: Active Execution ---
   return (
     <ThemedView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.execHeader}>
-            <TouchableOpacity onPress={handleQuit}>
-                <View style={[styles.quitBtn, { backgroundColor: theme.card }]}>
-                    <ThemedText style={styles.quitText}>QUIT SESSION</ThemedText>
-                </View>
-            </TouchableOpacity>
-            
-            <View style={styles.dashDots}>
-                {Array.from({ length: settings.sessions }).map((_, i) => (
-                    <View 
-                        key={i} 
-                        style={[
-                            styles.dashDot, 
-                            { backgroundColor: (i + 1) === currentSession ? (mode === 'break' ? '#10b981' : theme.primary) : theme.border },
-                            (i + 1) < currentSession && { backgroundColor: '#10b981' }
-                        ]} 
-                    />
-                ))}
-            </View>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.execScrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.execHeader}>
+              <TouchableOpacity onPress={handleQuit}>
+                  <View style={[styles.quitBtn, { backgroundColor: theme.card }]}>
+                      <ThemedText style={styles.quitText}>QUIT SESSION</ThemedText>
+                  </View>
+              </TouchableOpacity>
+              
+              <View style={styles.dashDots}>
+                  {Array.from({ length: settings.sessions }).map((_, i) => (
+                      <View 
+                          key={i} 
+                          style={[
+                              styles.dashDot, 
+                              { backgroundColor: (i + 1) === currentSession ? (mode === 'break' ? '#10b981' : theme.primary) : theme.border },
+                              (i + 1) < currentSession && { backgroundColor: '#10b981' }
+                          ]} 
+                      />
+                  ))}
+              </View>
 
-            <View style={[styles.execBadge, { backgroundColor: mode === 'break' ? '#10b981' : theme.primary }]}>
-                <ThemedText style={styles.execBadgeText}>{mode.toUpperCase()}</ThemedText>
-            </View>
-        </View>
+              <View style={[styles.execBadge, { backgroundColor: mode === 'break' ? '#10b981' : theme.primary }]}>
+                  <ThemedText style={styles.execBadgeText}>{mode.toUpperCase()}</ThemedText>
+              </View>
+          </View>
 
-        <View style={styles.timerCenter}>
-            <Animated.View style={[styles.timerRing, animatedCircleStyle]}>
-                 <ThemedText style={[styles.activeTimerVal, { fontSize: timeLeft >= 3600 ? 54 : 82 }]}>
-                    {formatTime(timeLeft)}
-                </ThemedText>
-                <ThemedText style={styles.sessionStatus}>Part {currentSession} of {settings.sessions}</ThemedText>
-            </Animated.View>
-        </View>
+          <View style={styles.globalProgressBox}>
+              <View style={styles.progressLabelRow}>
+                  <ThemedText style={styles.progressNote}>OVERALL COMPLETION</ThemedText>
+                  <ThemedText style={[styles.progressPct, { color: mode === 'break' ? '#10b981' : theme.primary }]}>{getGlobalProgress()}%</ThemedText>
+              </View>
+              <View style={[styles.barContainer, { backgroundColor: theme.card }]}>
+                  <View style={[styles.barFill, { width: `${getGlobalProgress()}%`, backgroundColor: mode === 'break' ? '#10b981' : theme.primary }]} />
+              </View>
+          </View>
 
-        <View style={styles.actionRow}>
-            <TouchableOpacity 
-                style={[styles.bigPlay, { backgroundColor: theme.primary }]}
-                onPress={toggle}
-            >
-                {isRunning ? <Pause color="#fff" size={40} fill="#fff" /> : <Play color="#fff" size={40} fill="#fff" style={{ marginLeft: 4 }} />}
-            </TouchableOpacity>
-            <TouchableOpacity 
-                style={[styles.resetIconButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-                onPress={() => setResetModalVisible(true)}
-            >
-                <RefreshCw color={theme.textPrimary} size={28} />
-            </TouchableOpacity>
-        </View>
+          <View style={styles.mainExecArea}>
+              <View style={styles.timerSide}>
+                  <View style={styles.timerCenter}>
+                      <Animated.View style={[styles.timerRing, animatedCircleStyle]}>
+                          <ThemedText style={[styles.activeTimerVal, { fontSize: timeLeft >= 3600 ? 56 : 72 }]}>
+                              {formatTime(timeLeft)}
+                          </ThemedText>
+                          <ThemedText style={styles.sessionStatus}>Part {currentSession} of {settings.sessions}</ThemedText>
+                      </Animated.View>
+                  </View>
 
-        <View style={styles.globalProgressBox}>
-            <View style={styles.progressLabelRow}>
-                <ThemedText style={styles.progressNote}>OVERALL COMPLETION</ThemedText>
-                <ThemedText style={[styles.progressPct, { color: mode === 'break' ? '#10b981' : theme.primary }]}>{getGlobalProgress()}%</ThemedText>
-            </View>
-            <View style={[styles.barContainer, { backgroundColor: theme.card }]}>
-                <View style={[styles.barFill, { width: `${getGlobalProgress()}%`, backgroundColor: mode === 'break' ? '#10b981' : theme.primary }]} />
-            </View>
-        </View>
+                  <View style={styles.actionRow}>
+                      <TouchableOpacity 
+                          style={[styles.bigPlay, { backgroundColor: theme.primary }]}
+                          onPress={toggle}
+                      >
+                          {isRunning ? <Pause color="#fff" size={36} fill="#fff" /> : <Play color="#fff" size={36} fill="#fff" style={{ marginLeft: 4 }} />}
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                          style={[styles.resetIconButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                          onPress={() => setResetModalVisible(true)}
+                      >
+                          <RefreshCw color={theme.textPrimary} size={24} />
+                      </TouchableOpacity>
+                  </View>
+              </View>
 
-        <View style={{ flex: 1, marginTop: 40 }}>
-            <Heading style={{ fontSize: 12, opacity: 0.3, letterSpacing: 2, marginBottom: 15 }}>ACTIVE OBJECTIVE</Heading>
-            <Card style={styles.objectiveCard}>
-                <ThemedText style={styles.objectiveText}>{plan.tasks_text}</ThemedText>
-            </Card>
-        </View>
+              <View style={styles.objectiveSide}>
+                  <Heading style={{ fontSize: 10, opacity: 0.3, letterSpacing: 2, marginBottom: 12 }}>MISSION OBJECTIVE</Heading>
+                  <Card style={styles.objectiveCard}>
+                      <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }} nestedScrollEnabled>
+                          <ThemedText style={styles.objectiveText}>{plan.tasks_text}</ThemedText>
+                      </ScrollView>
+                  </Card>
+              </View>
+          </View>
+        </ScrollView>
       </SafeAreaView>
 
       <ConfirmModal 
@@ -576,6 +591,10 @@ export default function StudyRoomScreen() {
 }
 
 const styles = StyleSheet.create({
+  execScrollContent: {
+      padding: 24,
+      paddingBottom: 40,
+  },
   center: {
     flex: 1,
     justifyContent: "center",
@@ -766,7 +785,7 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 40,
+      marginBottom: 20,
   },
   quitBtn: {
       paddingHorizontal: 16,
@@ -797,39 +816,55 @@ const styles = StyleSheet.create({
       fontSize: 10,
       fontWeight: '900',
   },
+  mainExecArea: {
+      flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+      gap: 32,
+      flex: 1,
+      alignItems: 'center',
+  },
+  timerSide: {
+      flex: Platform.OS === 'web' ? 0.7 : 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+  },
+  objectiveSide: {
+      flex: Platform.OS === 'web' ? 0.3 : 1,
+      minWidth: 200,
+  },
   timerCenter: {
       alignItems: 'center',
-      marginBottom: 40,
+      marginBottom: 30,
   },
   timerRing: {
-      width: 300,
-      height: 300,
-      borderRadius: 150,
-      borderWidth: 4,
+      width: 320,
+      height: 320,
+      borderRadius: 160,
+      borderWidth: 6,
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: 'rgba(0,0,0,0.01)',
   },
   activeTimerVal: {
       fontWeight: '900',
+      fontSize: 82,
   },
   sessionStatus: {
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: '900',
       opacity: 0.2,
-      marginTop: 10,
+      marginTop: 8,
   },
   actionRow: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
       gap: 32,
-      marginBottom: 40,
+      marginBottom: 30,
   },
   bigPlay: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+      width: 80,
+      height: 80,
+      borderRadius: 40,
       justifyContent: 'center',
       alignItems: 'center',
       shadowOpacity: 0.2,
@@ -837,9 +872,9 @@ const styles = StyleSheet.create({
       elevation: 8,
   },
   resetIconButton: {
-      width: 56,
-      height: 56,
-      borderRadius: 20,
+      width: 48,
+      height: 48,
+      borderRadius: 16,
       borderWidth: 1.5,
       justifyContent: 'center',
       alignItems: 'center',

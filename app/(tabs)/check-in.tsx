@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Dimensions } from "react-native";
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Dimensions, Platform } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
-import { useRouter, Stack, useFocusEffect } from "expo-router";
+import { useRouter, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { getLocalDateString, getLocalTimeString, getMonthYearString } from "../../lib/dateUtils";
 import { ThemedText, Heading } from "../../components/ThemedText";
 import { ThemedView, Card } from "../../components/ThemedView";
 import { Button } from "../../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Check, X, Play, Calendar as CalendarIcon, Clock, ChevronRight, Lock } from "lucide-react-native";
+import { ChevronLeft, Check, X, Play, Calendar as CalendarIcon, Clock, ChevronRight, Lock, Trash2, Edit2 } from "lucide-react-native";
+import { Toast } from "../../components/Toast";
 import { FeedbackErrorModal } from "../../components/FeedbackErrorModal";
 import { checkConnection } from "../../lib/network";
 
@@ -30,6 +31,7 @@ type StudyPlan = {
 export default function CheckInScreen() {
   const { theme, themeName } = useTheme();
   const router = useRouter();
+  const { openPlanId } = useLocalSearchParams<{ openPlanId: string }>();
   
   const [plansByDate, setPlansByDate] = useState<Record<string, StudyPlan[]>>({});
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,17 @@ export default function CheckInScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<'error' | 'success' | 'info'>('error');
+
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
 
   const getCalendarDays = () => {
     const today = new Date();
@@ -123,17 +136,37 @@ export default function CheckInScreen() {
     }, [])
   );
 
-  // Realtime Subscription
+  // Realtime Subscription & Periodical Ticker
   useEffect(() => {
     const channel = supabase.channel('check-in-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'study_plan' }, () => loadData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_log' }, () => loadData())
       .subscribe();
 
+    // Refresh every minute to keep time-based status accurate
+    const interval = setInterval(() => {
+        loadData();
+    }, 60000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (openPlanId && Object.keys(plansByDate).length > 0) {
+        // Find if any date has this plan
+        for (const date of Object.keys(plansByDate)) {
+            const found = plansByDate[date].find(p => p.id === openPlanId);
+            if (found) {
+                setSelectedDate(date);
+                setIsModalVisible(true);
+                break;
+            }
+        }
+    }
+  }, [openPlanId, plansByDate]);
 
   const handleCheckIn = async (plan: StudyPlan, status: Status) => {
     if (plan.isUpcoming) {
@@ -194,6 +227,35 @@ export default function CheckInScreen() {
       setErrorMsg(isOnline ? (e.message || "Failed to save status.") : "No internet connection.");
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    const confirmDelete = async () => {
+        try {
+            await supabase.from("daily_log").delete().eq("plan_id", id);
+            const { error } = await supabase.from("study_plan").delete().eq("id", id);
+            if (error) throw error;
+            showToast("Mission deleted successfully", "success");
+            loadData();
+        } catch (e: any) {
+            showToast(e.message || "Failed to delete mission");
+        }
+    };
+
+    if (Platform.OS === 'web') {
+        if (window.confirm("Are you sure you want to delete this mission? This cannot be undone.")) {
+            confirmDelete();
+        }
+    } else {
+        Alert.alert(
+            "Delete Plan",
+            "Are you sure you want to delete this mission? This cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: confirmDelete }
+            ]
+        );
     }
   };
 
@@ -350,17 +412,23 @@ export default function CheckInScreen() {
                                         <View style={[styles.badge, { backgroundColor: plan.section === 'math' ? '#3b82f6' : plan.section === 'reading' ? '#f59e0b' : '#10b981' }]}>
                                             <ThemedText style={styles.badgeText}>{plan.section.toUpperCase()}</ThemedText>
                                         </View>
-                                        <ThemedText style={styles.planTime}>{plan.start_time} - {plan.end_time}</ThemedText>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                            <TouchableOpacity onPress={() => {
+                                                setIsModalVisible(false);
+                                                router.push(`/(tabs)/plan?editId=${plan.id}`);
+                                            }}>
+                                                <Edit2 size={16} color={theme.primary} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => handleDeletePlan(plan.id)}>
+                                                <Trash2 size={16} color="#ef4444" />
+                                            </TouchableOpacity>
+                                            <ThemedText style={styles.planTime}>{plan.start_time} - {plan.end_time}</ThemedText>
+                                        </View>
                                     </View>
                                     <ThemedText style={styles.planTasks}>{plan.tasks_text}</ThemedText>
                                     
                                     <View style={styles.modalActions}>
-                                        {plan.isUpcoming ? (
-                                            <View style={[styles.lockStatus, { opacity: 0.5 }]}>
-                                                <Lock size={14} color={theme.textSecondary} />
-                                                <ThemedText style={{ fontSize: 11, fontWeight: '700' }}>Starts at {plan.start_time}</ThemedText>
-                                            </View>
-                                        ) : (
+                                        {!plan.isUpcoming && plan.status !== 'done' && (
                                             <TouchableOpacity 
                                                 style={[styles.studyRoomBtn, { borderColor: theme.primary }]}
                                                 onPress={() => {
@@ -369,22 +437,22 @@ export default function CheckInScreen() {
                                                 }}
                                             >
                                                 <Play size={12} color={theme.primary} fill={theme.primary} />
-                                                <ThemedText style={{ color: theme.primary, fontWeight: '800', fontSize: 11 }}>ENGAGE</ThemedText>
+                                                <ThemedText style={{ color: theme.primary, fontWeight: '800', fontSize: 11 }}>ENTER STUDY ROOM</ThemedText>
                                             </TouchableOpacity>
                                         )}
 
                                         <View style={styles.checkGroup}>
                                             <TouchableOpacity 
-                                                style={[styles.miniCheck, { borderColor: theme.border }, plan.status === 'done' && { backgroundColor: '#10b981', borderColor: '#10b981' }, plan.isUpcoming && { opacity: 0.2 }]}
+                                                style={[styles.miniCheck, { borderColor: theme.border }, plan.status === 'done' && { backgroundColor: '#10b981', borderColor: '#10b981' }, (plan.isUpcoming && !plan.status) && { opacity: 0.2 }]}
                                                 onPress={() => handleCheckIn(plan, "done")}
-                                                disabled={plan.isUpcoming}
+                                                disabled={plan.isUpcoming && !plan.status}
                                             >
                                                 <Check color={plan.status === 'done' ? '#fff' : '#10b981'} size={18} />
                                             </TouchableOpacity>
                                             <TouchableOpacity 
-                                                style={[styles.miniCheck, { borderColor: theme.border }, plan.status === 'missed' && { backgroundColor: '#ef4444', borderColor: '#ef4444' }, plan.isUpcoming && { opacity: 0.2 }]}
+                                                style={[styles.miniCheck, { borderColor: theme.border }, plan.status === 'missed' && { backgroundColor: '#ef4444', borderColor: '#ef4444' }, (plan.isUpcoming && !plan.status) && { opacity: 0.2 }]}
                                                 onPress={() => handleCheckIn(plan, "missed")}
-                                                disabled={plan.isUpcoming}
+                                                disabled={plan.isUpcoming && !plan.status}
                                             >
                                                 <X color={plan.status === 'missed' ? '#fff' : '#ef4444'} size={18} />
                                             </TouchableOpacity>
@@ -398,6 +466,13 @@ export default function CheckInScreen() {
             </View>
         </Modal>
         
+        <Toast 
+            visible={toastVisible} 
+            onDismiss={() => setToastVisible(false)}
+            type={toastType}
+        >
+            {toastMessage}
+        </Toast>
         <FeedbackErrorModal 
             visible={!!errorMsg}
             error={errorMsg}

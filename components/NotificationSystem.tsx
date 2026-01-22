@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { StyleSheet, View, Animated, TouchableOpacity, Dimensions, Platform } from "react-native";
+import { StyleSheet, View, Animated, TouchableOpacity, Dimensions, Platform, Alert } from "react-native";
 import * as Notifications from "expo-notifications";
 import { supabase } from "../lib/supabase";
 import { ThemedText } from "./ThemedText";
@@ -62,12 +62,24 @@ export function NotificationSystem() {
     ]).start(() => setActiveToast(null));
   };
 
+  const userRef = useRef<any>(null);
+
   useEffect(() => {
     let mounted = true;
 
-    async function checkAndCreate() {
+    async function initUser() {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        userRef.current = user;
+    }
+    initUser();
+
+    async function checkAndCreate() {
+        if (!userRef.current) {
+            const { data: { user } } = await supabase.auth.getUser();
+            userRef.current = user;
+        }
+        if (!userRef.current) return;
+        const user = userRef.current;
 
         const now = new Date();
         const year = now.getFullYear();
@@ -83,13 +95,37 @@ export function NotificationSystem() {
 
         if (!plans) return;
 
-        const { data: logs } = await supabase
-            .from("daily_log")
-            .select("plan_id")
-            .eq("user_id", user.id)
-            .eq("date", today);
+        // Fetch logs and existing notifications in parallel for efficiency
+        const [{ data: logs }, { data: todayNotifs }] = await Promise.all([
+            supabase
+                .from("daily_log")
+                .select("plan_id")
+                .eq("user_id", user.id)
+                .eq("date", today),
+            supabase
+                .from("notifications")
+                .select("message")
+                .eq("user_id", user.id)
+                .gte("created_at", today + "T00:00:00")
+        ]);
         
         const loggedPlanIds = new Set((logs || []).map(l => l.plan_id));
+
+        const notifiedStarts = new Set();
+        const notifiedMissed = new Set();
+        let notifiedTomorrow = false;
+
+        if (todayNotifs) {
+            todayNotifs.forEach(n => {
+                const pMatch = n.message.match(/{{planId:(.*?)}}/);
+                if (pMatch) {
+                    const pid = pMatch[1];
+                    if (n.message.includes("ending at")) notifiedMissed.add(pid);
+                    else notifiedStarts.add(pid);
+                }
+                if (n.message.includes("tomorrow")) notifiedTomorrow = true;
+            });
+        }
 
         for (const plan of plans) {
             const hasLog = loggedPlanIds.has(plan.id);
@@ -122,7 +158,7 @@ export function NotificationSystem() {
             const notifyTime = new Date(startDate.getTime() - 60000);
             
             if (now >= notifyTime && now < endDate && !hasLog) {
-                if (!playedSoundsRef.current.has(plan.id + "_start")) {
+                if (!notifiedStarts.has(plan.id) && !playedSoundsRef.current.has(plan.id + "_start")) {
                     const isLate = now >= startDate;
                     const message = (isLate 
                         ? `Your ${plan.section} plan has started (at ${plan.start_time}).`
@@ -139,7 +175,7 @@ export function NotificationSystem() {
 
             // Missed check-in
             if (now >= endDate && !hasLog) {
-                if (!playedSoundsRef.current.has(plan.id + "_missed")) {
+                if (!notifiedMissed.has(plan.id) && !playedSoundsRef.current.has(plan.id + "_missed")) {
                     const message = `Your ${plan.section} plan ending at ${plan.end_time} has no check-in. {{planId:${plan.id}}}`;
                     await supabase.from("notifications").insert({
                         user_id: user.id,
@@ -150,11 +186,34 @@ export function NotificationSystem() {
                 }
             }
         }
+
+        // Tomorrow's plan check
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomDateStr = tomorrow.toISOString().split('T')[0];
+        
+        const { data: tomPlans } = await supabase
+            .from("study_plan")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("date", tomDateStr);
+
+        if ((!tomPlans || tomPlans.length === 0) && now.getHours() >= 18) { // Notify after 6 PM
+            const key = `tomorrow_check_${tomDateStr}`;
+            if (!notifiedTomorrow && !playedSoundsRef.current.has(key)) {
+                await supabase.from("notifications").insert({
+                    user_id: user.id,
+                    message: "You haven't created a plan for tomorrow. Stay organized to succeed! {{goToPlan:true}}",
+                    created_at: new Date().toISOString()
+                });
+                playedSoundsRef.current.add(key);
+            }
+        }
     }
 
     async function checkNotifications() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!userRef.current) return;
+      const user = userRef.current;
 
       const { data } = await supabase
         .from("notifications")
@@ -212,7 +271,9 @@ export function NotificationSystem() {
 
   const planMatch = activeToast.message.match(/{{planId:(.*?)}}/);
   const planId = planMatch?.[1];
-  const cleanMessage = activeToast.message.replace(/{{planId:.*?}}/g, "").trim();
+  const goToPlan = activeToast.message.includes("{{goToPlan:true}}");
+  const cleanMessage = activeToast.message.replace(/{{planId:.*?}}/g, "").replace(/{{goToPlan:true}}/g, "").trim();
+  const isMissed = activeToast.message.includes("no check-in");
 
   return (
     <Animated.View style={[
@@ -230,16 +291,46 @@ export function NotificationSystem() {
             </TouchableOpacity>
         </View>
         <ThemedText style={styles.message} numberOfLines={2}>{cleanMessage}</ThemedText>
-        {planId && (
+        {goToPlan && (
             <TouchableOpacity 
                 style={[styles.action, { backgroundColor: theme.primary }]}
                 onPress={() => {
                     hideToast();
-                    router.push(`/(tabs)/study-room?planId=${planId}`);
+                    router.push("/(tabs)/plan");
                 }}
             >
                 <Play size={10} color="#fff" fill="#fff" />
-                <ThemedText style={styles.actionText}>Enter Study Room</ThemedText>
+                <ThemedText style={styles.actionText}>Go to Planner</ThemedText>
+            </TouchableOpacity>
+        )}
+
+        {planId && (
+            <TouchableOpacity 
+                style={[styles.action, { backgroundColor: theme.primary }]}
+                onPress={async () => {
+                    const { data: log } = await supabase.from("daily_log").select("status").eq("plan_id", planId).maybeSingle();
+                    
+                    // Check if plan is past
+                    const { data: planData } = await supabase.from("study_plan").select("date, end_time").eq("id", planId).single();
+                    const isPast = planData ? (new Date() > new Date(planData.date + "T" + planData.end_time)) : false;
+
+                    if (log || isPast) {
+                        const msg = log ? (log.status === 'done' ? "This mission is already completed." : "This mission is closed.") : "This mission has expired.";
+                        if (Platform.OS === 'web') window.alert(msg);
+                        else Alert.alert("Plan Unavailable", msg);
+                        hideToast();
+                        return;
+                    }
+                    hideToast();
+                    if (isMissed) {
+                        router.push(`/(tabs)/check-in?openPlanId=${planId}`);
+                    } else {
+                        router.push(`/(tabs)/study-room?planId=${planId}`);
+                    }
+                }}
+            >
+                <Play size={10} color="#fff" fill="#fff" />
+                <ThemedText style={styles.actionText}>{isMissed ? "Check-in Now" : "Enter Study Room"}</ThemedText>
             </TouchableOpacity>
         )}
       </Card>
@@ -247,21 +338,27 @@ export function NotificationSystem() {
   );
 }
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   toastContainer: {
     position: "absolute",
-    top: 50,
-    left: 20,
-    right: 20,
+    top: 60,
+    right: 16,
+    width: width * 0.85,
+    maxWidth: 340,
     zIndex: 9999,
   },
   toastCard: {
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 10,
     padding: 16,
-    borderWidth: 2,
-    borderColor: "rgba(0,0,0,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.1)",
   },
   header: {
       flexDirection: "row",
@@ -273,7 +370,7 @@ const styles = StyleSheet.create({
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      backgroundColor: "rgba(245, 158, 11, 0.1)",
+      backgroundColor: "rgba(245, 158, 11, 0.12)",
       paddingHorizontal: 8,
       paddingVertical: 4,
       borderRadius: 20,
@@ -294,8 +391,8 @@ const styles = StyleSheet.create({
       alignItems: "center",
       justifyContent: "center",
       gap: 8,
-      paddingVertical: 8,
-      borderRadius: 10,
+      paddingVertical: 10,
+      borderRadius: 12,
   },
   actionText: {
       color: "#fff",
