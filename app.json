@@ -4,7 +4,7 @@
     "slug": "satracker-native",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/favicon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -23,7 +23,16 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "name": "SAT Tracker - Mission Control",
+      "shortName": "SAT Tracker",
+      "description": "Premium SAT preparation and tracker app."
+    },
+    "scheme": "satracker-native",
+    "githubUrl": "https://github.com/CyberHacker2011/satracker-native",
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

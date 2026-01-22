@@ -1,0 +1,40 @@
+export const Colors = {
+  light: {
+    background: "#f9fafb",
+    card: "#ffffff",
+    textPrimary: "#111827",
+    textSecondary: "#4b5563",
+    textInverse: "#ffffff",
+    primary: "#f59e0b",
+    primaryDark: "#d97706",
+    primaryLight: "#fffbeb",
+    accent: "#3b82f6",
+    border: "#e5e7eb",
+  },
+  dark: {
+    background: "#0f172a",
+    card: "#1e293b",
+    textPrimary: "#f8fafc",
+    textSecondary: "#94a3b8",
+    textInverse: "#ffffff",
+    primary: "#ef4444",
+    primaryDark: "#dc2626",
+    primaryLight: "#450a0a",
+    accent: "#3b82f6",
+    border: "#334155",
+  },
+  blue: {
+    background: "#f0f9ff",
+    card: "#ffffff",
+    textPrimary: "#0f172a",
+    textSecondary: "#475569",
+    textInverse: "#ffffff",
+    primary: "#3b82f6",
+    primaryDark: "#2563eb",
+    primaryLight: "#eff6ff",
+    accent: "#f59e0b",
+    border: "#e2e8f0",
+  },
+};
+
+export type ThemeName = "light" | "dark" | "blue";

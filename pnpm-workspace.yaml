@@ -1,1 +1,8 @@
+packages:
+  - .
+  - electron
+
 nodeLinker: hoisted
+
+onlyBuiltDependencies:
+  - electron
