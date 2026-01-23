@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Dimensions, Platform } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { useRouter, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { getLocalDateString, getLocalTimeString, getMonthYearString } from "../../lib/dateUtils";
@@ -30,6 +31,7 @@ type StudyPlan = {
 
 export default function CheckInScreen() {
   const { theme, themeName } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const { openPlanId } = useLocalSearchParams<{ openPlanId: string }>();
   
@@ -124,7 +126,7 @@ export default function CheckInScreen() {
     } catch (e: any) {
       console.error(e);
       const isOnline = await checkConnection();
-      setErrorMsg(isOnline ? (e.message || "Failed to load plans.") : "No internet connection.");
+      setErrorMsg(isOnline ? (e.message || t('failedLoadPlans')) : t('noInternet'));
     } finally {
       setLoading(false);
     }
@@ -170,7 +172,7 @@ export default function CheckInScreen() {
 
   const handleCheckIn = async (plan: StudyPlan, status: Status) => {
     if (plan.isUpcoming) {
-        Alert.alert("Locked", "You can only check in after the plan starts.");
+        Alert.alert(t('locked'), t('onlyCheckInAfterStart'));
         return;
     }
     setSavingId(plan.id);
@@ -224,7 +226,7 @@ export default function CheckInScreen() {
       // Revert optimization on error (simple reload)
       loadData();
       const isOnline = await checkConnection();
-      setErrorMsg(isOnline ? (e.message || "Failed to save status.") : "No internet connection.");
+      setErrorMsg(isOnline ? (e.message || t('failedSaveStatus')) : t('noInternet'));
     } finally {
       setSavingId(null);
     }
@@ -236,31 +238,31 @@ export default function CheckInScreen() {
             await supabase.from("daily_log").delete().eq("plan_id", id);
             const { error } = await supabase.from("study_plan").delete().eq("id", id);
             if (error) throw error;
-            showToast("Mission deleted successfully", "success");
+            showToast(t('missionDeleted'), "success");
             loadData();
         } catch (e: any) {
-            showToast(e.message || "Failed to delete mission");
+            showToast(e.message || t('failedDelete'));
         }
     };
 
     if (Platform.OS === 'web') {
-        if (window.confirm("Are you sure you want to delete this mission? This cannot be undone.")) {
+        if (window.confirm(t('sureDelete'))) {
             confirmDelete();
         }
     } else {
         Alert.alert(
-            "Delete Plan",
-            "Are you sure you want to delete this mission? This cannot be undone.",
+            t('deletePlan'),
+            t('sureDelete'),
             [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: confirmDelete }
+                { text: t('cancel'), style: "cancel" },
+                { text: t('delete'), style: "destructive", onPress: confirmDelete }
             ]
         );
     }
   };
 
   const calendarDays = getCalendarDays();
-  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayLabels = [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')];
 
   const openDayDetails = (date: string) => {
     setSelectedDate(date);
@@ -270,7 +272,7 @@ export default function CheckInScreen() {
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen options={{ 
-        title: "Check-in",
+        title: t('checkIn'),
         headerShown: true,
         headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 16 }}>
@@ -290,10 +292,10 @@ export default function CheckInScreen() {
                 <ChevronLeft size={24} color={theme.textPrimary} />
             </TouchableOpacity>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Heading style={styles.title}>Check-in</Heading>
-                <ThemedText style={{ fontSize: 12, fontWeight: '800', opacity: 0.5 }}>{getMonthYearString(getLocalDateString())}</ThemedText>
+                <Heading style={styles.title}>{t('checkIn')}</Heading>
+                <ThemedText style={{ fontSize: 12, fontWeight: '800', opacity: 0.5 }}>{getMonthYearString(getLocalDateString(), t)}</ThemedText>
             </View>
-            <ThemedText style={styles.subtitle}>Click a day to view or mark plans</ThemedText>
+            <ThemedText style={styles.subtitle}>{t('timelineSub')}</ThemedText>
                 </View>
 
                 {/* Calendar Table */}
@@ -344,27 +346,27 @@ export default function CheckInScreen() {
                 <View style={styles.legend}>
                     <View style={styles.legendItem}>
                         <View style={[styles.planDot, { backgroundColor: theme.primary }]} />
-                        <ThemedText style={styles.legendText}>Incomplete</ThemedText>
+                        <ThemedText style={styles.legendText}>{t('incomplete')}</ThemedText>
                     </View>
                     <View style={styles.legendItem}>
                         <View style={[styles.planDot, { backgroundColor: "#10b981" }]} />
-                        <ThemedText style={styles.legendText}>Finished</ThemedText>
+                        <ThemedText style={styles.legendText}>{t('finished')}</ThemedText>
                     </View>
                 </View>
 
                 <Button 
-                    title="Schedule New Mission" 
+                    title={t('scheduleNewMission')} 
                     onPress={() => router.push("/(tabs)/plan")}
                     style={{ marginTop: 20 }}
                 />
 
                 <View style={styles.infoSection}>
-                    <Heading style={styles.infoTitle}>How it works</Heading>
+                    <Heading style={styles.infoTitle}>{t('howItWorks')}</Heading>
                     <ThemedText style={styles.infoText}>
-                        Sessions become available for check-in after their scheduled start time. Mark your plans as "Completed" if you finished your tasks, or "Missed" if you couldn't make it.
+                        {t('checkInInfo1')}
                     </ThemedText>
                     <ThemedText style={[styles.infoText, { marginTop: 8 }]}>
-                        Consistent check-ins help you track your progress and maintain study accountability over time.
+                        {t('checkInInfo2')}
                     </ThemedText>
                 </View>
             </ScrollView>
@@ -390,7 +392,7 @@ export default function CheckInScreen() {
                     <ScrollView style={styles.modalScroll}>
                         {!selectedDate || !plansByDate[selectedDate] || plansByDate[selectedDate].length === 0 ? (
                             <View style={styles.emptyModal}>
-                                <ThemedText style={styles.emptyText}>No plans for this day.</ThemedText>
+                                <ThemedText style={styles.emptyText}>{t('noCheckIns')}</ThemedText>
                                 <TouchableOpacity 
                                     style={[styles.addBtn, { borderColor: theme.primary }]}
                                     onPress={() => {
@@ -398,7 +400,7 @@ export default function CheckInScreen() {
                                         router.push("/(tabs)/plan");
                                     }}
                                 >
-                                    <ThemedText style={{ color: theme.primary, fontWeight: '800' }}>Schedule Now →</ThemedText>
+                                    <ThemedText style={{ color: theme.primary, fontWeight: '800' }}>{t('scheduleNow')}</ThemedText>
                                 </TouchableOpacity>
                             </View>
                         ) : (
@@ -410,7 +412,7 @@ export default function CheckInScreen() {
                                 ]}>
                                     <View style={styles.planHeader}>
                                         <View style={[styles.badge, { backgroundColor: plan.section === 'math' ? '#3b82f6' : plan.section === 'reading' ? '#f59e0b' : '#10b981' }]}>
-                                            <ThemedText style={styles.badgeText}>{plan.section.toUpperCase()}</ThemedText>
+                                            <ThemedText style={styles.badgeText}>{t(plan.section)}</ThemedText>
                                         </View>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                                             <TouchableOpacity onPress={() => {
@@ -437,7 +439,7 @@ export default function CheckInScreen() {
                                                 }}
                                             >
                                                 <Play size={12} color={theme.primary} fill={theme.primary} />
-                                                <ThemedText style={{ color: theme.primary, fontWeight: '800', fontSize: 11 }}>ENTER STUDY ROOM</ThemedText>
+                                                <ThemedText style={{ color: theme.primary, fontWeight: '800', fontSize: 11 }}>{t('enterStudyRoom')}</ThemedText>
                                             </TouchableOpacity>
                                         )}
 

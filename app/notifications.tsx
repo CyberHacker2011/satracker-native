@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import { useRouter, Stack } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { ThemedText, Heading } from "../components/ThemedText";
@@ -19,6 +20,7 @@ type Notification = {
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -42,7 +44,7 @@ export default function NotificationsScreen() {
     } catch (e: any) {
       console.error(e);
       const isOnline = await checkConnection();
-      setErrorMsg(isOnline ? (e.message || "Failed to load notifications.") : "No internet connection.");
+      setErrorMsg(isOnline ? (e.message || t('failedLoadPlans')) : t('noInternet'));
       setErrorVisible(true);
     } finally {
       setLoading(false);
@@ -76,7 +78,7 @@ export default function NotificationsScreen() {
       // Local update for speed
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, dismissed_at: new Date().toISOString() } : n));
     } catch (e: any) {
-      Alert.alert("Error", e.message);
+      Alert.alert(t('error'), e.message);
     }
   };
   
@@ -107,14 +109,19 @@ export default function NotificationsScreen() {
     const planMatch = n.message.match(/{{planId:(.*?)}}/);
     const planId = planMatch?.[1];
     const goToPlan = n.message.includes("{{goToPlan:true}}");
-    const cleanMessage = n.message.replace(/{{planId:.*?}}/g, "").replace(/{{goToPlan:true}}/g, "").trim();
+    const cleanMessage = n.message
+      .replace(/{{planId:.*?}}/g, "")
+      .replace(/{{goToPlan:true}}/g, "")
+      .replace(/{{type:.*?}}/g, "")
+      .replace(/{{endTime:.*?}}/g, "")
+      .trim();
     const isLong = cleanMessage.length > 70;
 
     return (
       <Card style={[styles.notifCard, !isNew && { opacity: 0.6, backgroundColor: theme.background }]}>
         <View style={styles.notifHeader}>
           <ThemedText style={styles.notifTime}>
-            {new Date(n.created_at).toLocaleDateString()} at {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date(n.created_at).toLocaleDateString()} {t('at')} {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </ThemedText>
           {isNew && (
             <TouchableOpacity onPress={() => handleDismiss(n.id)}>
@@ -126,7 +133,7 @@ export default function NotificationsScreen() {
         
         {isLong && (
             <TouchableOpacity onPress={() => setExpanded(!expanded)} style={{ marginTop: 4 }}>
-                <ThemedText style={[styles.readMore, { color: theme.primary }]}>{expanded ? "Show Less" : "Show More"}</ThemedText>
+                <ThemedText style={[styles.readMore, { color: theme.primary }]}>{expanded ? t('showLess') : t('showMore')}</ThemedText>
             </TouchableOpacity>
         )}
 
@@ -136,7 +143,7 @@ export default function NotificationsScreen() {
             onPress={() => router.push("/(tabs)/plan")}
           >
             <CalendarIcon size={12} color="#fff" />
-            <ThemedText style={styles.actionText}>Go to Planner</ThemedText>
+            <ThemedText style={styles.actionText}>{t('goToPlanner')}</ThemedText>
           </TouchableOpacity>
         )}
 
@@ -151,10 +158,13 @@ export default function NotificationsScreen() {
                 const now = new Date();
                 const isPast = planData ? (now > new Date(planData.date + "T" + planData.end_time)) : false;
 
-                if (log || isPast) {
-                    const msg = log ? (log.status === 'done' ? "This mission is already completed." : "This mission is closed.") : "This mission has expired.";
+                const isMissed = n.message.includes("{{type:plan_missed}}");
+                const canCheckInPast = isMissed && !log;
+
+                if (log || (isPast && !canCheckInPast)) {
+                    const msg = log ? (log.status === 'done' ? t('alreadyCompleted') : t('planClosed')) : t('alreadyExpired');
                     if (Platform.OS === 'web') window.alert(msg);
-                    else Alert.alert("Plan Unavailable", msg);
+                    else Alert.alert(t('planUnavailable'), msg);
                     return;
                 }
                 if (cleanMessage.includes("no check-in")) {
@@ -165,7 +175,7 @@ export default function NotificationsScreen() {
             }}
           >
             <Play size={12} color="#fff" fill="#fff" />
-            <ThemedText style={styles.actionText}>{cleanMessage.includes("no check-in") ? "Check-in Now" : "Enter Study Room"}</ThemedText>
+            <ThemedText style={styles.actionText}>{cleanMessage.includes("no check-in") ? t('checkInNow') : t('goToStudyRoom')}</ThemedText>
           </TouchableOpacity>
         )}
       </Card>
@@ -181,7 +191,7 @@ export default function NotificationsScreen() {
         onRetry={loadNotifications}
       />
       <Stack.Screen options={{ 
-        title: "Notifications",
+        title: t('notifications'),
         headerShown: true,
         headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
@@ -206,19 +216,19 @@ export default function NotificationsScreen() {
                 {notifications.length === 0 ? (
                     <View style={styles.empty}>
                         <BellOff size={64} color={theme.textSecondary} opacity={0.2} />
-                        <ThemedText style={styles.emptyText}>No notifications yet</ThemedText>
+                        <ThemedText style={styles.emptyText}>{t('noNotificationsYet')}</ThemedText>
                     </View>
                 ) : (
                     <>
                         {active.length > 0 && (
                             <View style={styles.group}>
-                                <ThemedText style={styles.groupLabel}>NEW UPDATES</ThemedText>
+                                <ThemedText style={styles.groupLabel}>{t('newUpdates')}</ThemedText>
                                 {active.map(n => <NotificationItem key={n.id} n={n} isNew={true} />)}
                             </View>
                         )}
                         {past.length > 0 && (
                             <View style={styles.group}>
-                                <ThemedText style={styles.groupLabel}>PAST NOTIFICATIONS</ThemedText>
+                                <ThemedText style={styles.groupLabel}>{t('pastNotifications')}</ThemedText>
                                 {past.map(n => <NotificationItem key={n.id} n={n} isNew={false} />)}
                             </View>
                         )}

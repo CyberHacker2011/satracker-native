@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View, TextInput, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { getLocalDateString, getLocalTimeString, getMonthYearString } from "../../lib/dateUtils";
@@ -17,6 +18,7 @@ type Section = "math" | "reading" | "writing";
 
 export default function PlanScreen() {
   const { theme, themeName } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const { editId } = useLocalSearchParams<{ editId: string }>();
 
@@ -73,7 +75,7 @@ export default function PlanScreen() {
       }
     } catch (e) {
       console.error(e);
-      showToast("Failed to load plan for editing.");
+      showToast(t('failedLoadPlan'));
     } finally {
       setLoading(false);
     }
@@ -96,7 +98,7 @@ export default function PlanScreen() {
 
   const handleSave = async () => {
     if (!tasks) {
-      showToast("Please enter some tasks");
+      showToast(t('pleaseEnterTasks'));
       return;
     }
 
@@ -104,7 +106,7 @@ export default function PlanScreen() {
     const [endH, endM] = endTime.split(":").map(Number);
 
     if (startM > 59 || endM > 59) {
-        showToast("Minutes cannot exceed 59.");
+        showToast(t('minutesExceed59'));
         return;
     }
     
@@ -119,13 +121,13 @@ export default function PlanScreen() {
     nowCompare.setSeconds(0, 0);
 
     if (endObj < nowCompare) {
-      showToast("The mission end time must be in the future.");
+      showToast(t('endTimeFuture'));
       return;
     }
 
     const durationMin = (endObj.getTime() - startObj.getTime()) / (1000 * 60);
     if (durationMin < 5) {
-        showToast("Minimum plan duration is 5 minutes.");
+        showToast(t('minDuration'));
         return;
     }
 
@@ -149,7 +151,7 @@ export default function PlanScreen() {
 
       if (error) throw error;
       
-      showToast(editId ? "Mission updated successfully!" : "Mission committed successfully!", "success");
+      showToast(editId ? t('missionUpdated') : t('missionCommitted'), "success");
       setTasks("");
       setTimeout(() => {
         router.push("/(tabs)");
@@ -158,8 +160,8 @@ export default function PlanScreen() {
       console.error(error);
       const isOnline = await checkConnection();
       const msg = isOnline 
-        ? (error.message || "Failed to save plan. Server error.") 
-        : "No internet connection. Please check your network and try again.";
+        ? (error.message || t('failedSavePlan')) 
+        : t('noInternet');
       setErrorMsg(msg);
       setErrorVisible(true);
     } finally {
@@ -168,7 +170,7 @@ export default function PlanScreen() {
   };
 
   const calendarDays = getCalendarDays();
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayNames = [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')];
 
   const renderTimeDropdown = (type: "start" | "end") => {
     const current = type === "start" ? startTime : endTime;
@@ -178,7 +180,7 @@ export default function PlanScreen() {
         <Card style={[styles.timeDropdown, { borderColor: theme.border }]}>
             <View style={styles.dropdownCols}>
                 <View style={styles.dropdownCol}>
-                    <ThemedText style={styles.colLabel}>HOUR</ThemedText>
+                    <ThemedText style={styles.colLabel}>{t('hour')}</ThemedText>
                     <ScrollView style={styles.colScroll} nestedScrollEnabled>
                         {hours.map(hour => (
                             <TouchableOpacity 
@@ -196,7 +198,7 @@ export default function PlanScreen() {
                 </View>
                 <View style={[styles.colDivider, { backgroundColor: theme.border }]} />
                 <View style={styles.dropdownCol}>
-                    <ThemedText style={styles.colLabel}>MIN</ThemedText>
+                    <ThemedText style={styles.colLabel}>{t('min')}</ThemedText>
                     <ScrollView style={styles.colScroll} nestedScrollEnabled>
                         {minutes.map(min => (
                             <TouchableOpacity 
@@ -241,8 +243,8 @@ export default function PlanScreen() {
             <TouchableOpacity onPress={() => router.push("/(tabs)")} style={{ marginBottom: 12, alignSelf: 'flex-start', padding: 8, backgroundColor: theme.card, borderRadius: 12, borderWidth: 1, borderColor: theme.border }}>
                 <ChevronLeft size={24} color={theme.textPrimary} />
             </TouchableOpacity>
-            <Heading style={styles.title}>{editId ? "Edit Plan" : "Plan"}</Heading>
-            <ThemedText style={styles.subtitle}>{editId ? "Refine your mission." : "Design your path to mastery."}</ThemedText>
+            <Heading style={styles.title}>{editId ? t('editPlan') : t('plan')}</Heading>
+            <ThemedText style={styles.subtitle}>{editId ? t('refineMission') : t('designPath')}</ThemedText>
           </View>
 
           {/* New Calendar Grid */}
@@ -250,9 +252,9 @@ export default function PlanScreen() {
               <View style={[styles.calHeader, { justifyContent: 'space-between' }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <CalendarIcon size={16} color={theme.primary} />
-                    <ThemedText style={styles.calTitle}>Select Schedule Date</ThemedText>
+                    <ThemedText style={styles.calTitle}>{t('selectScheduleDate')}</ThemedText>
                   </View>
-                  <ThemedText style={[styles.calTitle, { opacity: 0.8 }]}>{getMonthYearString(date)}</ThemedText>
+                  <ThemedText style={[styles.calTitle, { opacity: 0.8 }]}>{getMonthYearString(date, t)}</ThemedText>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calScroll}>
                   {calendarDays.map((d, i) => {
@@ -281,7 +283,7 @@ export default function PlanScreen() {
               <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
                       <BookOpen size={18} color={theme.primary} />
-                      <ThemedText style={styles.label}>Focus Area</ThemedText>
+                      <ThemedText style={styles.label}>{t('focusArea')}</ThemedText>
                   </View>
                   <View style={styles.tabRow}>
                       {(["math", "reading", "writing"] as Section[]).map(s => (
@@ -290,7 +292,7 @@ export default function PlanScreen() {
                               onPress={() => setSection(s)}
                               style={[styles.tab, { borderColor: theme.border, backgroundColor: theme.card }, section === s && { backgroundColor: theme.primary, borderColor: theme.primary }]}
                           >
-                              <ThemedText style={[styles.tabText, section === s && { color: '#fff' }]}>{s.toUpperCase()}</ThemedText>
+                              <ThemedText style={[styles.tabText, section === s && { color: '#fff' }]}>{t(s)}</ThemedText>
                           </TouchableOpacity>
                       ))}
                   </View>
@@ -299,7 +301,7 @@ export default function PlanScreen() {
               {/* Time Selection */}
               <View style={styles.timeSection}>
                   <View style={styles.timeInput}>
-                      <ThemedText style={styles.labelSmall}>START TIME</ThemedText>
+                      <ThemedText style={styles.labelSmall}>{t('startTime')}</ThemedText>
                       <View style={styles.manualTimeRow}>
                         <TextInput 
                             style={[styles.manualTimeInput, { color: theme.textPrimary, borderColor: theme.border }]}
@@ -320,7 +322,7 @@ export default function PlanScreen() {
                       {showTimePicker === "start" && renderTimeDropdown("start")}
                   </View>
                   <View style={styles.timeInput}>
-                      <ThemedText style={styles.labelSmall}>END TIME</ThemedText>
+                      <ThemedText style={styles.labelSmall}>{t('endTime')}</ThemedText>
                       <View style={styles.manualTimeRow}>
                         <TextInput 
                             style={[styles.manualTimeInput, { color: theme.textPrimary, borderColor: theme.border }]}
@@ -344,10 +346,10 @@ export default function PlanScreen() {
 
               {/* Tasks */}
               <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Execution Tasks</ThemedText>
+                  <ThemedText style={styles.label}>{t('executionTasks')}</ThemedText>
                   <TextInput 
                       style={[styles.textArea, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
-                      placeholder="Divide your session into specific tasks..."
+                      placeholder={t('divideSession')}
                       placeholderTextColor={theme.textSecondary + '80'}
                       multiline
                       value={tasks}
@@ -358,15 +360,15 @@ export default function PlanScreen() {
               </View>
 
               <Button 
-                title={loading ? "Saving..." : editId ? "Update Mission" : "Commit Mission"} 
+                title={loading ? t('saving') : editId ? t('updateMission') : t('commitMission')} 
                 onPress={handleSave} 
                 loading={loading}
                 style={styles.saveBtn}
               />
               <View style={[styles.instructions, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <ThemedText style={[styles.instTitle, { color: theme.primary }]}>Instructions</ThemedText>
+                  <ThemedText style={[styles.instTitle, { color: theme.primary }]}>{t('instructions')}</ThemedText>
                   <ThemedText style={[styles.instText, { color: theme.textSecondary }]}>
-                      Choose the section you want to study and set a clear timeframe. Be specific about your tasks to maintain focus. Once saved, these plans will appear in your dashboard and check-in timeline.
+                      {t('planInstructions')}
                   </ThemedText>
               </View>
           </View>

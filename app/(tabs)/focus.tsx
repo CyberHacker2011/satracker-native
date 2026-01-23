@@ -5,6 +5,7 @@ import storage from "../../lib/storage";
 import { playBeep, playSound } from "../../lib/audio";
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, interpolate, Easing } from "react-native-reanimated";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { ThemedText, Heading } from "../../components/ThemedText";
 import { ThemedView, Card } from "../../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +15,7 @@ import { ConfirmModal } from "../../components/ConfirmModal";
 
 export default function FocusScreen() {
   const { theme, themeName } = useTheme();
+  const { t } = useLanguage();
   const [focusMin, setFocusMin] = useState("25");
   const [breakMin, setBreakMin] = useState("5");
   const [resetModalVisible, setResetModalVisible] = useState(false);
@@ -135,13 +137,13 @@ export default function FocusScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
-              <Heading>Focus Timer</Heading>
-              <ThemedText style={styles.subtitle}>Pure Concentration Zone</ThemedText>
+              <Heading>{t('classicPomodoro')}</Heading>
+              <ThemedText style={styles.subtitle}>{t('focusSub')}</ThemedText>
           </View>
 
           <View style={styles.globalProgressBox}>
               <View style={styles.progressLabelRow}>
-                  <ThemedText style={styles.progressNote}>FOCUS PROGRESS</ThemedText>
+                  <ThemedText style={styles.progressNote}>{t('focusProgress')}</ThemedText>
                   <ThemedText style={[styles.progressPct, { color: mode === 'break' ? '#10b981' : theme.primary }]}>
                     {getProgress()}%
                   </ThemedText>
@@ -158,7 +160,7 @@ export default function FocusScreen() {
               <View style={styles.timerSide}>
                   <Animated.View style={[styles.timerCircle, animatedCircleStyle]}>
                       <ThemedText style={[styles.modeLabel, { color: mode === "focus" ? theme.primary : mode === "break" ? "#10b981" : theme.textSecondary }]}>
-                          {mode === "idle" ? "READY" : mode === "focus" ? "FOCUSING" : "BREAKING"}
+                          {mode === "idle" ? t('ready') : mode === "focus" ? t('focusing') : t('breaking')}
                       </ThemedText>
                       <ThemedText style={[styles.timerValue, { fontSize: (timeLeft || parseInt(focusMin) * 60) >= 3600 ? 54 : 72 }]}>
                           {formatTime(timeLeft || (parseInt(focusMin) * 60))}
@@ -192,12 +194,12 @@ export default function FocusScreen() {
                   <Card style={[styles.configCard, { marginTop: 24 }]}>
                       <View style={styles.configHeader}>
                           <Settings2 size={18} color={theme.primary} />
-                          <ThemedText style={styles.configTitle}>ADJUST SESSIONS</ThemedText>
+                          <ThemedText style={styles.configTitle}>{t('adjustSessions')}</ThemedText>
                       </View>
 
                       <View style={styles.adjustRow}>
                           <View style={styles.adjustItem}>
-                              <ThemedText style={styles.adjustLabel}>Focus Duration (m)</ThemedText>
+                              <ThemedText style={styles.adjustLabel}>{t('focusDuration')}</ThemedText>
                               <View style={styles.stepper}>
                                   <TouchableOpacity style={styles.stepBtn} onPress={() => handleAdjust('focus', -1)} disabled={isRunning}>
                                       <Minus size={20} color={theme.textPrimary} />
@@ -216,7 +218,7 @@ export default function FocusScreen() {
                           </View>
 
                           <View style={styles.adjustItem}>
-                              <ThemedText style={styles.adjustLabel}>Break Duration (m)</ThemedText>
+                              <ThemedText style={styles.adjustLabel}>{t('breakDuration')}</ThemedText>
                               <View style={styles.stepper}>
                                   <TouchableOpacity style={styles.stepBtn} onPress={() => handleAdjust('break', -1)} disabled={isRunning}>
                                       <Minus size={20} color={theme.textPrimary} />
@@ -245,14 +247,14 @@ export default function FocusScreen() {
       
       <ConfirmModal 
         visible={resetModalVisible}
-        title="Reset Timer"
-        message="Are you sure you want to reset the current session? Progress will be lost."
+        title={t('resetTimer')}
+        message={t('confirmReset')}
         onCancel={() => setResetModalVisible(false)}
         onConfirm={() => {
             reset();
             setResetModalVisible(false);
         }}
-        confirmLabel="Reset Timer"
+        confirmLabel={t('resetTimer')}
         isDestructive
       />
     </ThemedView>

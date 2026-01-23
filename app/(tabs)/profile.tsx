@@ -1,16 +1,18 @@
 import React from "react";
 import { StyleSheet, View, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { ThemedText, Heading } from "../../components/ThemedText";
 import { ThemedView, Card } from "../../components/ThemedView";
 import { Button } from "../../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Moon, Sun, Monitor, LogOut, ChevronRight, Settings, MessageSquare, Info, Clock, BookOpen, Shield } from "lucide-react-native";
+import { Moon, Sun, Monitor, LogOut, ChevronRight, Settings, MessageSquare, Info, Clock, BookOpen, Shield, Languages } from "lucide-react-native";
 
 export default function ProfileScreen() {
   const { theme, themeName, setThemeName } = useTheme();
+  const { t, language, setLanguage } = useLanguage();
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -18,26 +20,57 @@ export default function ProfileScreen() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      Alert.alert(t('error'), error.message);
     }
   };
 
   const themes = [
-    { id: "light", label: "Classic", icon: Sun },
-    { id: "dark", label: "Midnight", icon: Moon },
-    { id: "blue", label: "Ocean", icon: Monitor },
+    { id: "light", label: t('classic'), icon: Sun },
+    { id: "dark", label: t('midnight'), icon: Moon },
+    { id: "blue", label: t('ocean'), icon: Monitor },
+  ] as const;
+
+  const languages = [
+    { id: "en", label: "English" },
+    { id: "uz", label: "O'zbek" },
+    { id: "ru", label: "Русский" },
   ] as const;
 
   return (
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.container}>
-          <Heading style={styles.title}>Settings</Heading>
-          <ThemedText style={styles.subtitle}>Preferences & Account</ThemedText>
+          <Heading style={styles.title}>{t('settings')}</Heading>
+          <ThemedText style={styles.subtitle}>{t('preferencesAccount')}</ThemedText>
+
+          {/* Language Section */}
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionLabel}>{t('language')}</ThemedText>
+            <View style={styles.themeGrid}>
+                {languages.map((l) => {
+                    const isActive = language === l.id;
+                    return (
+                        <TouchableOpacity
+                            key={l.id}
+                            onPress={() => setLanguage(l.id as any)}
+                            style={[
+                                styles.themeCard,
+                                { backgroundColor: theme.card, borderColor: isActive ? theme.primary : theme.border }
+                            ]}
+                        >
+                            <ThemedText style={{ fontSize: 24 }}>{l.id === 'en' ? '🇺🇸' : l.id === 'uz' ? '🇺🇿' : '🇷🇺'}</ThemedText>
+                            <ThemedText style={[styles.themeLabel, isActive && { color: theme.primary, fontWeight: "900" }]}>
+                                {l.label}
+                            </ThemedText>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+          </View>
 
           {/* Theme Section */}
           <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>Theme Engine</ThemedText>
+            <ThemedText style={styles.sectionLabel}>{t('themeEngine')}</ThemedText>
             <View style={styles.themeGrid}>
                 {themes.map((t) => {
                     const Icon = t.icon;
@@ -63,7 +96,7 @@ export default function ProfileScreen() {
 
           {/* Quick Access */}
           <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>Quick Access</ThemedText>
+            <ThemedText style={styles.sectionLabel}>{t('quickAccess')}</ThemedText>
             <Card style={styles.listCard}>
                 <TouchableOpacity 
                     style={styles.listItem}
@@ -73,7 +106,7 @@ export default function ProfileScreen() {
                         <View style={[styles.iconBox, { backgroundColor: '#fef3c7' }]}>
                             <Settings size={20} color="#f59e0b" />
                         </View>
-                        <ThemedText style={styles.listItemText}>Edit Profile</ThemedText>
+                        <ThemedText style={styles.listItemText}>{t('editProfile')}</ThemedText>
                     </View>
                     <ChevronRight size={20} color={theme.textSecondary} opacity={0.3} />
                 </TouchableOpacity>
@@ -88,7 +121,7 @@ export default function ProfileScreen() {
                         <View style={[styles.iconBox, { backgroundColor: '#dbeafe' }]}>
                             <Clock size={20} color="#3b82f6" />
                         </View>
-                        <ThemedText style={styles.listItemText}>Classic Timer</ThemedText>
+                        <ThemedText style={styles.listItemText}>{t('classicTimer')}</ThemedText>
                     </View>
                     <ChevronRight size={20} color={theme.textSecondary} opacity={0.3} />
                 </TouchableOpacity>
@@ -103,7 +136,7 @@ export default function ProfileScreen() {
                         <View style={[styles.iconBox, { backgroundColor: '#dcfce7' }]}>
                             <BookOpen size={20} color="#10b981" />
                         </View>
-                        <ThemedText style={styles.listItemText}>Study Archive</ThemedText>
+                        <ThemedText style={styles.listItemText}>{t('studyArchive')}</ThemedText>
                     </View>
                     <ChevronRight size={20} color={theme.textSecondary} opacity={0.3} />
                 </TouchableOpacity>
@@ -112,7 +145,7 @@ export default function ProfileScreen() {
 
           {/* Settings List */}
           <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>General</ThemedText>
+            <ThemedText style={styles.sectionLabel}>{t('general')}</ThemedText>
             <Card style={styles.listCard}>
                 <TouchableOpacity 
                     style={styles.listItem}
@@ -122,7 +155,7 @@ export default function ProfileScreen() {
                         <View style={[styles.iconBox, { backgroundColor: theme.primaryLight }]}>
                             <MessageSquare size={20} color={theme.primary} />
                         </View>
-                        <ThemedText style={styles.listItemText}>Share Feedback</ThemedText>
+                        <ThemedText style={styles.listItemText}>{t('shareFeedback')}</ThemedText>
                     </View>
                     <ChevronRight size={20} color={theme.textSecondary} opacity={0.3} />
                 </TouchableOpacity>
@@ -137,7 +170,7 @@ export default function ProfileScreen() {
                         <View style={[styles.iconBox, { backgroundColor: theme.primaryLight }]}>
                             <Info size={20} color={theme.primary} />
                         </View>
-                        <ThemedText style={styles.listItemText}>About Application</ThemedText>
+                        <ThemedText style={styles.listItemText}>{t('aboutApp')}</ThemedText>
                     </View>
                     <ChevronRight size={20} color={theme.textSecondary} opacity={0.3} />
                 </TouchableOpacity>
@@ -152,7 +185,7 @@ export default function ProfileScreen() {
                         <View style={[styles.iconBox, { backgroundColor: '#f3e8ff' }]}>
                             <Shield size={20} color="#8b5cf6" />
                         </View>
-                        <ThemedText style={styles.listItemText}>Privacy Policy</ThemedText>
+                        <ThemedText style={styles.listItemText}>{t('privacyPolicy')}</ThemedText>
                     </View>
                     <ChevronRight size={20} color={theme.textSecondary} opacity={0.3} />
                 </TouchableOpacity>
@@ -160,7 +193,7 @@ export default function ProfileScreen() {
           </View>
 
           <Button 
-            title="Sign Out" 
+            title={t('signOut')}
             variant="secondary"
             onPress={handleSignOut}
             style={styles.signOutButton}
@@ -168,7 +201,7 @@ export default function ProfileScreen() {
 
           <View style={styles.footer}>
             <ThemedText style={styles.version}>SAT Tracker v1.0.0 (Native)</ThemedText>
-            <ThemedText style={styles.rights}>© 2026 All Rights Reserved.</ThemedText>
+            <ThemedText style={styles.rights}>© 2026 {t('allRightsReserved')}.</ThemedText>
             <View style={styles.contactRow}>
                 <ThemedText style={styles.contactText}>ibrohimshaymardanov011@gmail.com</ThemedText>
                 <ThemedText style={styles.contactText}>t.me/@ibrohimfr</ThemedText>

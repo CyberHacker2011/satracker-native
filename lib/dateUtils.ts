@@ -9,12 +9,13 @@ export const getLocalDateString = (date: Date = new Date()): string => {
 };
 
 /**
- * Returns Month and Year from a YYYY-MM-DD string.
+ * Returns Month and Year from a YYYY-MM-DD string, localized via 't' function.
  */
-export const getMonthYearString = (dateStr: string): string => {
+export const getMonthYearString = (dateStr: string, t: (key: string) => string): string => {
   const [year, month] = dateStr.split('-');
   const date = new Date(Number(year), Number(month) - 1, 1);
-  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthName = date.toLocaleString('en-US', { month: 'long' }).toLowerCase();
+  return `${t(monthName)} ${year}`;
 };
 
 /**

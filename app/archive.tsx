@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import { useRouter, Stack } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { getLocalDateString, getMonthYearString } from "../lib/dateUtils";
@@ -24,6 +25,7 @@ type StudyPlan = {
 
 export default function ArchiveScreen() {
   const { theme, themeName } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   
   const [plans, setPlans] = useState<StudyPlan[]>([]);
@@ -64,8 +66,16 @@ export default function ArchiveScreen() {
       return days; // [Yesterday, day-2, ...]
   };
 
-  const historyDays = getHistoryDays();
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+   const historyDays = getHistoryDays();
+  const dayNames: Record<number, string> = {
+      0: t('sun'),
+      1: t('mon'),
+      2: t('tue'),
+      3: t('wed'),
+      4: t('thu'),
+      5: t('fri'),
+      6: t('sat')
+  };
 
   async function loadPlanForDate(dateStr: string) {
     setLoading(true);
@@ -104,7 +114,7 @@ export default function ArchiveScreen() {
     } catch (e: any) {
       console.error(e);
       const isOnline = await checkConnection();
-      setErrorMsg(isOnline ? (e.message || "Failed to load history.") : "No internet connection.");
+      setErrorMsg(isOnline ? (e.message || t('failedLoadHistory')) : t('noInternet'));
       setErrorVisible(true);
     } finally {
       setLoading(false);
@@ -121,24 +131,24 @@ export default function ArchiveScreen() {
             await supabase.from("daily_log").delete().eq("plan_id", id);
             const { error } = await supabase.from("study_plan").delete().eq("id", id);
             if (error) throw error;
-            showToast("Record deleted successfully", "success");
+            showToast(t('recordDeleted'), "success");
             loadPlanForDate(selectedDate);
         } catch (e: any) {
-            showToast(e.message || "Failed to delete record");
+            showToast(e.message || t('failedDeleteRecord'));
         }
     };
 
     if (Platform.OS === 'web') {
-        if (window.confirm("Are you sure you want to delete this study record? This cannot be undone.")) {
+        if (window.confirm(t('sureDeleteRecord'))) {
             confirmDelete();
         }
     } else {
         Alert.alert(
-            "Delete Record",
-            "Are you sure you want to delete this study record? This cannot be undone.",
+            t('deleteRecord'),
+            t('sureDeleteRecord'),
             [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: confirmDelete }
+                { text: t('cancel'), style: "cancel" },
+                { text: t('delete'), style: "destructive", onPress: confirmDelete }
             ]
         );
     }
@@ -153,7 +163,7 @@ export default function ArchiveScreen() {
         onRetry={() => loadPlanForDate(selectedDate)}
       />
       <Stack.Screen options={{ 
-        title: "Study History", 
+        title: t('studyArchive'), 
         headerShown: true,
         headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
@@ -170,9 +180,9 @@ export default function ArchiveScreen() {
                 <View style={[styles.calHeader, { justifyContent: 'space-between' }]}>
                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                      <CalendarIcon size={16} color={theme.primary} />
-                     <ThemedText style={styles.calTitle}>Select Date</ThemedText>
+                     <ThemedText style={styles.calTitle}>{t('selectDate')}</ThemedText>
                    </View>
-                   <ThemedText style={[styles.calTitle, { opacity: 0.8 }]}>{getMonthYearString(selectedDate)}</ThemedText>
+                   <ThemedText style={[styles.calTitle, { opacity: 0.8 }]}>{getMonthYearString(selectedDate, t)}</ThemedText>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calScroll}>
                     {/* Inverted layout logic or simpler: Reverse the array? NO. 
@@ -212,7 +222,7 @@ export default function ArchiveScreen() {
                     {plans.length === 0 ? (
                         <View style={styles.empty}>
                             <Clock size={64} color={theme.textSecondary} opacity={0.2} />
-                            <ThemedText style={styles.emptyText}>No records for this date</ThemedText>
+                            <ThemedText style={styles.emptyText}>{t('noRecordsDate')}</ThemedText>
                         </View>
                     ) : (
                         plans.map((plan: StudyPlan) => (
@@ -221,7 +231,7 @@ export default function ArchiveScreen() {
                                     <View style={styles.leftInfo}>
                                         <View style={[styles.sectionIndicator, { backgroundColor: plan.section === 'math' ? '#3b82f6' : plan.section === 'reading' ? '#f59e0b' : '#10b981' }]} />
                                         <View>
-                                            <ThemedText style={styles.planSubject}>{plan.section.toUpperCase()}</ThemedText>
+                                            <ThemedText style={styles.planSubject}>{t(plan.section)}</ThemedText>
                                             <ThemedText style={styles.tasks} numberOfLines={1}>{plan.tasks_text}</ThemedText>
                                         </View>
                                     </View>
@@ -239,15 +249,15 @@ export default function ArchiveScreen() {
                                             {plan.status === "done" ? (
                                                 <View style={[styles.outcomeBadge, { backgroundColor: themeName === 'dark' ? '#064e3b' : '#f0fdf4', borderColor: '#10b981' }]}>
                                                     <CheckCircle2 color="#10b981" size={12} strokeWidth={3} />
-                                                    <ThemedText style={[styles.outcomeText, { color: '#10b981' }]}>DONE</ThemedText>
+                                                    <ThemedText style={[styles.outcomeText, { color: '#10b981' }]}>{t('done')}</ThemedText>
                                                 </View>
                                             ) : plan.status === "missed" ? (
                                                 <View style={[styles.outcomeBadge, { backgroundColor: themeName === 'dark' ? '#450a0a' : '#fef2f2', borderColor: '#ef4444' }]}>
                                                     <XCircle color="#ef4444" size={12} strokeWidth={3} />
-                                                    <ThemedText style={[styles.outcomeText, { color: '#ef4444' }]}>MISSED</ThemedText>
+                                                    <ThemedText style={[styles.outcomeText, { color: '#ef4444' }]}>{t('missed')}</ThemedText>
                                                 </View>
                                             ) : (
-                                                <ThemedText style={styles.untrackedText}>UNTRACKED</ThemedText>
+                                                <ThemedText style={styles.untrackedText}>{t('untracked')}</ThemedText>
                                             )}
                                         </View>
                                     </View>

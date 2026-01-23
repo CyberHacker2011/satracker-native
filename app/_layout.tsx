@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { NotificationSystem } from "../components/NotificationSystem";
 import { useUserActivity } from "../hooks/useUserActivity";
+import { LanguageProvider } from "../context/LanguageContext";
 
 function RootLayoutNav() {
   useUserActivity();
@@ -92,7 +93,9 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <RootLayoutNav />
+      <LanguageProvider>
+        <RootLayoutNav />
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

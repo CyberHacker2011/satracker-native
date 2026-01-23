@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View, TextInput, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import { useRouter, Stack } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { ThemedText, Heading } from "../components/ThemedText";
@@ -15,6 +16,7 @@ type EducationLevel = '5th' | '6th' | '7th' | '8th' | '9th' | '10th' | '11th' | 
 
 export default function EditProfileScreen() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,7 +71,7 @@ export default function EditProfileScreen() {
       }
     } catch (error: any) {
       console.error(error);
-      setErrorMsg(error.message || "Failed to load profile. Please check your connection.");
+      setErrorMsg(error.message || t('failedLoadProfile'));
       setErrorVisible(true);
     } finally {
       setLoading(false);
@@ -80,7 +82,7 @@ export default function EditProfileScreen() {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) throw new Error(t('notAuthenticated'));
 
       const profileData = {
         user_id: user.id,
@@ -99,11 +101,11 @@ export default function EditProfileScreen() {
 
       if (error) throw error;
 
-      Alert.alert("Success", "Profile updated successfully");
+      Alert.alert(t('success'), t('profileUpdated'));
       router.back();
     } catch (error: any) {
       console.error(error);
-      setErrorMsg(error.message || "Failed to update profile. Please check your connection.");
+      setErrorMsg(error.message || t('failedUpdateProfile'));
       setErrorVisible(true);
     } finally {
       setSaving(false);
@@ -142,7 +144,7 @@ export default function EditProfileScreen() {
         onRetry={loadProfile}
       />
       <Stack.Screen options={{
-        title: "Edit Profile",
+        title: t('editProfile'),
         headerShown: true,
         headerLeft: () => (
           <TouchableOpacity onPress={() => router.back()}>
@@ -157,14 +159,14 @@ export default function EditProfileScreen() {
           <Card style={styles.section}>
             <View style={styles.sectionHeader}>
               <User size={20} color={theme.primary} />
-              <ThemedText style={styles.sectionTitle}>Personal Information</ThemedText>
+              <ThemedText style={styles.sectionTitle}>{t('personalInfo')}</ThemedText>
             </View>
 
             <View style={styles.field}>
-              <ThemedText style={styles.label}>Name</ThemedText>
+              <ThemedText style={styles.label}>{t('name')}</ThemedText>
               <TextInput
                 style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
-                placeholder="Your name"
+                placeholder={t('yourName')}
                 placeholderTextColor={theme.textSecondary}
                 value={name}
                 onChangeText={setName}
@@ -174,7 +176,7 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.field}>
-              <ThemedText style={styles.label}>Education Level</ThemedText>
+              <ThemedText style={styles.label}>{t('educationLevel')}</ThemedText>
               <View style={styles.grid}>
                 {educationOptions.map(option => (
                   <TouchableOpacity
@@ -190,7 +192,7 @@ export default function EditProfileScreen() {
                       styles.gridText,
                       educationLevel === option && { color: '#fff', fontWeight: '700' }
                     ]}>
-                      {option === 'undergraduate' || option === 'graduate' ? option : option}
+                      {t(option)}
                     </ThemedText>
                   </TouchableOpacity>
                 ))}
@@ -202,7 +204,7 @@ export default function EditProfileScreen() {
           <Card style={styles.section}>
             <View style={styles.sectionHeader}>
               <Calendar size={20} color={theme.primary} />
-              <ThemedText style={styles.sectionTitle}>Exam Date</ThemedText>
+              <ThemedText style={styles.sectionTitle}>{t('examDate')}</ThemedText>
             </View>
 
             <View style={styles.dateGrid}>
@@ -220,7 +222,7 @@ export default function EditProfileScreen() {
                     styles.dateText,
                     examDate === date && { color: '#fff', fontWeight: '700' }
                   ]}>
-                    {date}
+                    {date.split(' ')[0] === 'Other' ? t('other') : date.replace(date.split(' ')[0], t(date.split(' ')[0].toLowerCase()))}
                   </ThemedText>
                 </TouchableOpacity>
               ))}
@@ -231,12 +233,12 @@ export default function EditProfileScreen() {
           <Card style={styles.section}>
             <View style={styles.sectionHeader}>
               <Target size={20} color={theme.primary} />
-              <ThemedText style={styles.sectionTitle}>SAT Scores</ThemedText>
+              <ThemedText style={styles.sectionTitle}>{t('satScores')}</ThemedText>
             </View>
 
-            <ThemedText style={styles.subsectionTitle}>Target Score</ThemedText>
+            <ThemedText style={styles.subsectionTitle}>{t('targetScore')}</ThemedText>
             <View style={styles.scoreSection}>
-              <ThemedText style={styles.scoreLabel}>Math</ThemedText>
+              <ThemedText style={styles.scoreLabel}>{t('math')}</ThemedText>
               <View style={styles.sliderRow}>
                 <Slider
                   style={styles.slider}
@@ -254,7 +256,7 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.scoreSection}>
-              <ThemedText style={styles.scoreLabel}>Reading & Writing</ThemedText>
+              <ThemedText style={styles.scoreLabel}>{t('readingWriting')}</ThemedText>
               <View style={styles.sliderRow}>
                 <Slider
                   style={styles.slider}
@@ -272,11 +274,11 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={[styles.totalBox, { backgroundColor: theme.primaryLight, borderColor: theme.primary }]}>
-              <ThemedText style={[styles.totalLabel, { color: theme.primary }]}>Total Target</ThemedText>
+              <ThemedText style={[styles.totalLabel, { color: theme.primary }]}>{t('totalTarget')}</ThemedText>
               <ThemedText style={[styles.totalValue, { color: theme.primary }]}>{totalTarget}</ThemedText>
             </View>
 
-            <ThemedText style={styles.subsectionTitle}>Previous Score (Optional)</ThemedText>
+            <ThemedText style={styles.subsectionTitle}>{t('previousScoreOptional')}</ThemedText>
             <View style={styles.checkboxRow}>
               <TouchableOpacity 
                 style={[styles.checkbox, { borderColor: theme.border }, hasPreviousScore && { backgroundColor: theme.primary, borderColor: theme.primary }]}
@@ -284,13 +286,13 @@ export default function EditProfileScreen() {
               >
                 {hasPreviousScore && <ThemedText style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</ThemedText>}
               </TouchableOpacity>
-              <ThemedText style={styles.checkboxLabel}>I have a previous SAT score</ThemedText>
+              <ThemedText style={styles.checkboxLabel}>{t('havePreviousScore')}</ThemedText>
             </View>
 
             {hasPreviousScore && (
               <>
                 <View style={styles.scoreSection}>
-                  <ThemedText style={styles.scoreLabel}>Math</ThemedText>
+                  <ThemedText style={styles.scoreLabel}>{t('math')}</ThemedText>
                   <View style={styles.sliderRow}>
                     <Slider
                       style={styles.slider}
@@ -308,7 +310,7 @@ export default function EditProfileScreen() {
                 </View>
 
                 <View style={styles.scoreSection}>
-                  <ThemedText style={styles.scoreLabel}>Reading & Writing</ThemedText>
+                  <ThemedText style={styles.scoreLabel}>{t('readingWriting')}</ThemedText>
                   <View style={styles.sliderRow}>
                     <Slider
                       style={styles.slider}
@@ -326,7 +328,7 @@ export default function EditProfileScreen() {
                 </View>
 
                 <View style={[styles.totalBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <ThemedText style={styles.totalLabel}>Previous Total</ThemedText>
+                  <ThemedText style={styles.totalLabel}>{t('previousTotal')}</ThemedText>
                   <ThemedText style={styles.totalValue}>{totalPrevious}</ThemedText>
                 </View>
               </>
@@ -334,7 +336,7 @@ export default function EditProfileScreen() {
           </Card>
 
           <Button 
-            title={saving ? "Saving..." : "Save Changes"}
+            title={saving ? t('saving') : t('saveChanges')}
             onPress={handleSave}
             loading={saving}
             style={styles.saveBtn}

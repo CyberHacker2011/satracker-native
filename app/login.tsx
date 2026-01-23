@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { StyleSheet, View, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
+import { useLanguage } from "../context/LanguageContext";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useTheme } from "../context/ThemeContext";
@@ -16,6 +17,7 @@ type Screen = "login" | "forgot-password" | "check-email";
 export default function LoginScreen() {
   const router = useRouter();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   
   const [screen, setScreen] = useState<Screen>("login");
   const [email, setEmail] = useState("");
@@ -53,11 +55,11 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     setErrorMessage(null);
     if (!email) {
-      setErrorMessage("Please enter your email address.");
+      setErrorMessage(t('enterEmail'));
       return;
     }
     if (!password) {
-      setErrorMessage("Please enter your password.");
+      setErrorMessage(t('enterPassword'));
       return;
     }
 
@@ -66,18 +68,18 @@ export default function LoginScreen() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
-          throw new Error("Wrong credentials for log-in. Please check your email and password.");
+          throw new Error(t('invalidCredentials'));
         } else if (error.message.includes("Email not confirmed")) {
-          throw new Error("Please verify your email address before logging in.");
+          throw new Error(t('emailNotConfirmed'));
         } else if (error.message.includes("User not found")) {
-          throw new Error("This email do not exist for log in.");
+          throw new Error(t('userNotFound'));
         }
         throw error;
       }
       router.replace("/(tabs)");
     } catch (error: any) {
-      const msg = error.message || "Login failed. Please try again.";
-      if (msg.includes("Wrong credentials")) {
+      const msg = error.message || t('loginFailed');
+      if (msg === t('invalidCredentials')) {
         setErrorMessage(msg);
       } else {
         showToast(msg);
@@ -102,7 +104,7 @@ export default function LoginScreen() {
       if (error) throw error;
       setScreen("check-email");
     } catch (error: any) {
-      showToast(error.message || "Failed to send reset email.");
+      showToast(error.message || t('failedSendReset'));
     } finally {
       setLoading(false);
     }
@@ -116,7 +118,7 @@ export default function LoginScreen() {
     return (
       <ThemedView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <ThemedText style={{ marginTop: 10, opacity: 0.5, fontWeight: "700" }}>Loading...</ThemedText>
+        <ThemedText style={{ marginTop: 10, opacity: 0.5, fontWeight: "700" }}>{t('loadingDashboard')}</ThemedText>
       </ThemedView>
     );
   }
@@ -137,14 +139,14 @@ export default function LoginScreen() {
               {/* Login Screen */}
               {screen === "login" && (
                 <>
-                  <Heading style={styles.title}>Welcome Back</Heading>
-                  <ThemedText style={styles.subtitle}>Sign in to continue your SAT prep journey</ThemedText>
+                  <Heading style={styles.title}>{t('welcomeBack')}</Heading>
+                  <ThemedText style={styles.subtitle}>{t('signInToContinue')}</ThemedText>
 
                   <View style={styles.form}>
                     <View style={styles.inputGroup}>
                       <View style={styles.labelRow}>
                         <Mail size={16} color={theme.textSecondary} />
-                        <ThemedText style={styles.label}>Email address</ThemedText>
+                        <ThemedText style={styles.label}>{t('emailAddress')}</ThemedText>
                       </View>
                       <TextInput
                         style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
@@ -163,7 +165,7 @@ export default function LoginScreen() {
                     <View style={styles.inputGroup}>
                       <View style={styles.labelRow}>
                         <Lock size={16} color={theme.textSecondary} />
-                        <ThemedText style={styles.label}>Password</ThemedText>
+                        <ThemedText style={styles.label}>{t('password')}</ThemedText>
                       </View>
                       <View style={styles.passwordContainer}>
                         <TextInput
@@ -191,24 +193,24 @@ export default function LoginScreen() {
                     )}
 
                     <Button 
-                      title={loading ? "Signing In..." : "Sign In"} 
+                      title={loading ? t('signingIn') : t('signIn')} 
                       onPress={handleLogin} 
                       loading={loading}
                       style={styles.submitButton}
                     />
 
                     <TouchableOpacity onPress={() => setScreen("forgot-password")} style={{ marginTop: 16 }}>
-                      <ThemedText style={[styles.linkText, { color: theme.primary }]}>Forgot your password?</ThemedText>
+                      <ThemedText style={[styles.linkText, { color: theme.primary }]}>{t('forgotPassword')}</ThemedText>
                     </TouchableOpacity>
 
                     <View style={styles.divider}>
                       <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-                      <ThemedText style={styles.dividerText}>OR</ThemedText>
+                      <ThemedText style={styles.dividerText}>{t('or')}</ThemedText>
                       <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
                     </View>
 
                     <Button 
-                      title="Create New Account" 
+                      title={t('createNewAccount')} 
                       variant="secondary"
                       onPress={() => router.push("/signup")}
                       style={styles.secondaryButton}
@@ -220,8 +222,8 @@ export default function LoginScreen() {
               {/* Forgot Password Screen */}
               {screen === "forgot-password" && (
                 <>
-                  <Heading style={styles.title}>Forgot Password?</Heading>
-                  <ThemedText style={styles.subtitle}>Enter your email and we'll send you a reset link</ThemedText>
+                  <Heading style={styles.title}>{t('forgotPassword')}</Heading>
+                  <ThemedText style={styles.subtitle}>{t('enterEmailReset')}</ThemedText>
 
                   <View style={styles.form}>
                     <View style={styles.inputGroup}>
@@ -250,14 +252,14 @@ export default function LoginScreen() {
                     )}
 
                     <Button 
-                      title={loading ? "Sending..." : "Send Reset Link"} 
+                      title={loading ? t('sending') : t('sendResetLink')} 
                       onPress={handleForgotPassword} 
                       loading={loading}
                       style={styles.submitButton}
                     />
 
                     <TouchableOpacity onPress={() => setScreen("login")} style={{ marginTop: 20 }}>
-                      <ThemedText style={[styles.linkText, { color: theme.primary }]}>Back to Sign In</ThemedText>
+                      <ThemedText style={[styles.linkText, { color: theme.primary }]}>{t('backToSignIn')}</ThemedText>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -269,14 +271,14 @@ export default function LoginScreen() {
                   <View style={[styles.successIcon, { backgroundColor: theme.primaryLight }]}>
                     <Mail size={40} color={theme.primary} />
                   </View>
-                  <Heading style={styles.title}>Check Your Email</Heading>
+                  <Heading style={styles.title}>{t('checkYourEmail')}</Heading>
                   <ThemedText style={[styles.subtitle, { textAlign: 'center' }]}>
-                    We've sent a password reset link to {email}
+                    {t('weSentResetLink').replace('{email}', email)}
                   </ThemedText>
 
                   <View style={styles.form}>
                     <Button 
-                      title={loading ? "Resending..." : "Resend Email"} 
+                      title={loading ? t('resending') : t('resendEmail')} 
                       variant="secondary"
                       onPress={handleResendEmail} 
                       loading={loading}
@@ -284,11 +286,11 @@ export default function LoginScreen() {
                     />
 
                     <TouchableOpacity onPress={() => setScreen("login")} style={{ marginTop: 20 }}>
-                      <ThemedText style={[styles.linkText, { color: theme.primary }]}>Back to Sign In</ThemedText>
+                      <ThemedText style={[styles.linkText, { color: theme.primary }]}>{t('backToSignIn')}</ThemedText>
                     </TouchableOpacity>
 
                     <View style={[styles.contactBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                      <ThemedText style={styles.contactTitle}>Need help?</ThemedText>
+                      <ThemedText style={styles.contactTitle}>{t('needHelp')}</ThemedText>
                       <ThemedText style={styles.contactText}>ibrohimshaymardanov011@gmail.com</ThemedText>
                       <ThemedText style={styles.contactText}>t.me/@ibrohimfr</ThemedText>
                     </View>
@@ -299,7 +301,7 @@ export default function LoginScreen() {
 
             {/* Footer */}
             <View style={styles.footer}>
-              <ThemedText style={styles.footerText}>© 2026 SAT Tracker. All Rights Reserved.</ThemedText>
+              <ThemedText style={styles.footerText}>© 2026 SAT Tracker. {t('allRightsReserved')}.</ThemedText>
               <View style={styles.footerLinks}>
                 <ThemedText style={styles.footerLink}>ibrohimshaymardanov011@gmail.com</ThemedText>
                 <ThemedText style={styles.footerDot}>•</ThemedText>

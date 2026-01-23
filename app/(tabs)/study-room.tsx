@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { getLocalDateString, getLocalTimeString } from "../../lib/dateUtils";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { ThemedText, Heading } from "../../components/ThemedText";
 import { ThemedView, Card } from "../../components/ThemedView";
 import { Button } from "../../components/Button";
@@ -38,6 +39,7 @@ interface StudyPlan {
 
 export default function StudyRoomScreen() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { planId: planIdParam } = useLocalSearchParams();
   const router = useRouter();
   
@@ -152,9 +154,9 @@ export default function StudyRoomScreen() {
             const selected = enhanced.find(p => p.id === planIdParam);
             if (selected) {
                 if (selected.isMarked || selected.isPast) {
-                    const msg = selected.isMarked ? "This mission is already completed." : "This mission has expired.";
+                    const msg = selected.isMarked ? t('alreadyCompleted') : t('alreadyExpired');
                     if (Platform.OS === 'web') window.alert(msg);
-                    else Alert.alert("Mission Unavailable", msg);
+                    else Alert.alert(t('missionUnavailable'), msg);
                     router.replace("/(tabs)");
                     return;
                 }
@@ -192,7 +194,7 @@ export default function StudyRoomScreen() {
       }
     } catch (e: any) {
       console.error(e);
-      setErrorMsg(e.message || "Failed to load study plans. Please check your connection.");
+      setErrorMsg(e.message || t('failedLoadPlans'));
     } finally {
       setLoading(false);
     }
@@ -267,7 +269,7 @@ export default function StudyRoomScreen() {
     return (
         <ThemedView style={styles.center}>
             <ActivityIndicator size="large" color={theme.primary} />
-            <ThemedText style={{ marginTop: 10, opacity: 0.5 }}>Syncing Room...</ThemedText>
+            <ThemedText style={{ marginTop: 10, opacity: 0.5 }}>{t('syncingRoom')}</ThemedText>
         </ThemedView>
     );
   }
@@ -286,8 +288,8 @@ export default function StudyRoomScreen() {
                         <View style={[styles.titleIcon, { backgroundColor: theme.primary }]}>
                             <Clock size={28} color="#fff" />
                         </View>
-                        <Heading style={styles.selectionTitle}>Study Room</Heading>
-                        <ThemedText style={styles.selectionSubtitle}>Execute your daily roadmap</ThemedText>
+                        <Heading style={styles.selectionTitle}>{t('studyRoom')}</Heading>
+                        <ThemedText style={styles.selectionSubtitle}>{t('dailyRoadmap')}</ThemedText>
                     </View>
 
                     <View style={styles.planGrid}>
@@ -296,7 +298,7 @@ export default function StudyRoomScreen() {
                                 <View key={p.id} style={[styles.planItem, { backgroundColor: theme.card, borderColor: theme.border }, p.isMarked && { opacity: 0.5 }]}>
                                     <View style={styles.planItemInfo}>
                                         <View style={[styles.sectionBadge, { backgroundColor: p.section === 'math' ? '#3b82f6' : p.section === 'reading' ? '#f59e0b' : '#10b981' }]}>
-                                            <ThemedText style={styles.badgeText}>{p.section.toUpperCase()}</ThemedText>
+                                            <ThemedText style={styles.badgeText}>{t(p.section)}</ThemedText>
                                         </View>
                                         <ThemedText style={styles.planName} numberOfLines={1}>{p.tasks_text}</ThemedText>
                                         <ThemedText style={styles.planTime}>{p.start_time} - {p.end_time}</ThemedText>
@@ -306,27 +308,27 @@ export default function StudyRoomScreen() {
                                         <CheckCircle2 color="#10b981" size={24} />
                                     ) : p.isPast ? (
                                         <View style={styles.lockInfo}>
-                                            <ThemedText style={styles.lockText}>Expired</ThemedText>
+                                            <ThemedText style={styles.lockText}>{t('expired')}</ThemedText>
                                         </View>
                                     ) : p.isUpcoming ? (
                                         <View style={styles.lockInfo}>
                                             <Clock size={16} color={theme.textSecondary} />
-                                            <ThemedText style={styles.lockText}>Starts {p.start_time}</ThemedText>
+                                            <ThemedText style={styles.lockText}>{t('startsAt').replace('{time}', p.start_time)}</ThemedText>
                                         </View>
                                     ) : (
                                         <TouchableOpacity 
                                             style={[styles.startBtn, { backgroundColor: p.hasSavedState ? "#10b981" : theme.primary }]}
                                             onPress={() => router.push(`/(tabs)/study-room?planId=${p.id}`)}
                                         >
-                                            <ThemedText style={styles.startBtnText}>{p.hasSavedState ? "CONTINUE" : "START"}</ThemedText>
+                                            <ThemedText style={styles.startBtnText}>{p.hasSavedState ? t('continue') : t('start')}</ThemedText>
                                         </TouchableOpacity>
                                     )}
                                 </View>
                             ))
                         ) : (
                             <View style={styles.emptyContainer}>
-                                <ThemedText style={styles.emptyText}>All missions for today are complete or unlisted.</ThemedText>
-                                <Button title="Plan New Mission" style={{ marginTop: 20 }} onPress={() => router.push("/(tabs)/plan")} />
+                                <ThemedText style={styles.emptyText}>{t('allMissionsComplete')}</ThemedText>
+                                <Button title={t('planNewMission')} style={{ marginTop: 20 }} onPress={() => router.push("/(tabs)/plan")} />
                             </View>
                         )}
                     </View>
@@ -368,18 +370,18 @@ export default function StudyRoomScreen() {
                     <TouchableOpacity onPress={() => setQuitModalVisible(true)} style={styles.backBtn}>
                         <ChevronLeft size={24} color={theme.textPrimary} />
                     </TouchableOpacity>
-                        <Heading>Mission Briefing</Heading>
+                        <Heading>{t('missionBriefing')}</Heading>
                         <View style={{ width: 28 }} />
                     </View>
 
                     <Card style={styles.setupCard}>
                         <View style={styles.summaryGrid}>
                             <View style={styles.summaryBox}>
-                                <ThemedText style={styles.summaryLabel}>TOTAL TIME</ThemedText>
+                                <ThemedText style={styles.summaryLabel}>{t('totalTime')}</ThemedText>
                                 <ThemedText style={styles.summaryValue}>{totalDuration}m</ThemedText>
                             </View>
                             <View style={styles.summaryBox}>
-                                <ThemedText style={styles.summaryLabel}>WINDOW</ThemedText>
+                                <ThemedText style={styles.summaryLabel}>{t('window')}</ThemedText>
                                 <ThemedText style={styles.summaryValue}>{plan.start_time}-{plan.end_time}</ThemedText>
                             </View>
                         </View>
@@ -389,12 +391,12 @@ export default function StudyRoomScreen() {
                         </View>
                     </Card>
 
-                    <Heading style={{ fontSize: 18, marginTop: 40, marginBottom: 20 }}>Configure Strategy</Heading>
+                    <Heading style={{ fontSize: 18, marginTop: 40, marginBottom: 20 }}>{t('configureStrategy')}</Heading>
                     
                     <Card style={styles.configCardMain}>
                         <View style={styles.configRow}>
                             <View style={styles.configItem}>
-                                <ThemedText style={styles.configLabel}>PIECES (SESSIONS)</ThemedText>
+                                <ThemedText style={styles.configLabel}>{t('piecesSessions')}</ThemedText>
                                 <View style={styles.stepper}>
                                     <TouchableOpacity style={styles.stepBtn} onPress={() => handleAdjustSet('sessions', -1)}>
                                         <Minus size={20} color={theme.textPrimary} />
@@ -409,7 +411,7 @@ export default function StudyRoomScreen() {
 
                         <View style={[styles.configRow, { marginTop: 24 }]}>
                             <View style={styles.configItem}>
-                                <ThemedText style={styles.configLabel}>BREAK PER PIECE (m)</ThemedText>
+                                <ThemedText style={styles.configLabel}>{t('breakPerPiece')}</ThemedText>
                                 <View style={styles.stepper}>
                                     <TouchableOpacity style={styles.stepBtn} onPress={() => handleAdjustSet('break', -1)}>
                                         <Minus size={20} color={theme.textPrimary} />
@@ -425,12 +427,12 @@ export default function StudyRoomScreen() {
                         <View style={[styles.resultBox, { backgroundColor: theme.primaryLight }]}>
                             <Zap size={20} color={theme.primary} />
                             <ThemedText style={styles.resultText}>
-                                Strategy: <ThemedText style={{ fontWeight: '900', color: theme.primary }}>{settings.sessions}</ThemedText> pieces of <ThemedText style={{ fontWeight: '900', color: theme.primary }}>{settings.focus}m</ThemedText> focus each.
+                                {t('strategyInfo').replace('{sessions}', settings.sessions.toString()).replace('{focus}', settings.focus.toString())}
                             </ThemedText>
                         </View>
                     </Card>
 
-                    <Button title="Enter Study Room" style={{ marginTop: 40, height: 60 }} onPress={() => {
+                    <Button title={t('enterStudyRoom')} style={{ marginTop: 40, height: 60 }} onPress={() => {
                         start(settings);
                         setIsSettingUp(false);
                     }} />
@@ -447,18 +449,18 @@ export default function StudyRoomScreen() {
         <ThemedView style={{ flex: 1 }}>
             <SafeAreaView style={styles.center}>
                 <CheckCircle2 color={theme.primary} size={100} style={{ marginBottom: 24 }} />
-                <Heading style={{ fontSize: 32, marginBottom: 12 }}>Mission Success</Heading>
+                <Heading style={{ fontSize: 32, marginBottom: 12 }}>{t('missionSuccess')}</Heading>
                 <ThemedText style={styles.successSub}>
-                    You've completed your intensive study of {plan.section}. Ready to log your progress?
+                    {t('missionSuccessSub').replace('{section}', t(plan.section))}
                 </ThemedText>
                 <Button 
-                    title={markingDone ? "ARCHIVING..." : "LOG AS COMPLETED"} 
+                    title={markingDone ? t('archiving') : t('logAsCompleted')} 
                     loading={markingDone}
                     onPress={markAsDone}
                     style={{ width: '100%', marginTop: 40, height: 60 }}
                 />
                 <TouchableOpacity style={{ marginTop: 24 }} onPress={() => setIsCompleted(false)}>
-                    <ThemedText style={{ opacity: 0.4, fontWeight: '800', letterSpacing: 1 }}>KEEP WORKING</ThemedText>
+                    <ThemedText style={{ opacity: 0.4, fontWeight: '800', letterSpacing: 1 }}>{t('keepWorking')}</ThemedText>
                 </TouchableOpacity>
             </SafeAreaView>
         </ThemedView>
@@ -473,7 +475,7 @@ export default function StudyRoomScreen() {
           <View style={styles.execHeader}>
               <TouchableOpacity onPress={handleQuit}>
                   <View style={[styles.quitBtn, { backgroundColor: theme.card }]}>
-                      <ThemedText style={styles.quitText}>QUIT SESSION</ThemedText>
+                      <ThemedText style={styles.quitText}>{t('quitSession')}</ThemedText>
                   </View>
               </TouchableOpacity>
               
@@ -491,13 +493,13 @@ export default function StudyRoomScreen() {
               </View>
 
               <View style={[styles.execBadge, { backgroundColor: mode === 'break' ? '#10b981' : theme.primary }]}>
-                  <ThemedText style={styles.execBadgeText}>{mode.toUpperCase()}</ThemedText>
+                  <ThemedText style={styles.execBadgeText}>{t(mode === 'focus' ? 'focusing' : 'breaking')}</ThemedText>
               </View>
           </View>
 
           <View style={styles.globalProgressBox}>
               <View style={styles.progressLabelRow}>
-                  <ThemedText style={styles.progressNote}>OVERALL COMPLETION</ThemedText>
+                  <ThemedText style={styles.progressNote}>{t('overallCompletion')}</ThemedText>
                   <ThemedText style={[styles.progressPct, { color: mode === 'break' ? '#10b981' : theme.primary }]}>{getGlobalProgress()}%</ThemedText>
               </View>
               <View style={[styles.barContainer, { backgroundColor: theme.card }]}>
@@ -512,7 +514,7 @@ export default function StudyRoomScreen() {
                           <ThemedText style={[styles.activeTimerVal, { fontSize: timeLeft >= 3600 ? 56 : 72 }]}>
                               {formatTime(timeLeft)}
                           </ThemedText>
-                          <ThemedText style={styles.sessionStatus}>Part {currentSession} of {settings.sessions}</ThemedText>
+                          <ThemedText style={styles.sessionStatus}>{t('partXofY').replace('{current}', currentSession.toString()).replace('{total}', settings.sessions.toString())}</ThemedText>
                       </Animated.View>
                   </View>
 
@@ -533,7 +535,7 @@ export default function StudyRoomScreen() {
               </View>
 
               <View style={styles.objectiveSide}>
-                  <Heading style={{ fontSize: 10, opacity: 0.3, letterSpacing: 2, marginBottom: 12 }}>MISSION OBJECTIVE</Heading>
+                  <Heading style={{ fontSize: 10, opacity: 0.3, letterSpacing: 2, marginBottom: 12 }}>{t('missionObjective')}</Heading>
                   <Card style={styles.objectiveCard}>
                       <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }} nestedScrollEnabled>
                           <ThemedText style={styles.objectiveText}>{plan.tasks_text}</ThemedText>
@@ -546,8 +548,8 @@ export default function StudyRoomScreen() {
 
       <ConfirmModal 
         visible={quitModalVisible}
-        title="Quit Session?"
-        message="Do you want to save your progress or discard it?"
+        title={t('quitSessionTitle')}
+        message={t('quitSessionMsg')}
         onCancel={() => setQuitModalVisible(false)}
         onConfirm={async () => {
              if (plan) await storage.removeItem(`study_room_state_${plan.id}`);
@@ -556,7 +558,7 @@ export default function StudyRoomScreen() {
              router.setParams({ planId: undefined });
              // loadData triggered by param change
         }}
-        confirmLabel="Discard"
+        confirmLabel={t('discard')}
         isDestructive
         onAlternative={() => {
             // State is already saved by useEffect
@@ -564,19 +566,19 @@ export default function StudyRoomScreen() {
             setPlan(null);
             router.setParams({ planId: undefined });
         }}
-        alternativeLabel="Save"
+        alternativeLabel={t('saveProgress')}
       />
 
       <ConfirmModal 
         visible={resetModalVisible}
-        title="Reset Timer"
-        message="Restart this piece? Current progress for this session will be lost."
+        title={t('resetTimer')}
+        message={t('resetPieceMsg')}
         onCancel={() => setResetModalVisible(false)}
         onConfirm={() => {
             reset("focus");
             setResetModalVisible(false);
         }}
-        confirmLabel="Reset"
+        confirmLabel={t('reset')}
         isDestructive
       />
       

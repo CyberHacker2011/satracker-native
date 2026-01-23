@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { StyleSheet, ScrollView, View, TouchableOpacity, RefreshControl, ActivityIndicator, LayoutAnimation, Platform, UIManager, Linking, Alert } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { ThemedText, Heading } from "../../components/ThemedText";
 import { ThemedView, Card } from "../../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -28,6 +29,7 @@ type DashboardPlan = {
 
 export default function DashboardScreen() {
   const { theme, themeName } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
@@ -121,8 +123,8 @@ export default function DashboardScreen() {
       console.error(e);
       const isOnline = await checkConnection();
       const msg = isOnline 
-        ? (e.message || "Failed to fetch data. Server error.") 
-        : "No internet connection. Please check your network and try again.";
+        ? (e.message || t('failedFetchData')) 
+        : t('noInternetCheck');
       setErrorMsg(msg);
       setErrorVisible(true);
     } finally {
@@ -186,7 +188,7 @@ export default function DashboardScreen() {
       {loading ? (
         <ThemedView style={styles.center}>
             <ActivityIndicator color={theme.primary} size="large" />
-            <ThemedText style={{ marginTop: 10, opacity: 0.5, fontWeight: '700' }}>Loading Dashboard...</ThemedText>
+            <ThemedText style={{ marginTop: 10, opacity: 0.5, fontWeight: '700' }}>{t('loadingDashboard')}</ThemedText>
         </ThemedView>
       ) : (
         <SafeAreaView style={{ flex: 1 }}>
@@ -197,15 +199,15 @@ export default function DashboardScreen() {
           {/* Welcome Header */}
           <View style={styles.header}>
             <View>
-              <ThemedText style={styles.title}>Hello, <ThemedText style={{ color: theme.primary, textTransform: 'capitalize' }}>{userName || "Friend"}</ThemedText>!</ThemedText>
-              <ThemedText style={styles.subtitle}>Ready to crush the SAT?</ThemedText>
+              <ThemedText style={styles.title}>{t('hello')}, <ThemedText style={{ color: theme.primary, textTransform: 'capitalize' }}>{userName || t('friend')}</ThemedText>!</ThemedText>
+              <ThemedText style={styles.subtitle}>{t('readyToCrush')}</ThemedText>
             </View>
             <View style={styles.headerActions}>
                 <TouchableOpacity onPress={() => router.push("/(tabs)/plan")} style={[styles.mainBtn, { backgroundColor: theme.primary }]}>
-                    <ThemedText style={styles.mainBtnText}>Create Plan</ThemedText>
+                    <ThemedText style={styles.mainBtnText}>{t('createPlan')}</ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => router.push("/(tabs)/study-room")} style={[styles.secondBtn, { borderColor: theme.border }]}>
-                    <ThemedText style={[styles.secondBtnText, { color: theme.primary }]}>Start Timer</ThemedText>
+                    <ThemedText style={[styles.secondBtnText, { color: theme.primary }]}>{t('startTimer')}</ThemedText>
                 </TouchableOpacity>
             </View>
           </View>
@@ -220,11 +222,11 @@ export default function DashboardScreen() {
                     <View style={{ gap: 4 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <Target size={14} color={theme.primary} />
-                            <ThemedText style={{ fontSize: 10, fontWeight: '800', opacity: 0.5, textTransform: 'uppercase' }}>Target</ThemedText>
+                            <ThemedText style={{ fontSize: 10, fontWeight: '800', opacity: 0.5, textTransform: 'uppercase' }}>{t('target')}</ThemedText>
                         </View>
                         <ThemedText style={{ fontSize: 28, fontWeight: '900', color: theme.primary, lineHeight: 32 }}>{targetScore}</ThemedText>
                         <TouchableOpacity onPress={() => router.push("/edit-profile")}>
-                            <ThemedText style={{ fontSize: 10, fontWeight: '700', opacity: 0.4 }}>Edit Goal ›</ThemedText>
+                            <ThemedText style={{ fontSize: 10, fontWeight: '700', opacity: 0.4 }}>{t('editGoal')} ›</ThemedText>
                         </TouchableOpacity>
                     </View>
                 ) : <View />}
@@ -241,25 +243,25 @@ export default function DashboardScreen() {
                               <View style={[styles.timerCard, { backgroundColor: theme.card, borderColor: theme.border, padding: 2, minWidth: 24, borderRadius: 6 }]}>
                                 <ThemedText style={[styles.timerValue, { fontSize: 12 }]}>{Math.floor(daysUntilExam)}</ThemedText>
                               </View>
-                              <ThemedText style={[styles.timerLabel, { fontSize: 5 }]}>D</ThemedText>
+                              <ThemedText style={[styles.timerLabel, { fontSize: 5 }]}>{t('daysShort')}</ThemedText>
                             </View>
                             <View style={[styles.timerBox, { width: 28 }]}>
                               <View style={[styles.timerCard, { backgroundColor: theme.card, borderColor: theme.border, padding: 2, minWidth: 24, borderRadius: 6 }]}>
                                 <ThemedText style={[styles.timerValue, { fontSize: 12 }]}>{Math.floor((daysUntilExam % 1) * 24)}</ThemedText>
                               </View>
-                              <ThemedText style={[styles.timerLabel, { fontSize: 5 }]}>H</ThemedText>
+                              <ThemedText style={[styles.timerLabel, { fontSize: 5 }]}>{t('hoursShort')}</ThemedText>
                             </View>
                             <View style={[styles.timerBox, { width: 28 }]}>
                               <View style={[styles.timerCard, { backgroundColor: theme.card, borderColor: theme.border, padding: 2, minWidth: 24, borderRadius: 6 }]}>
                                 <ThemedText style={[styles.timerValue, { fontSize: 12 }]}>{Math.floor((daysUntilExam * 24 * 60) % 60)}</ThemedText>
                               </View>
-                              <ThemedText style={[styles.timerLabel, { fontSize: 5 }]}>M</ThemedText>
+                              <ThemedText style={[styles.timerLabel, { fontSize: 5 }]}>{t('minutesShort')}</ThemedText>
                             </View>
                             <View style={[styles.timerBox, { width: 28 }]}>
                               <View style={[styles.timerCard, { backgroundColor: theme.card, borderColor: theme.border, padding: 2, minWidth: 24, borderRadius: 6 }]}>
                                 <ThemedText style={[styles.timerValue, { fontSize: 12 }]}>{Math.floor((daysUntilExam * 24 * 3600) % 60)}</ThemedText>
                               </View>
-                              <ThemedText style={[styles.timerLabel, { fontSize: 5 }]}>S</ThemedText>
+                              <ThemedText style={[styles.timerLabel, { fontSize: 5 }]}>{t('secondsShort')}</ThemedText>
                             </View>
                         </View>
                     </View>
@@ -279,8 +281,8 @@ export default function DashboardScreen() {
                             <ThemedText style={{ fontSize: 20 }}>👤</ThemedText>
                         </View>
                         <View style={{ flex: 1 }}>
-                            <ThemedText style={{ fontWeight: '800', fontSize: 16 }}>Complete Your Profile</ThemedText>
-                            <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>Set your name and exam date to personalize your dashboard.</ThemedText>
+                            <ThemedText style={{ fontWeight: '800', fontSize: 16 }}>{t('completeProfile')}</ThemedText>
+                            <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>{t('completeProfileSub')}</ThemedText>
                         </View>
                         <ChevronRight color={theme.primary} size={20} />
                     </View>
@@ -295,10 +297,10 @@ export default function DashboardScreen() {
                     <View style={styles.scheduleHeader}>
                         <View style={styles.scheduleTitleRow}>
                             <View style={[styles.accentBar, { backgroundColor: theme.primary }]} />
-                            <Heading style={styles.scheduleTitle}>TODAY'S PLANS</Heading>
+                            <Heading style={styles.scheduleTitle}>{t('todaysPlans')}</Heading>
                         </View>
                         <TouchableOpacity onPress={() => router.push("/(tabs)/check-in")}>
-                            <ThemedText style={[styles.fullCheckLink, { color: theme.primary }]}>Full Check-in →</ThemedText>
+                            <ThemedText style={[styles.fullCheckLink, { color: theme.primary }]}>{t('fullCheckIn')} →</ThemedText>
                         </TouchableOpacity>
                     </View>
 
@@ -308,13 +310,13 @@ export default function DashboardScreen() {
                                 <View style={[styles.emptyIcon, { backgroundColor: themeName === 'dark' ? 'rgba(255,255,255,0.05)' : '#f3f4f6' }]}>
                                     <Target size={32} color={themeName === 'dark' ? '#fff' : '#9ca3af'} />
                                 </View>
-                                <ThemedText style={styles.emptyTitle}>No plans set for today</ThemedText>
-                                <ThemedText style={styles.emptySub}>Success doesn't just happen. It's planned.</ThemedText>
+                                <ThemedText style={styles.emptyTitle}>{t('noPlansToday')}</ThemedText>
+                                <ThemedText style={styles.emptySub}>{t('successQuote')}</ThemedText>
                                 <TouchableOpacity 
                                     style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
                                     onPress={() => router.push("/(tabs)/plan")}
                                 >
-                                    <ThemedText style={styles.emptyBtnText}>Create a Plan</ThemedText>
+                                    <ThemedText style={styles.emptyBtnText}>{t('createAPlan')}</ThemedText>
                                 </TouchableOpacity>
                             </View>
                         ) : (
@@ -331,15 +333,15 @@ export default function DashboardScreen() {
                                         <View style={[styles.sectionBar, { backgroundColor: plan.section === 'math' ? '#3b82f6' : plan.section === 'reading' ? '#f59e0b' : '#10b981' }]} />
                                         <View style={{ flex: 1 }}>
                                             <View style={styles.planTagRow}>
-                                                <ThemedText style={[styles.planTag, { color: plan.section === 'math' ? '#3b82f6' : plan.section === 'reading' ? '#f59e0b' : '#10b981' }]}>{plan.section}</ThemedText>
+                                                <ThemedText style={[styles.planTag, { color: plan.section === 'math' ? '#3b82f6' : plan.section === 'reading' ? '#f59e0b' : '#10b981' }]}>{t(plan.section)}</ThemedText>
                                                 {plan.isActive && (
                                                     <View style={[styles.activeBadge, { backgroundColor: theme.primary }]}>
-                                                        <ThemedText style={styles.activeBadgeText}>ACTIVE</ThemedText>
+                                                        <ThemedText style={styles.activeBadgeText}>{t('active')}</ThemedText>
                                                     </View>
                                                 )}
                                                 {plan.isMarked && (
                                                     <View style={[styles.activeBadge, { backgroundColor: '#10b981' }]}>
-                                                        <ThemedText style={styles.activeBadgeText}>DONE</ThemedText>
+                                                        <ThemedText style={styles.activeBadgeText}>{t('done')}</ThemedText>
                                                     </View>
                                                 )}
                                             </View>
@@ -360,21 +362,21 @@ export default function DashboardScreen() {
                                             ]}
                                             onPress={() => {
                                                 if (plan.isMarked || plan.isPast) {
-                                                    const msg = "This session is already completed or expired.";
+                                                    const msg = t('sessionUnavailableMsg');
                                                     if (Platform.OS === 'web') window.alert(msg);
-                                                    else Alert.alert("Plan Closed", msg);
+                                                    else Alert.alert(t('planClosed'), msg);
                                                     return;
                                                 }
                                                 if (!plan.isActive) {
-                                                    const msg = `This plan is scheduled for ${plan.start_time}. Access will open then.`;
+                                                    const msg = t('planScheduledFor').replace('{time}', plan.start_time);
                                                     if (Platform.OS === 'web') window.alert(msg);
-                                                    else Alert.alert("Stand By", msg);
+                                                    else Alert.alert(t('standBy'), msg);
                                                     return;
                                                 }
                                                 router.push(`/(tabs)/study-room?planId=${plan.id}`);
                                             }}
                                         >
-                                            <ThemedText style={[styles.enterRoomText, { color: plan.isActive ? '#fff' : theme.textSecondary }]}>Enter Study Room</ThemedText>
+                                            <ThemedText style={[styles.enterRoomText, { color: plan.isActive ? '#fff' : theme.textSecondary }]}>{t('enterStudyRoom')}</ThemedText>
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -386,19 +388,19 @@ export default function DashboardScreen() {
                 {/* Quick Access Grid */}
                 <View style={styles.quickGrid}>
                     <TouchableOpacity style={[styles.streakCard, { backgroundColor: theme.primary }]} onPress={() => router.push("/(tabs)/check-in")}>
-                        <Heading style={styles.quickTitle}>Build Your Streak</Heading>
-                        <ThemedText style={styles.quickSub}>Consistent study is the key to a high score. Check in daily to build your momentum.</ThemedText>
+                        <Heading style={styles.quickTitle}>{t('buildStreak')}</Heading>
+                        <ThemedText style={styles.quickSub}>{t('streakSub')}</ThemedText>
                         <View style={styles.quickAction}>
-                            <ThemedText style={[styles.quickActionText, { color: theme.primary }]}>Go to Check-in →</ThemedText>
+                            <ThemedText style={[styles.quickActionText, { color: theme.primary }]}>{t('goToCheckIn')} →</ThemedText>
                         </View>
                     </TouchableOpacity>
 
                     <Card style={styles.roomCard}>
                         <TouchableOpacity onPress={() => router.push("/(tabs)/study-room")}>
-                            <Heading style={styles.quickTitleBlack}>Study Room</Heading>
-                            <ThemedText style={styles.quickSubBlack}>Execute your scheduled objectives with integrated piece-by-piece management.</ThemedText>
+                            <Heading style={styles.quickTitleBlack}>{t('studyRoom')}</Heading>
+                            <ThemedText style={styles.quickSubBlack}>{t('studyRoomSub')}</ThemedText>
                             <View style={[styles.quickActionBlack, { backgroundColor: theme.primary }]}>
-                                <ThemedText style={styles.quickActionTextBlack}>Go to Study Room →</ThemedText>
+                                <ThemedText style={styles.quickActionTextBlack}>{t('goToStudyRoom')} →</ThemedText>
                             </View>
                         </TouchableOpacity>
                     </Card>
@@ -408,36 +410,36 @@ export default function DashboardScreen() {
             {/* Sidebar (Desktop view logic - column on side) */}
             <View style={styles.sideCol}>
                 <Card style={styles.linksCard}>
-                    <ThemedText style={styles.linksLabel}>QUICK LINKS</ThemedText>
+                    <ThemedText style={styles.linksLabel}>{t('quickLinks')}</ThemedText>
                     <TouchableOpacity style={styles.linkItem} onPress={() => router.push("/(tabs)/plan")}>
                         <View style={[styles.linkIcon, { backgroundColor: theme.primaryLight }]}>
                             <Calendar size={18} color={theme.primary} />
                         </View>
-                        <ThemedText style={styles.linkText}>Study Planner</ThemedText>
+                        <ThemedText style={styles.linkText}>{t('studyPlanner')}</ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.linkItem} onPress={() => router.push("/(tabs)/check-in")}>
                         <View style={[styles.linkIcon, { backgroundColor: '#f0fdf4' }]}>
                             <Zap size={18} color="#10b981" />
                         </View>
-                        <ThemedText style={styles.linkText}>Daily Check-in</ThemedText>
+                        <ThemedText style={styles.linkText}>{t('dailyCheckIn')}</ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.linkItem} onPress={() => router.push("/archive")}>
                         <View style={[styles.linkIcon, { backgroundColor: '#eff6ff' }]}>
                             <BookOpen size={18} color="#3b82f6" />
                         </View>
-                        <ThemedText style={styles.linkText}>Study History</ThemedText>
+                        <ThemedText style={styles.linkText}>{t('studyHistory')}</ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.linkItem} onPress={() => router.push("/(tabs)/focus")}>
                         <View style={[styles.linkIcon, { backgroundColor: '#fdf4ff' }]}>
                             <Clock size={18} color="#c026d3" />
                         </View>
-                        <ThemedText style={styles.linkText}>Classic Timer</ThemedText>
+                        <ThemedText style={styles.linkText}>{t('classicTimer')}</ThemedText>
                     </TouchableOpacity>
                 </Card>
 
                 <Card style={[styles.tipCard, { backgroundColor: themeName === 'dark' ? 'rgba(245, 158, 11, 0.05)' : '#fffbeb', borderColor: theme.primaryLight }]}>
-                    <ThemedText style={[styles.tipTitle, { color: theme.primary }]}>Study Tip</ThemedText>
-                    <ThemedText style={styles.tipText}>"The secret of getting ahead is getting started." — Stay consistent with your daily plans to reach your target score.</ThemedText>
+                    <ThemedText style={[styles.tipTitle, { color: theme.primary }]}>{t('studyTip')}</ThemedText>
+                    <ThemedText style={styles.tipText}>{t('tipQuote')}</ThemedText>
                 </Card>
             </View>
           </View>
@@ -448,7 +450,7 @@ export default function DashboardScreen() {
           <View style={styles.footer}>
             <View style={styles.footerLine} />
             <View style={styles.footerContent}>
-                <ThemedText style={styles.copyright}>© 2026 SAT Tracker. All Rights Reserved.</ThemedText>
+                <ThemedText style={styles.copyright}>© 2026 SAT Tracker. {t('allRightsReserved')}</ThemedText>
                 <View style={styles.contactInfo}>
                     <ThemedText style={styles.contactItem}>ibrohimshaymardanov011@gmail.com</ThemedText>
                     <View style={styles.dot} />
@@ -463,9 +465,9 @@ export default function DashboardScreen() {
           <View style={[styles.fab, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <TouchableOpacity onPress={() => Linking.openURL("https://t.me/ibrohimfr")} style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
               <View style={[styles.fabBadge, { backgroundColor: theme.primaryLight }]}>
-                  <ThemedText style={[styles.fabBadgeText, { color: theme.primary }]}>Feedback</ThemedText>
+                  <ThemedText style={[styles.fabBadgeText, { color: theme.primary }]}>{t('feedback')}</ThemedText>
               </View>
-              <ThemedText style={styles.fabText}>Have suggestions?</ThemedText>
+              <ThemedText style={styles.fabText}>{t('haveSuggestions')}</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setFeedbackVisible(false)} style={{ marginLeft: 8, padding: 4 }}>
                 <X size={20} color={theme.textSecondary} />

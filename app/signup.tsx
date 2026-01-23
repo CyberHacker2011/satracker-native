@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { StyleSheet, View, TextInput, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import { useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { ThemedText, Heading } from "../components/ThemedText";
@@ -16,6 +17,7 @@ type EducationLevel = '5th' | '6th' | '7th' | '8th' | '9th' | '10th' | '11th' | 
 
 export default function SignupScreen() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -78,9 +80,9 @@ export default function SignupScreen() {
   };
 
   const validatePassword = (pass: string): { valid: boolean; message?: string } => {
-    if (pass.length < 6) return { valid: false, message: "Password must be at least 6 characters long" };
-    if (!/[a-zA-Z]/.test(pass)) return { valid: false, message: "Password must contain at least one letter" };
-    if (!/[0-9]/.test(pass)) return { valid: false, message: "Password must contain at least one number" };
+    if (pass.length < 6) return { valid: false, message: t('passwordRequirements') };
+    if (!/[a-zA-Z]/.test(pass)) return { valid: false, message: t('passwordRequirements') };
+    if (!/[0-9]/.test(pass)) return { valid: false, message: t('passwordRequirements') };
     return { valid: true };
   };
 
@@ -89,31 +91,31 @@ export default function SignupScreen() {
     setEmailExistsError(false);
     if (currentStep === 1) {
       if (!email) {
-        setStep1Error("Please enter your email address.");
+        setStep1Error(t('enterEmail'));
         return;
       }
       if (!validateEmail(email)) {
-        setStep1Error("enter correct email");
+        setStep1Error(t('invalidEmail'));
         return;
       }
       if (!password) {
-        setStep1Error("Please create a new password.");
+        setStep1Error(t('createPassword'));
         return;
       }
       const validation = validatePassword(password);
       if (!validation.valid) {
-        setStep1Error("the password should be 6 character and should contain letter and number");
+        setStep1Error(t('passwordRequirements'));
         return;
       }
       if (password !== confirmPassword) {
-        setStep1Error("Confirm password does not match. Please try again.");
+        setStep1Error(t('passwordsDoNotMatch'));
         return;
       }
 
       // Move signUp to the final step to prevent early redirect
     } else if (currentStep === 2) {
       if (!name || !educationLevel) {
-        showToast("Please complete all required fields to personalize your experience.");
+        showToast(t('completeRequiredFields'));
         return;
       }
     }
@@ -145,16 +147,16 @@ export default function SignupScreen() {
         if (signupError.message.toLowerCase().includes("already registered") || signupError.message.toLowerCase().includes("taken")) {
           setCurrentStep(1);
           setEmailExistsError(true);
-          showToast("This email is already registered. Please sign in instead.");
+          showToast(t('userAlreadyExists'));
         } else {
-          showToast(signupError.message || "Failed to create account. Please try again.");
+          showToast(signupError.message || t('unexpectedError'));
         }
         setLoading(false);
         return;
       }
 
       const userId = user?.id;
-      if (!userId) throw new Error("Account creation failed. Please try again.");
+      if (!userId) throw new Error(t('unexpectedError'));
 
       // Step 2: Create the user profile in separate table
       // We do this concurrently but wait for it before showing success
@@ -174,16 +176,16 @@ export default function SignupScreen() {
         // We continue anyway since metadata is saved and account exists
       }
 
-      showToast("Account created successfully!", "success");
+      showToast(t('accountCreatedSuccess'), "success");
       
       // If session exists, _layout.tsx will handle the redirect.
       // If email verification is needed, session will be null.
       if (!session) {
-        showToast("Please check your email to verify your account.", "info");
+        showToast(t('checkEmailVerify'), "info");
       }
       
     } catch (error: any) {
-      showToast(error.message || "An unexpected error occurred.");
+      showToast(error.message || t('unexpectedError'));
     } finally {
       setLoading(false);
     }
@@ -206,7 +208,7 @@ export default function SignupScreen() {
             
             {(currentStep === 2 || currentStep === 3) && (
               <TouchableOpacity onPress={() => handleSkip()}>
-                <ThemedText style={[styles.skipText, { color: theme.primary }]}>Skip</ThemedText>
+                <ThemedText style={[styles.skipText, { color: theme.primary }]}>{t('skip')}</ThemedText>
               </TouchableOpacity>
             )}
           </View>
@@ -217,21 +219,21 @@ export default function SignupScreen() {
 
           <View style={styles.content}>
             <Heading style={styles.title}>
-              {currentStep === 1 && "Create Account"}
-              {currentStep === 2 && "Tell Us About You"}
-              {currentStep === 3 && "Your SAT Goals"}
+              {currentStep === 1 && t('createAccount')}
+              {currentStep === 2 && t('tellUsAboutYou')}
+              {currentStep === 3 && t('satGoals')}
             </Heading>
             <ThemedText style={styles.subtitle}>
-              {currentStep === 1 && "Set up your credentials"}
-              {currentStep === 2 && "We'll personalize your experience"}
-              {currentStep === 3 && "Help us track your progress"}
+              {currentStep === 1 && t('setUpCredentials')}
+              {currentStep === 2 && t('personalizeExperience')}
+              {currentStep === 3 && t('trackProgress')}
             </ThemedText>
 
             {/* Step 1: Email & Password */}
             {currentStep === 1 && (
               <View style={styles.form}>
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Email address</ThemedText>
+                  <ThemedText style={styles.label}>{t('emailAddress')}</ThemedText>
                   <TextInput
                     style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
                     placeholder="your.email@example.com"
@@ -246,13 +248,13 @@ export default function SignupScreen() {
                   />
                   {emailExistsError && (
                     <ThemedText style={[styles.hint, { color: '#ef4444', marginTop: 4, fontWeight: '700' }]}>
-                      the user alrleady exist. enter correct email
+                      {t('userAlreadyExists')}
                     </ThemedText>
                   )}
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Create new password</ThemedText>
+                  <ThemedText style={styles.label}>{t('createPassword')}</ThemedText>
                   <View style={styles.passwordContainer}>
                     <TextInput
                       style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary, flex: 1 }]}
@@ -270,11 +272,11 @@ export default function SignupScreen() {
                       {showPassword ? <EyeOff size={20} color={theme.textSecondary} /> : <Eye size={20} color={theme.textSecondary} />}
                     </TouchableOpacity>
                   </View>
-                  <ThemedText style={styles.hint}>At least 6 characters, with letters and numbers</ThemedText>
+                  <ThemedText style={styles.hint}>{t('hints')}</ThemedText>
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Confirm new password</ThemedText>
+                  <ThemedText style={styles.label}>{t('confirmPassword')}</ThemedText>
                   <View style={styles.passwordContainer}>
                     <TextInput
                       style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary, flex: 1 }]}
@@ -300,11 +302,11 @@ export default function SignupScreen() {
                   </View>
                 )}
 
-                <Button title={loading && currentStep === 1 ? "Checking..." : "Continue"} onPress={handleNext} style={styles.button} loading={loading && currentStep === 1} />
+                <Button title={loading && currentStep === 1 ? t('checking') : t('continue')} onPress={handleNext} style={styles.button} loading={loading && currentStep === 1} />
                 
                 <TouchableOpacity onPress={() => router.push("/login")} style={{ marginTop: 20 }}>
                   <ThemedText style={[styles.linkText, { color: theme.primary }]}>
-                    Already have an account? Sign in
+                    {t('alreadyHaveAccount')}
                   </ThemedText>
                 </TouchableOpacity>
               </View>
@@ -314,10 +316,10 @@ export default function SignupScreen() {
             {currentStep === 2 && (
               <View style={styles.form}>
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Preferred Name</ThemedText>
+                  <ThemedText style={styles.label}>{t('preferredName')}</ThemedText>
                   <TextInput
                     style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
-                    placeholder="What should we call you?"
+                    placeholder={t('namePlaceholder')}
                     placeholderTextColor={theme.textSecondary}
                     value={name}
                     onChangeText={setName}
@@ -327,7 +329,7 @@ export default function SignupScreen() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Education Level</ThemedText>
+                  <ThemedText style={styles.label}>{t('educationLevel')}</ThemedText>
                   <View style={styles.optionsGrid}>
                     {educationOptions.map(option => (
                       <TouchableOpacity
@@ -340,14 +342,14 @@ export default function SignupScreen() {
                         onPress={() => setEducationLevel(option)}
                       >
                         <ThemedText style={[styles.optionText, educationLevel === option && { color: '#fff', fontWeight: '700' }]}>
-                          {option === 'undergraduate' || option === 'graduate' ? option : option}
+                          {t(option)}
                         </ThemedText>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </View>
 
-                <Button title="Continue" onPress={handleNext} style={styles.button} />
+                <Button title={t('continue')} onPress={handleNext} style={styles.button} />
               </View>
             )}
 
@@ -355,7 +357,7 @@ export default function SignupScreen() {
             {currentStep === 3 && (
               <View style={styles.form}>
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Exam Date</ThemedText>
+                  <ThemedText style={styles.label}>{t('examDate')}</ThemedText>
                   <View style={styles.datesGrid}>
                     {examDates.map(date => (
                       <TouchableOpacity
@@ -368,7 +370,7 @@ export default function SignupScreen() {
                         onPress={() => setExamDate(date)}
                       >
                         <ThemedText style={[styles.dateText, examDate === date && { color: '#fff', fontWeight: '700' }]}>
-                          {date}
+                          {date.split(' ')[0] === 'Other' ? t('other') : date.replace(date.split(' ')[0], t(date.split(' ')[0].toLowerCase()))}
                         </ThemedText>
                       </TouchableOpacity>
                     ))}
@@ -376,10 +378,10 @@ export default function SignupScreen() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>Target SAT Score</ThemedText>
+                  <ThemedText style={styles.label}>{t('targetScore')}</ThemedText>
                   
                   <View style={styles.scoreSection}>
-                    <ThemedText style={styles.scoreLabel}>Math</ThemedText>
+                    <ThemedText style={styles.scoreLabel}>{t('math')}</ThemedText>
                     <View style={styles.sliderRow}>
                       <Slider
                         style={styles.slider}
@@ -397,7 +399,7 @@ export default function SignupScreen() {
                   </View>
 
                   <View style={styles.scoreSection}>
-                    <ThemedText style={styles.scoreLabel}>Reading & Writing</ThemedText>
+                    <ThemedText style={styles.scoreLabel}>{t('readingWriting')}</ThemedText>
                     <View style={styles.sliderRow}>
                       <Slider
                         style={styles.slider}
@@ -415,7 +417,7 @@ export default function SignupScreen() {
                   </View>
 
                   <View style={[styles.totalBox, { backgroundColor: theme.primaryLight, borderColor: theme.primary }]}>
-                    <ThemedText style={[styles.totalLabel, { color: theme.primary }]}>Total Target</ThemedText>
+                    <ThemedText style={[styles.totalLabel, { color: theme.primary }]}>{t('totalTarget')}</ThemedText>
                     <ThemedText style={[styles.totalValue, { color: theme.primary }]}>{totalTarget}</ThemedText>
                   </View>
                 </View>
@@ -428,13 +430,13 @@ export default function SignupScreen() {
                     >
                       {hasPreviousScore && <ThemedText style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</ThemedText>}
                     </TouchableOpacity>
-                    <ThemedText style={styles.label}>I have a previous SAT score</ThemedText>
+                    <ThemedText style={styles.label}>{t('havePreviousScore')}</ThemedText>
                   </View>
 
                   {hasPreviousScore && (
                     <>
                       <View style={styles.scoreSection}>
-                        <ThemedText style={styles.scoreLabel}>Math</ThemedText>
+                        <ThemedText style={styles.scoreLabel}>{t('math')}</ThemedText>
                         <View style={styles.sliderRow}>
                           <Slider
                             style={styles.slider}
@@ -452,7 +454,7 @@ export default function SignupScreen() {
                       </View>
 
                       <View style={styles.scoreSection}>
-                        <ThemedText style={styles.scoreLabel}>Reading & Writing</ThemedText>
+                        <ThemedText style={styles.scoreLabel}>{t('readingWriting')}</ThemedText>
                         <View style={styles.sliderRow}>
                           <Slider
                             style={styles.slider}
@@ -470,7 +472,7 @@ export default function SignupScreen() {
                       </View>
 
                       <View style={[styles.totalBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <ThemedText style={styles.totalLabel}>Previous Total</ThemedText>
+                        <ThemedText style={styles.totalLabel}>{t('previousTotal')}</ThemedText>
                         <ThemedText style={styles.totalValue}>{totalPrevious}</ThemedText>
                       </View>
                     </>
@@ -478,7 +480,7 @@ export default function SignupScreen() {
                 </View>
 
                 <Button 
-                  title={loading ? "Creating Account..." : "Complete Signup"} 
+                  title={loading ? t('creatingAccount') : t('completeSignup')} 
                   onPress={handleSignup} 
                   loading={loading}
                   style={styles.button} 

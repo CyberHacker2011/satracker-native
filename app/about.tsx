@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, View, ScrollView, TouchableOpacity } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import { Stack, useRouter } from "expo-router";
 import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView, Card } from "../components/ThemedView";
@@ -9,33 +10,34 @@ import { ChevronLeft, Clock, Zap, CheckCircle2, BarChart3, Star, Calendar } from
 
 export default function AboutScreen() {
   const { theme, themeName } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const features = [
     {
-        title: "Study Planning",
-        desc: "Create structured daily plans for Math, Reading, and Writing sections. Set specific time blocks for each task.",
+        title: t('studyPlanner'),
+        desc: t('studyPlanningDesc'),
         icon: Calendar,
         color: "#f59e0b",
         bg: "#fef3c7"
     },
     {
-        title: "Focus Timer",
-        desc: "Increase focus with work-rest intervals. Integrated directly with your study plans for seamless session tracking.",
+        title: t('classicTimer'),
+        desc: t('focusTimerLongDesc'),
         icon: Clock,
         color: "#3b82f6",
         bg: "#dbeafe"
     },
     {
-        title: "Daily Check-ins",
-        desc: "Maintain accountability by marking your sessions as completed. Build a daily streak of productivity.",
+        title: t('dailyCheckIn'),
+        desc: t('dailyCheckInsLongDesc'),
         icon: CheckCircle2,
         color: "#10b981",
         bg: "#dcfce7"
     },
     {
-        title: "Progress Tracker",
-        desc: "View your performance history. See exactly which sessions you completed and identify areas for improvement.",
+        title: t('studyHistory'),
+        desc: t('progressTrackerDesc'),
         icon: BarChart3,
         color: "#8b5cf6",
         bg: "#f3e8ff"
@@ -45,7 +47,7 @@ export default function AboutScreen() {
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen options={{ 
-        title: "About SAT Tracker",
+        title: t('aboutApp'),
         headerShown: true,
         headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 16 }}>
@@ -57,17 +59,17 @@ export default function AboutScreen() {
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.hero}>
               <View style={[styles.badge, { backgroundColor: theme.primaryLight }]}>
-                  <ThemedText style={[styles.badgeText, { color: theme.primary }]}>Premium Study Companion</ThemedText>
+                  <ThemedText style={[styles.badgeText, { color: theme.primary }]}>{t('premiumStudyCompanion')}</ThemedText>
               </View>
-              <Heading style={styles.heroTitle}>Plan. Track. <ThemedText style={{ color: theme.primary }}>Succeed.</ThemedText></Heading>
+              <Heading style={styles.heroTitle}>Plan. Track. <ThemedText style={{ color: theme.primary }}>{t('start').toUpperCase()}.</ThemedText></Heading>
               <ThemedText style={styles.heroSub}>
-                  A comprehensive tool for modern SAT preparation. Organize your daily sessions, maintain focus, and track your progress consistently.
+                  {t('aboutHeroDesc')}
               </ThemedText>
           </View>
 
           <View style={styles.section}>
-              <Heading style={styles.sectionTitle}>Everything You Need</Heading>
-              <ThemedText style={styles.sectionSub}>Smart tools designed to increase your study habits and maximize efficiency.</ThemedText>
+              <Heading style={styles.sectionTitle}>{t('everythingYouNeed')}</Heading>
+              <ThemedText style={styles.sectionSub}>{t('smartToolsDesc')}</ThemedText>
               
               <View style={styles.featureGrid}>
                   {features.map((f, i) => (
@@ -84,9 +86,9 @@ export default function AboutScreen() {
 
           <Card style={[styles.ctaCard, { backgroundColor: theme.primary }]}>
               <Star color="#fff" size={32} style={{ marginBottom: 16 }} />
-              <Heading style={styles.ctaTitle}>Ready to Optimize Your SAT Study?</Heading>
+              <Heading style={styles.ctaTitle}>{t('readyOptimizeSAT')}</Heading>
               <ThemedText style={styles.ctaSub}>
-                  Stay consistent with your daily plans to reach your target score. Consistent effort is the bridge between goals and accomplishment.
+                  {t('aboutCTADesc')}
               </ThemedText>
           </Card>
 
