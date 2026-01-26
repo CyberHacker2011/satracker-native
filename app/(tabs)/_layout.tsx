@@ -74,12 +74,7 @@ export default function TabLayout() {
           href: null,
         }}
       />
-      <Tabs.Screen
-        name="premium"
-        options={{
-          href: null,
-        }}
-      />
+
     </Tabs>
   );
 }

@@ -23,7 +23,7 @@ export function HeaderPremiumBtn() {
 
   return (
     <TouchableOpacity 
-      onPress={() => router.push("/(tabs)/premium")}
+      onPress={() => router.push("/premium")}
       style={styles.container}
     >
       <View style={[

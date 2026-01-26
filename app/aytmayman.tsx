@@ -122,6 +122,44 @@ export default function AdminPremiumPage() {
     }
   };
 
+  const revokePremium = async (userId: string, userName: string) => {
+    const confirmMessage = `Revoke premium from ${userName}?`;
+    
+    const confirmed = Platform.OS === 'web' 
+      ? window.confirm(confirmMessage)
+      : await new Promise(resolve => {
+          Alert.alert(
+            "Confirm Revoke",
+            confirmMessage,
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Yes", style: "destructive", onPress: () => resolve(true) }
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase
+        .rpc('admin_revoke_premium', {
+          target_user_id: userId
+        });
+
+      if (error) throw error;
+
+      const successMsg = `Premium revoked from ${userName}`;
+      if (Platform.OS === 'web') alert(successMsg);
+      else Alert.alert("Success", successMsg);
+      
+      loadUsers();
+    } catch (error: any) {
+      const errorMsg = error.message || "Failed to revoke premium";
+      if (Platform.OS === 'web') alert("Error: " + errorMsg);
+      else Alert.alert("Error", errorMsg);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <ThemedView style={{ flex: 1 }}>
@@ -241,6 +279,18 @@ export default function AdminPremiumPage() {
                           3 Months
                         </ThemedText>
                       </TouchableOpacity>
+
+                      {user.is_premium && (
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}
+                          onPress={() => revokePremium(user.id, user.name || user.email)}
+                        >
+                          <Lock size={16} color="#fff" />
+                          <ThemedText style={[styles.actionButtonText, { color: '#fff' }]}>
+                            Revoke
+                          </ThemedText>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </Card>
                 ))

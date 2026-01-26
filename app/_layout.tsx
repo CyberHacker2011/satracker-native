@@ -47,7 +47,7 @@ function RootLayoutNav() {
     }
 
     // Not logged in and trying to access protected routes
-    if (!session && (inTabsGroup || (rootSegment !== "login" && rootSegment !== "signup" && rootSegment !== "+not-found" && rootSegment !== "privacy"))) {
+    if (!session && (inTabsGroup || (rootSegment !== "login" && rootSegment !== "signup" && rootSegment !== "+not-found" && rootSegment !== "privacy" && rootSegment !== "premium" && rootSegment !== "about"))) {
       router.replace("/login");
     } 
     // Logged in but on login/signup page
@@ -84,6 +84,7 @@ function RootLayoutNav() {
         <Stack.Screen name="notifications" options={{ title: "Notifications", headerBackTitle: "Back" }} />
         <Stack.Screen name="about" options={{ title: "About", headerBackTitle: "Back" }} />
         <Stack.Screen name="privacy" options={{ title: "Privacy Policy", headerBackTitle: "Back" }} />
+        <Stack.Screen name="premium" options={{ title: "Premium", headerBackTitle: "Back", headerShown: false }} />
         <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
       </Stack>
     </View>

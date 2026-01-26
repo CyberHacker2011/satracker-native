@@ -17,11 +17,15 @@ export function usePremium() {
   });
 
   const checkPremium = useCallback(async () => {
+    let isMounted = true;
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        setStatus({ isPremium: false, loading: false, subscriptionType: null, expiresAt: null });
+        if (isMounted) {
+          setStatus({ isPremium: false, loading: false, subscriptionType: null, expiresAt: null });
+        }
         return false;
       }
 
@@ -31,12 +35,15 @@ export function usePremium() {
         .eq("user_id", user.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If error is PGRST116 (no rows), user profile might not exist yet
+        if (error.code !== 'PGRST116') throw error;
+      }
 
       let isPremium = profile?.is_premium || false;
 
       // Check if premium has expired
-      if (isPremium && profile.premium_expires_at) {
+      if (isPremium && profile?.premium_expires_at) {
         const expiryDate = new Date(profile.premium_expires_at);
         const now = new Date();
         
@@ -50,17 +57,21 @@ export function usePremium() {
         }
       }
 
-      setStatus({
-        isPremium,
-        loading: false,
-        subscriptionType: profile?.subscription_type || null,
-        expiresAt: profile?.premium_expires_at || null,
-      });
+      if (isMounted) {
+        setStatus({
+          isPremium,
+          loading: false,
+          subscriptionType: profile?.subscription_type || null,
+          expiresAt: profile?.premium_expires_at || null,
+        });
+      }
 
       return isPremium;
-    } catch (error) {
-      console.error("Error checking premium status:", error);
-      setStatus({ isPremium: false, loading: false, subscriptionType: null, expiresAt: null });
+    } catch (error: any) {
+      if (error.name !== 'AbortError' && isMounted) {
+        console.error("Error checking premium status:", error);
+        setStatus({ isPremium: false, loading: false, subscriptionType: null, expiresAt: null });
+      }
       return false;
     }
   }, []);

@@ -31,12 +31,29 @@ export function PremiumGate({ children, feature, showUpgrade = true }: PremiumGa
     );
   }
 
+  // Update popup state when premium status changes
+  React.useEffect(() => {
+    if (!loading && !isPremium) {
+      setShowPopup(true);
+    }
+  }, [loading, isPremium]);
+
   if (!isPremium) {
     return (
-      <>
-        {children}
-        <PremiumPopup visible={showPopup} onDismiss={() => setShowPopup(false)} />
-      </>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <PremiumPopup visible={showPopup} onDismiss={() => {
+            setShowPopup(false);
+            router.back();
+        }} />
+        {!showPopup && (
+            <View style={{ alignItems: 'center', opacity: 0.5 }}>
+                <ThemedText>🔒 Premium Feature</ThemedText>
+                <TouchableOpacity onPress={() => setShowPopup(true)} style={{ marginTop: 20, padding: 10, backgroundColor: theme.primary, borderRadius: 8 }}>
+                    <ThemedText style={{ color: 'white' }}>Unlock</ThemedText>
+                </TouchableOpacity>
+            </View>
+        )}
+      </View>
     );
   }
 
