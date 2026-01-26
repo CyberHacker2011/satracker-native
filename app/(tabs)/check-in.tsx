@@ -13,6 +13,7 @@ import { ChevronLeft, Check, X, Play, Calendar as CalendarIcon, Clock, ChevronRi
 import { Toast } from "../../components/Toast";
 import { FeedbackErrorModal } from "../../components/FeedbackErrorModal";
 import { checkConnection } from "../../lib/network";
+import { PremiumGate } from "../../components/PremiumGate";
 
 type Status = "done" | "missed";
 
@@ -145,10 +146,10 @@ export default function CheckInScreen() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_log' }, () => loadData())
       .subscribe();
 
-    // Refresh every minute to keep time-based status accurate
+    // Refresh every 30 seconds to keep time-based status accurate
     const interval = setInterval(() => {
         loadData();
-    }, 60000);
+    }, 30000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -281,6 +282,7 @@ export default function CheckInScreen() {
         )
       }} />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
+        <PremiumGate feature={t('checkIn')}>
         {loading ? (
             <View style={styles.center}>
                 <ActivityIndicator size="large" color={theme.primary} />
@@ -481,6 +483,7 @@ export default function CheckInScreen() {
             onDismiss={() => setErrorMsg(null)}
             onRetry={loadData}
         />
+        </PremiumGate>
       </SafeAreaView>
     </ThemedView>
   );

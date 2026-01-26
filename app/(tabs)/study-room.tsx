@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { StyleSheet, View, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
@@ -10,18 +10,18 @@ import { ThemedView, Card } from "../../components/ThemedView";
 import { Button } from "../../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useStudyTimer } from "../../hooks/useStudyTimer";
-import { Play, Pause, RefreshCw, ChevronLeft, CheckCircle2, Clock, Plus, Minus, Settings2, Zap } from "lucide-react-native";
+import { Play, Pause, RefreshCw, ChevronLeft, CheckCircle2, Clock, Plus, Minus, Zap } from "lucide-react-native";
 import { playBeep, playSound } from "../../lib/audio";
 import storage from "../../lib/storage";
 import { ConfirmModal } from "../../components/ConfirmModal";
 import { FeedbackErrorModal } from "../../components/FeedbackErrorModal";
+import { PremiumGate } from "../../components/PremiumGate";
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, interpolate, Easing } from "react-native-reanimated";
 import { LayoutAnimation, Platform, UIManager } from "react-native";
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
 
 interface StudyPlan {
   id: string;
@@ -52,6 +52,10 @@ export default function StudyRoomScreen() {
   const [resetModalVisible, setResetModalVisible] = useState(false);
   const [quitModalVisible, setQuitModalVisible] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Ref to prevent re-renders during timer updates
+  const statusCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isRedirectingRef = useRef(false);
 
   const {
     timeLeft,
@@ -109,18 +113,16 @@ export default function StudyRoomScreen() {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   }, [currentSession, mode]);
 
-
-
-  const checkPlanStatus = (p: any, logs: any[], now: Date) => {
+  const checkPlanStatus = useCallback((p: any, logs: any[], now: Date) => {
       const curTimeStr = getLocalTimeString(now);
       const isPast = p.end_time < curTimeStr;
       const isUpcoming = p.start_time > curTimeStr;
       const log = logs.find(l => l.plan_id === p.id);
       return { isPast, isUpcoming, isMarked: !!log };
-  };
+  }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = useCallback(async (skipLoadingState = false) => {
+    if (!skipLoadingState) setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -150,44 +152,50 @@ export default function StudyRoomScreen() {
             return a.start_time.localeCompare(b.start_time);
         }));
 
-        if (planIdParam) {
+        if (planIdParam && !isRedirectingRef.current) {
             const selected = enhanced.find(p => p.id === planIdParam);
             if (selected) {
+                // Check if plan became unavailable
                 if (selected.isMarked || selected.isPast) {
+                    isRedirectingRef.current = true;
                     const msg = selected.isMarked ? t('alreadyCompleted') : t('alreadyExpired');
                     if (Platform.OS === 'web') window.alert(msg);
                     else Alert.alert(t('missionUnavailable'), msg);
                     router.replace("/(tabs)");
                     return;
                 }
-                setPlan(selected);
                 
-                const saved = await storage.getItem(`study_room_state_${selected.id}`);
-                if (saved) {
-                    const state = JSON.parse(saved);
-                    setTimeLeft(state.timeLeft);
-                    setMode(state.mode);
-                    setCurrentSession(state.currentSession);
-                    setSettings(state.settings);
-                    setIsSettingUp(false);
-                    setIsCompleted(state.isCompleted || false);
-                    setIsRunning(false); // Always start paused on return
-                } else {
-                    // Calc default settings based on plan duration
-                    const [sh, sm] = selected.start_time.split(":").map(Number);
-                    const [eh, em] = selected.end_time.split(":").map(Number);
-                    const totalDuration = (eh * 60 + em) - (sh * 60 + sm);
+                // Only set plan if it's not already set or if we're refreshing
+                if (!plan || skipLoadingState) {
+                    setPlan(selected);
                     
-                    const defaultSessions = 2;
-                    const defaultBreak = 5;
-                    const workPerSession = Math.max(1, Math.floor((totalDuration - (defaultBreak * defaultSessions)) / defaultSessions));
-                    
-                    setSettings({
-                        focus: workPerSession,
-                        breakMin: defaultBreak,
-                        sessions: defaultSessions
-                    });
-                    setIsSettingUp(true);
+                    const saved = await storage.getItem(`study_room_state_${selected.id}`);
+                    if (saved) {
+                        const state = JSON.parse(saved);
+                        setTimeLeft(state.timeLeft);
+                        setMode(state.mode);
+                        setCurrentSession(state.currentSession);
+                        setSettings(state.settings);
+                        setIsSettingUp(false);
+                        setIsCompleted(state.isCompleted || false);
+                        setIsRunning(false); // Always start paused on return
+                    } else {
+                        // Calc default settings based on plan duration
+                        const [sh, sm] = selected.start_time.split(":").map(Number);
+                        const [eh, em] = selected.end_time.split(":").map(Number);
+                        const totalDuration = (eh * 60 + em) - (sh * 60 + sm);
+                        
+                        const defaultSessions = 2;
+                        const defaultBreak = 5;
+                        const workPerSession = Math.max(1, Math.floor((totalDuration - (defaultBreak * defaultSessions)) / defaultSessions));
+                        
+                        setSettings({
+                            focus: workPerSession,
+                            breakMin: defaultBreak,
+                            sessions: defaultSessions
+                        });
+                        setIsSettingUp(true);
+                    }
                 }
             }
         }
@@ -196,18 +204,37 @@ export default function StudyRoomScreen() {
       console.error(e);
       setErrorMsg(e.message || t('failedLoadPlans'));
     } finally {
-      setLoading(false);
+      if (!skipLoadingState) setLoading(false);
     }
-  };
+  }, [planIdParam, checkPlanStatus, t, plan]);
 
   useEffect(() => {
     loadData();
-    // Add 1-minute ticker to keep plan status (upcoming/expired) fresh
-    const interval = setInterval(() => {
-        loadData();
-    }, 60000);
-    return () => clearInterval(interval);
+    
+    // Cleanup function
+    return () => {
+      if (statusCheckIntervalRef.current) {
+        clearInterval(statusCheckIntervalRef.current);
+      }
+      isRedirectingRef.current = false;
+    };
   }, [planIdParam]);
+
+  // Separate effect for periodic status updates - only when a plan is active
+  useEffect(() => {
+    if (!plan || isSettingUp || loading) return;
+
+    // Check status every 30 seconds (reduced from 60 seconds)
+    statusCheckIntervalRef.current = setInterval(() => {
+        loadData(true); // Skip loading state to prevent UI flicker
+    }, 30000);
+
+    return () => {
+      if (statusCheckIntervalRef.current) {
+        clearInterval(statusCheckIntervalRef.current);
+      }
+    };
+  }, [plan, isSettingUp, loading]);
 
   // Handle persistence
   useEffect(() => {
@@ -219,11 +246,11 @@ export default function StudyRoomScreen() {
     save();
   }, [timeLeft, mode, currentSession, settings, isCompleted, plan, loading, isSettingUp]);
 
-  const handleQuit = () => {
+  const handleQuit = useCallback(() => {
       setQuitModalVisible(true);
-  };
+  }, []);
 
-  const markAsDone = async () => {
+  const markAsDone = useCallback(async () => {
     if (!plan) return;
     setMarkingDone(true);
     try {
@@ -255,15 +282,15 @@ export default function StudyRoomScreen() {
     } finally {
         setMarkingDone(false);
     }
-  };
+  }, [plan, router]);
 
-  const getGlobalProgress = () => {
+  const getGlobalProgress = useMemo(() => {
     if (!plan) return 0;
     const totalS = settings.sessions * (settings.focus + settings.breakMin) * 60;
     const elapsed = ((currentSession - 1) * (settings.focus + settings.breakMin) * 60) + 
                     (mode === "focus" ? (settings.focus * 60 - timeLeft) : (settings.focus * 60 + (settings.breakMin * 60 - timeLeft)));
     return Math.min(100, Math.round((elapsed / (totalS || 1)) * 100));
-  };
+  }, [plan, settings, currentSession, mode, timeLeft]);
 
   if (loading) {
     return (
@@ -280,7 +307,7 @@ export default function StudyRoomScreen() {
         <ThemedView style={{ flex: 1 }}>
             <SafeAreaView style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.selectionContainer}>
-                    <TouchableOpacity onPress={() => router.push("/(tabs)")} style={{ marginBottom: 16, alignSelf: 'flex-start', padding: 8, backgroundColor: theme.card, borderRadius: 12, borderWidth: 1, borderColor: theme.border }}>
+                    <TouchableOpacity onPress={() => router.push("/(tabs)")} style={styles.backButton}>
                         <ChevronLeft size={24} color={theme.textPrimary} />
                     </TouchableOpacity>
                     
@@ -470,6 +497,7 @@ export default function StudyRoomScreen() {
   // --- View: Active Execution ---
   return (
     <ThemedView style={{ flex: 1 }}>
+      <PremiumGate feature={t('studyRoom')}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.execScrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.execHeader}>
@@ -500,10 +528,10 @@ export default function StudyRoomScreen() {
           <View style={styles.globalProgressBox}>
               <View style={styles.progressLabelRow}>
                   <ThemedText style={styles.progressNote}>{t('overallCompletion')}</ThemedText>
-                  <ThemedText style={[styles.progressPct, { color: mode === 'break' ? '#10b981' : theme.primary }]}>{getGlobalProgress()}%</ThemedText>
+                  <ThemedText style={[styles.progressPct, { color: mode === 'break' ? '#10b981' : theme.primary }]}>{getGlobalProgress}%</ThemedText>
               </View>
               <View style={[styles.barContainer, { backgroundColor: theme.card }]}>
-                  <View style={[styles.barFill, { width: `${getGlobalProgress()}%`, backgroundColor: mode === 'break' ? '#10b981' : theme.primary }]} />
+                  <View style={[styles.barFill, { width: `${getGlobalProgress}%`, backgroundColor: mode === 'break' ? '#10b981' : theme.primary }]} />
               </View>
           </View>
 
@@ -535,7 +563,7 @@ export default function StudyRoomScreen() {
               </View>
 
               <View style={styles.objectiveSide}>
-                  <Heading style={{ fontSize: 10, opacity: 0.3, letterSpacing: 2, marginBottom: 12 }}>{t('missionObjective')}</Heading>
+                  <Heading style={styles.objectiveHeading}>{t('missionObjective')}</Heading>
                   <Card style={styles.objectiveCard}>
                       <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }} nestedScrollEnabled>
                           <ThemedText style={styles.objectiveText}>{plan.tasks_text}</ThemedText>
@@ -556,7 +584,6 @@ export default function StudyRoomScreen() {
              setQuitModalVisible(false);
              setPlan(null);
              router.setParams({ planId: undefined });
-             // loadData triggered by param change
         }}
         confirmLabel={t('discard')}
         isDestructive
@@ -586,15 +613,16 @@ export default function StudyRoomScreen() {
         visible={!!errorMsg}
         error={errorMsg}
         onDismiss={() => setErrorMsg(null)}
-        onRetry={loadData}
+        onRetry={() => loadData()}
       />
+      </PremiumGate>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   execScrollContent: {
-      padding: 24,
+      padding: 20,
       paddingBottom: 40,
   },
   center: {
@@ -604,12 +632,12 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   selectionContainer: {
-    padding: 24,
+    padding: 20,
     paddingBottom: 60,
   },
   selectionHeader: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: 40,
     marginTop: 20,
   },
   titleIcon: {
@@ -635,7 +663,7 @@ const styles = StyleSheet.create({
   },
   planItem: {
     padding: 20,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
@@ -687,14 +715,8 @@ const styles = StyleSheet.create({
       fontWeight: '900',
   },
   setupContainer: {
-      padding: 24,
+      padding: 20,
       paddingBottom: 60,
-  },
-  setupHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 32,
   },
   setupCard: {
       padding: 24,
@@ -778,10 +800,7 @@ const styles = StyleSheet.create({
       fontSize: 14,
       fontWeight: '700',
       opacity: 0.8,
-  },
-  container: {
       flex: 1,
-      padding: 24,
   },
   execHeader: {
       flexDirection: 'row',
@@ -822,15 +841,15 @@ const styles = StyleSheet.create({
       flexDirection: Platform.OS === 'web' ? 'row' : 'column',
       gap: 32,
       flex: 1,
-      alignItems: 'center',
+      alignItems: 'stretch',
   },
   timerSide: {
-      flex: Platform.OS === 'web' ? 0.7 : 1,
+      flex: Platform.OS === 'web' ? 0.6 : 1,
       alignItems: 'center',
       justifyContent: 'center',
   },
   objectiveSide: {
-      flex: Platform.OS === 'web' ? 0.3 : 1,
+      flex: Platform.OS === 'web' ? 0.4 : 1,
       minWidth: 200,
   },
   timerCenter: {
@@ -838,9 +857,9 @@ const styles = StyleSheet.create({
       marginBottom: 30,
   },
   timerRing: {
-      width: 320,
-      height: 320,
-      borderRadius: 160,
+      width: 300,
+      height: 300,
+      borderRadius: 150,
       borderWidth: 6,
       justifyContent: 'center',
       alignItems: 'center',
@@ -848,7 +867,6 @@ const styles = StyleSheet.create({
   },
   activeTimerVal: {
       fontWeight: '900',
-      fontSize: 82,
   },
   sessionStatus: {
       fontSize: 12,
@@ -917,6 +935,12 @@ const styles = StyleSheet.create({
       lineHeight: 24,
       opacity: 0.7,
   },
+  objectiveHeading: {
+      fontSize: 10,
+      opacity: 0.3,
+      letterSpacing: 2,
+      marginBottom: 12,
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -943,6 +967,13 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+  },
+  backButton: {
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+    padding: 8,
+    borderRadius: 12,
     borderWidth: 1,
   },
   configItem: {

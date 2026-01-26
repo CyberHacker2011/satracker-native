@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { StyleSheet, View, TextInput, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -9,15 +9,16 @@ import { ThemedText, Heading } from "../../components/ThemedText";
 import { ThemedView, Card } from "../../components/ThemedView";
 import { Button } from "../../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Calendar as CalendarIcon, Clock, BookOpen, ChevronLeft, ChevronRight, X, Check } from "lucide-react-native";
+import { Calendar as CalendarIcon, Clock, BookOpen, ChevronLeft, Check } from "lucide-react-native";
 import { FeedbackErrorModal } from "../../components/FeedbackErrorModal";
 import { Toast } from "../../components/Toast";
 import { checkConnection } from "../../lib/network";
+import { PremiumGate } from "../../components/PremiumGate";
 
 type Section = "math" | "reading" | "writing";
 
 export default function PlanScreen() {
-  const { theme, themeName } = useTheme();
+  const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
   const { editId } = useLocalSearchParams<{ editId: string }>();
@@ -27,9 +28,9 @@ export default function PlanScreen() {
   const [date, setDate] = useState(getLocalDateString(now));
   const [section, setSection] = useState<Section>("math");
   
-  // Default to current time, and end time + 1 hour (+5 min min duration later)
-  const defaultEnd = new Date(now.getTime() + 60 * 60 * 1000);
-  const curEndStr = getLocalTimeString(defaultEnd);
+  // Default to current time, and end time + 1 hour
+  const defaultEnd = useMemo(() => new Date(now.getTime() + 60 * 60 * 1000), []);
+  const curEndStr = useMemo(() => getLocalTimeString(defaultEnd), [defaultEnd]);
   
   const [startTime, setStartTime] = useState(curTimeStr);
   const [endTime, setEndTime] = useState(curEndStr);
@@ -44,19 +45,13 @@ export default function PlanScreen() {
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState<'error' | 'success' | 'info'>('error');
 
-  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
+  const showToast = useCallback((message: string, type: 'error' | 'success' | 'info' = 'error') => {
     setToastMessage(message);
     setToastType(type);
     setToastVisible(true);
-  };
+  }, []);
 
-  useEffect(() => {
-    if (editId) {
-      loadEditData();
-    }
-  }, [editId]);
-
-  const loadEditData = async () => {
+  const loadEditData = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -79,12 +74,18 @@ export default function PlanScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [editId, showToast, t]);
 
-  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-  const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+  useEffect(() => {
+    if (editId) {
+      loadEditData();
+    }
+  }, [editId, loadEditData]);
 
-  const getCalendarDays = () => {
+  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')), []);
+  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0')), []);
+
+  const calendarDays = useMemo(() => {
     const days = [];
     const dateCheck = new Date();
     // Start from today and show 21 days (3 weeks)
@@ -94,9 +95,11 @@ export default function PlanScreen() {
         days.push(getLocalDateString(d));
     }
     return days;
-  };
+  }, []);
 
-  const handleSave = async () => {
+  const dayNames = useMemo(() => [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')], [t]);
+
+  const handleSave = useCallback(async () => {
     if (!tasks) {
       showToast(t('pleaseEnterTasks'));
       return;
@@ -167,12 +170,9 @@ export default function PlanScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tasks, startTime, endTime, date, section, editId, showToast, t, router]);
 
-  const calendarDays = getCalendarDays();
-  const dayNames = [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')];
-
-  const renderTimeDropdown = (type: "start" | "end") => {
+  const renderTimeDropdown = useCallback((type: "start" | "end") => {
     const current = type === "start" ? startTime : endTime;
     const [h, m] = current.split(":");
 
@@ -220,7 +220,7 @@ export default function PlanScreen() {
             </TouchableOpacity>
         </Card>
     );
-  };
+  }, [startTime, endTime, hours, minutes, theme, t]);
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -238,18 +238,19 @@ export default function PlanScreen() {
         onRetry={handleSave}
       />
       <SafeAreaView style={{ flex: 1 }}>
+        <PremiumGate feature={t('studyPlanner')}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.push("/(tabs)")} style={{ marginBottom: 12, alignSelf: 'flex-start', padding: 8, backgroundColor: theme.card, borderRadius: 12, borderWidth: 1, borderColor: theme.border }}>
+            <TouchableOpacity onPress={() => router.push("/(tabs)")} style={styles.backButton}>
                 <ChevronLeft size={24} color={theme.textPrimary} />
             </TouchableOpacity>
             <Heading style={styles.title}>{editId ? t('editPlan') : t('plan')}</Heading>
             <ThemedText style={styles.subtitle}>{editId ? t('refineMission') : t('designPath')}</ThemedText>
           </View>
 
-          {/* New Calendar Grid */}
+          {/* Calendar Grid */}
           <Card style={styles.calendarCard}>
-              <View style={[styles.calHeader, { justifyContent: 'space-between' }]}>
+              <View style={styles.calHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <CalendarIcon size={16} color={theme.primary} />
                     <ThemedText style={styles.calTitle}>{t('selectScheduleDate')}</ThemedText>
@@ -373,6 +374,7 @@ export default function PlanScreen() {
               </View>
           </View>
         </ScrollView>
+        </PremiumGate>
       </SafeAreaView>
     </ThemedView>
   );
@@ -380,11 +382,18 @@ export default function PlanScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
+    padding: 20,
     paddingBottom: 60,
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 32,
+  },
+  backButton: {
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+    padding: 8,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   title: {
       fontSize: 28,
@@ -395,14 +404,14 @@ const styles = StyleSheet.create({
       marginTop: 4,
   },
   calendarCard: {
-      padding: 24,
-      marginBottom: 32,
+      padding: 20,
+      marginBottom: 28,
   },
   calHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      marginBottom: 20,
+      justifyContent: 'space-between',
+      marginBottom: 16,
   },
   calTitle: {
       fontSize: 12,
@@ -416,7 +425,7 @@ const styles = StyleSheet.create({
   dayCard: {
       width: 60,
       height: 80,
-      borderRadius: 18,
+      borderRadius: 16,
       borderWidth: 1.5,
       alignItems: 'center',
       justifyContent: 'center',
@@ -432,7 +441,7 @@ const styles = StyleSheet.create({
       fontWeight: '900',
   },
   form: {
-      gap: 32,
+      gap: 28,
   },
   inputGroup: {
       gap: 12,
@@ -455,8 +464,6 @@ const styles = StyleSheet.create({
       height: 50,
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: 'rgba(0,0,0,0.05)',
-      backgroundColor: 'rgba(0,0,0,0.02)',
       alignItems: 'center',
       justifyContent: 'center',
   },
@@ -467,7 +474,7 @@ const styles = StyleSheet.create({
   },
   timeSection: {
       flexDirection: 'row',
-      gap: 20,
+      gap: 16,
       zIndex: 10,
   },
   timeInput: {
@@ -480,15 +487,6 @@ const styles = StyleSheet.create({
       fontWeight: '900',
       opacity: 0.4,
       marginLeft: 4,
-  },
-  timeTrigger: {
-      height: 56,
-      borderRadius: 16,
-      borderWidth: 1.5,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      gap: 10,
   },
   manualTimeRow: {
       flexDirection: 'row',
@@ -511,13 +509,9 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
   },
-  timeVal: {
-      fontSize: 16,
-      fontWeight: '800',
-  },
   textArea: {
       height: 120,
-      borderRadius: 20,
+      borderRadius: 18,
       borderWidth: 1.5,
       padding: 20,
       fontSize: 15,
@@ -526,7 +520,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
       height: 60,
-      borderRadius: 20,
+      borderRadius: 18,
   },
   timeDropdown: {
       position: 'absolute',
@@ -577,23 +571,21 @@ const styles = StyleSheet.create({
       alignItems: 'center',
   },
   instructions: {
-      marginTop: 40,
-      padding: 24,
+      marginTop: 32,
+      padding: 20,
       backgroundColor: 'rgba(245, 158, 11, 0.05)',
-      borderRadius: 24,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: 'rgba(245, 158, 11, 0.1)',
   },
   instTitle: {
       fontSize: 14,
       fontWeight: '900',
-      color: '#B45309',
       marginBottom: 8,
   },
   instText: {
       fontSize: 12,
       fontWeight: '600',
-      color: '#B45309',
       lineHeight: 18,
       opacity: 0.8,
   }

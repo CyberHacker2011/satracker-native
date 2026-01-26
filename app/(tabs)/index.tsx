@@ -11,6 +11,8 @@ import { getLocalDateString, getLocalTimeString } from "../../lib/dateUtils";
 import { Bell, Flame, Target, BookOpen, Clock, Calendar, ChevronRight, Play, ArrowRight, Zap, X } from "lucide-react-native";
 import { FeedbackErrorModal } from "../../components/FeedbackErrorModal";
 import { checkConnection } from "../../lib/network";
+import { usePremium } from "../../hooks/usePremium";
+import { PremiumPopup, usePremiumPopup } from "../../components/PremiumPopup";
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -42,6 +44,10 @@ export default function DashboardScreen() {
   const [todayPlans, setTodayPlans] = useState<DashboardPlan[]>([]);
   const [errorVisible, setErrorVisible] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  // Premium check
+  const { isPremium } = usePremium();
+  const { showPopup, dismissPopup } = usePremiumPopup(isPremium);
 
   const examDates: Record<string, string> = {
     "March 2026": "2026-03-14",
@@ -198,17 +204,9 @@ export default function DashboardScreen() {
         >
           {/* Welcome Header */}
           <View style={styles.header}>
-            <View>
+            <View style={{ flex: 1 }}>
               <ThemedText style={styles.title}>{t('hello')}, <ThemedText style={{ color: theme.primary, textTransform: 'capitalize' }}>{userName || t('friend')}</ThemedText>!</ThemedText>
               <ThemedText style={styles.subtitle}>{t('readyToCrush')}</ThemedText>
-            </View>
-            <View style={styles.headerActions}>
-                <TouchableOpacity onPress={() => router.push("/(tabs)/plan")} style={[styles.mainBtn, { backgroundColor: theme.primary }]}>
-                    <ThemedText style={styles.mainBtnText}>{t('createPlan')}</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push("/(tabs)/study-room")} style={[styles.secondBtn, { borderColor: theme.border }]}>
-                    <ThemedText style={[styles.secondBtnText, { color: theme.primary }]}>{t('startTimer')}</ThemedText>
-                </TouchableOpacity>
             </View>
           </View>
 
@@ -476,6 +474,8 @@ export default function DashboardScreen() {
         )}
       </SafeAreaView>
       )}
+      
+      <PremiumPopup visible={showPopup} onDismiss={dismissPopup} />
     </ThemedView>
   );
 }
@@ -495,11 +495,8 @@ const styles = StyleSheet.create({
     marginBottom: 48,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    paddingBottom: 40,
+    alignItems: 'flex-start',
+    gap: 16,
   },
   title: {
     fontSize: 32,

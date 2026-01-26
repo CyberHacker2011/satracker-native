@@ -12,6 +12,7 @@ import { ChevronLeft, Calendar as CalendarIcon, CheckCircle2, XCircle, Clock, Tr
 import { Toast } from "../components/Toast";
 import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
 import { checkConnection } from "../lib/network";
+import { PremiumGate } from "../components/PremiumGate";
 
 type StudyPlan = {
   id: string;
@@ -174,6 +175,7 @@ export default function ArchiveScreen() {
         headerShadowVisible: false,
       }} />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
+        <PremiumGate feature={t('studyArchive')}>
         <View style={styles.container}>
             {/* Calendar Strip */}
             <View style={styles.calendarSection}>
@@ -275,6 +277,7 @@ export default function ArchiveScreen() {
         >
             {toastMessage}
         </Toast>
+        </PremiumGate>
       </SafeAreaView>
     </ThemedView>
   );

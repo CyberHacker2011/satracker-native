@@ -2,6 +2,8 @@ import { Tabs } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
 import { LayoutDashboard, BookOpen, CheckSquare, Calendar, User } from "lucide-react-native";
 import { HeaderNotificationBtn } from "../../components/HeaderNotificationBtn";
+import { HeaderPremiumBtn } from "../../components/HeaderPremiumBtn";
+import { View } from "react-native";
 
 export default function TabLayout() {
   const { theme } = useTheme();
@@ -22,7 +24,12 @@ export default function TabLayout() {
         headerTitleStyle: {
           fontWeight: "bold",
         },
-        headerRight: () => <HeaderNotificationBtn />,
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginRight: 12 }}>
+            <HeaderPremiumBtn />
+            <HeaderNotificationBtn />
+          </View>
+        ),
       }}
     >
       <Tabs.Screen
@@ -60,9 +67,15 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
         }}
       />
-      {/* Hidden route - accessible but not in tab bar */}
+      {/* Hidden routes - accessible but not in tab bar */}
       <Tabs.Screen
         name="focus"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="premium"
         options={{
           href: null,
         }}
