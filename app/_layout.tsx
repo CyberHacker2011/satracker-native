@@ -2,7 +2,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { ThemeProvider } from "../context/ThemeContext";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../context/ThemeContext";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Text, Platform } from "react-native";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { NotificationSystem } from "../components/NotificationSystem";
@@ -18,18 +18,45 @@ function RootLayoutNav() {
   const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setInitialLoading(false);
-    }).catch(() => {
-      setInitialLoading(false);
+    let mounted = true;
+
+    async function initSession() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) console.warn("Session error:", error);
+        if (mounted) {
+          setSession(data?.session ?? null);
+        }
+      } catch (e) {
+        console.error("Supabase init error:", e);
+      } finally {
+        if (mounted) {
+          setInitialLoading(false);
+        }
+      }
+    }
+
+    initSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setSession(session);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    // Safety timeout: If Supabase hangs (e.g. storage issues), force loading false after 3s
+    const timeout = setTimeout(() => {
+      if (mounted && initialLoading) {
+        console.warn("Forcing initial loading to completion.");
+        setInitialLoading(false);
+      }
+    }, 3000);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   useEffect(() => {
@@ -41,15 +68,24 @@ function RootLayoutNav() {
 
     // Handle root path / undefined segments
     if (!rootSegment) {
-       if (session) router.replace("/(tabs)");
-       else router.replace("/login");
-       return;
+      if (session) router.replace("/(tabs)");
+      else router.replace("/login");
+      return;
     }
 
     // Not logged in and trying to access protected routes
-    if (!session && (inTabsGroup || (rootSegment !== "login" && rootSegment !== "signup" && rootSegment !== "+not-found" && rootSegment !== "privacy" && rootSegment !== "premium" && rootSegment !== "about"))) {
+    if (
+      !session &&
+      (inTabsGroup ||
+        (rootSegment !== "login" &&
+          rootSegment !== "signup" &&
+          rootSegment !== "+not-found" &&
+          rootSegment !== "privacy" &&
+          rootSegment !== "premium" &&
+          rootSegment !== "about"))
+    ) {
       router.replace("/login");
-    } 
+    }
     // Logged in but on login/signup page
     else if (session && isAuthPage) {
       router.replace("/(tabs)");
@@ -58,8 +94,24 @@ function RootLayoutNav() {
 
   if (initialLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: theme.background,
+        }}
+      >
         <ActivityIndicator size="large" color={theme.primary} />
+        <Text
+          style={{
+            marginTop: 20,
+            color: theme.textSecondary,
+            fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+          }}
+        >
+          Initializing...
+        </Text>
       </View>
     );
   }
@@ -80,11 +132,30 @@ function RootLayoutNav() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="signup" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-        <Stack.Screen name="archive" options={{ title: "Study Archive", headerBackTitle: "Back" }} />
-        <Stack.Screen name="notifications" options={{ title: "Notifications", headerBackTitle: "Back" }} />
-        <Stack.Screen name="about" options={{ title: "About", headerBackTitle: "Back" }} />
-        <Stack.Screen name="privacy" options={{ title: "Privacy Policy", headerBackTitle: "Back" }} />
-        <Stack.Screen name="premium" options={{ title: "Premium", headerBackTitle: "Back", headerShown: false }} />
+        <Stack.Screen
+          name="archive"
+          options={{ title: "Study Archive", headerBackTitle: "Back" }}
+        />
+        <Stack.Screen
+          name="notifications"
+          options={{ title: "Notifications", headerBackTitle: "Back" }}
+        />
+        <Stack.Screen
+          name="about"
+          options={{ title: "About", headerBackTitle: "Back" }}
+        />
+        <Stack.Screen
+          name="privacy"
+          options={{ title: "Privacy Policy", headerBackTitle: "Back" }}
+        />
+        <Stack.Screen
+          name="premium"
+          options={{
+            title: "Premium",
+            headerBackTitle: "Back",
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
       </Stack>
     </View>
