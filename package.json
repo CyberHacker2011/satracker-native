@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "desktop": "pnpm build:web && (node api/index.js & cd electron && pnpm exec electron main.js)",
     "build:web": "expo export -p web --output-dir electron/dist && node fix-electron-paths.js",
-    "build:android": "eas build --platform android",
+    "build:android": "eas build --platform android --profile preview",
     "build:ios": "eas build --platform ios",
     "build:macos": "pnpm build:web && cd electron && pnpm run build:mac",
     "build:windows": "pnpm build:web && cd electron && pnpm run build:win",
