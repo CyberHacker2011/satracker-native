@@ -108,111 +108,134 @@ app.post("/api/dispatch_notifications", authMiddleware, async (req, res) => {
     .split("T")[0];
   const midnightUTC = `${today}T00:00:00.000Z`;
 
-  let usersProcessed = 0;
-  let notificationsCreated = 0;
-  let emailsSent = 0;
-
   try {
+    // A. Fetch all data in parallel batches
     const { data: usersData, error: usersError } =
       await supabase.auth.admin.listUsers();
     if (usersError) throw usersError;
+    const users = usersData.users;
+    const userIds = users.map((u) => u.id);
 
-    for (const user of usersData.users) {
-      usersProcessed++;
-
-      // A. Check for missed/starting plans
-      const { data: todayPlans } = await supabase
+    const [plansRes, logsRes, notifsRes, activityRes] = await Promise.all([
+      supabase
         .from("study_plan")
         .select("*")
-        .eq("user_id", user.id)
-        .eq("date", today);
+        .in("user_id", userIds)
+        .or(`date.eq.${today},date.eq.${tomorrow}`),
+      supabase
+        .from("daily_log")
+        .select("plan_id")
+        .in("user_id", userIds)
+        .eq("date", today),
+      supabase
+        .from("notifications")
+        .select("user_id, message")
+        .in("user_id", userIds)
+        .gte("created_at", midnightUTC),
+      supabase
+        .from("user_activity")
+        .select("user_id, last_seen_at")
+        .in("user_id", userIds),
+    ]);
 
-      if (todayPlans) {
-        for (const plan of todayPlans) {
+    // B. Group data for O(1) lookup
+    const plansByUsers = new Map();
+    plansRes.data?.forEach((p) => {
+      if (!plansByUsers.has(p.user_id)) plansByUsers.set(p.user_id, []);
+      plansByUsers.get(p.user_id).push(p);
+    });
+
+    const logsSet = new Set(logsRes.data?.map((l) => l.plan_id));
+
+    const notifSetByUsers = new Map();
+    notifsRes.data?.forEach((n) => {
+      if (!notifSetByUsers.has(n.user_id))
+        notifSetByUsers.set(n.user_id, new Set());
+      notifSetByUsers.get(n.user_id).add(n.message);
+    });
+
+    const activityByUsers = new Map(
+      activityRes.data?.map((a) => [a.user_id, a.last_seen_at]),
+    );
+
+    const notificationsToInsert = [];
+    const emailsToPromise = [];
+
+    // C. Logic processing (Lightning Fast In-Memory)
+    for (const user of users) {
+      const userPlans = plansByUsers.get(user.id) || [];
+      const userNotifs = notifSetByUsers.get(user.id) || new Set();
+      const lastSeen = activityByUsers.get(user.id);
+
+      // Check today's plans
+      userPlans
+        .filter((p) => p.date === today)
+        .forEach((plan) => {
           const startTimePassed = hasTimePassed(plan.start_time, today);
           const endTimePassed = hasTimePassed(plan.end_time, today);
-
-          // Get logs
-          const { data: logs } = await supabase
-            .from("daily_log")
-            .select("id")
-            .eq("plan_id", plan.id)
-            .limit(1);
-
-          const hasLog = logs && logs.length > 0;
+          const hasLog = logsSet.has(plan.id);
 
           if (startTimePassed && !endTimePassed && !hasLog) {
             const message = `Your ${plan.section} plan is starting at ${plan.start_time}.`;
-            const { data: existing } = await supabase
-              .from("notifications")
-              .select("id")
-              .eq("user_id", user.id)
-              .eq("message", message)
-              .gte("created_at", midnightUTC)
-              .maybeSingle();
-
-            if (!existing) {
-              await supabase.from("notifications").insert({
+            if (!userNotifs.has(message)) {
+              notificationsToInsert.push({
                 user_id: user.id,
                 message,
                 created_at: new Date().toISOString(),
               });
-              notificationsCreated++;
-              const sent = await sendEmail(
-                user.email,
-                "SAT Plan Starting",
-                message,
-              );
-              if (sent) emailsSent++;
+
+              // Should send email? (Smart Logic: skip if user was seen after notification would be sent)
+              const shouldEmail = !lastSeen || new Date(lastSeen) < new Date();
+              if (shouldEmail && user.email) {
+                emailsToPromise.push(
+                  sendEmail(user.email, "SAT Plan Starting", message),
+                );
+              }
             }
           }
-        }
-      }
+        });
 
-      // B. Check for no plan tomorrow
-      const { data: tomorrowPlans } = await supabase
-        .from("study_plan")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("date", tomorrow);
-      if (!tomorrowPlans || tomorrowPlans.length === 0) {
+      // Check tomorrow's plans
+      const hasTomorrowPlan = userPlans.some((p) => p.date === tomorrow);
+      if (!hasTomorrowPlan) {
         const message = "You have not created a SAT study plan for tomorrow.";
-        const { data: existing } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("message", message)
-          .gte("created_at", midnightUTC)
-          .maybeSingle();
-        if (!existing) {
-          await supabase.from("notifications").insert({
+        if (!userNotifs.has(message)) {
+          notificationsToInsert.push({
             user_id: user.id,
             message,
             created_at: new Date().toISOString(),
           });
-          notificationsCreated++;
-          const sent = await sendEmail(
-            user.email,
-            "No Plan for Tomorrow",
-            message,
-          );
-          if (sent) emailsSent++;
+
+          if (user.email) {
+            emailsToPromise.push(
+              sendEmail(user.email, "No Plan for Tomorrow", message),
+            );
+          }
         }
       }
     }
 
+    // D. Batch Save & Parallel Email (Max Performance)
+    if (notificationsToInsert.length > 0) {
+      await supabase.from("notifications").insert(notificationsToInsert);
+    }
+
+    const emailResults = await Promise.all(emailsToPromise);
+    const emailsSentCount = emailResults.filter(Boolean).length;
+
     await supabase.from("cron_logs").insert({
       run_at: runStartTime,
       status: "success",
-      users_processed: usersProcessed,
-      notifications_created: notificationsCreated,
-      emails_sent: emailsSent,
+      users_processed: users.length,
+      notifications_created: notificationsToInsert.length,
+      emails_sent: emailsSentCount,
     });
+
     res.json({
       success: true,
-      processed: usersProcessed,
-      notifications: notificationsCreated,
-      emails: emailsSent,
+      processed: users.length,
+      notifications: notificationsToInsert.length,
+      emails: emailsSentCount,
     });
   } catch (error) {
     console.error("Cron Error:", error);
@@ -224,39 +247,66 @@ app.post("/api/dispatch_notifications", authMiddleware, async (req, res) => {
 app.post("/api/check_premium_expiry", authMiddleware, async (req, res) => {
   const runStartTime = new Date().toISOString();
   try {
-    const { data: authUsers } = await supabase.auth.admin.listUsers();
-    const emailMap = new Map();
-    authUsers.users.forEach((u) => emailMap.set(u.id, u.email));
+    const [authRes, profilesRes] = await Promise.all([
+      supabase.auth.admin.listUsers(),
+      supabase.from("user_profiles").select("*").eq("is_premium", true),
+    ]);
 
-    const { data: users } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("is_premium", true);
-    let expiredCount = 0;
+    const emailMap = new Map(authRes.data?.users.map((u) => [u.id, u.email]));
     const now = new Date();
+    const tomorrow = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
 
-    for (const profile of users || []) {
+    const usersToRevoke = [];
+    const usersToWarn = [];
+    const emailsToPromise = [];
+
+    for (const profile of profilesRes.data || []) {
       if (!profile.premium_expires_at) continue;
       const expiry = new Date(profile.premium_expires_at);
+      const email = emailMap.get(profile.user_id);
 
       if (expiry < now) {
-        await supabase
-          .from("user_profiles")
-          .update({ is_premium: false })
-          .eq("user_id", profile.user_id);
-        expiredCount++;
-        const email = emailMap.get(profile.user_id);
+        usersToRevoke.push(profile.user_id);
         if (email)
-          await sendEmail(
-            email,
-            "Premium Expired",
-            "Your premium subscription has expired. Renew now to continue studying.",
+          emailsToPromise.push(
+            sendEmail(
+              email,
+              "Premium Expired",
+              "Your premium subscription has expired. Renew now to continue studying.",
+            ),
+          );
+      } else if (expiry < tomorrow) {
+        // Warning logic (Optional but recommended)
+        if (email)
+          emailsToPromise.push(
+            sendEmail(
+              email,
+              "Premium Expiring Soon",
+              "Your premium subscription will expire in less than 24 hours.",
+            ),
           );
       }
     }
 
-    res.json({ success: true, expired: expiredCount });
+    // Batch Revoke
+    if (usersToRevoke.length > 0) {
+      await supabase
+        .from("user_profiles")
+        .update({ is_premium: false })
+        .in("user_id", usersToRevoke);
+    }
+
+    // Parallel Emails
+    const emailResults = await Promise.all(emailsToPromise);
+    const sentCount = emailResults.filter(Boolean).length;
+
+    res.json({
+      success: true,
+      expired: usersToRevoke.length,
+      emails_sent: sentCount,
+    });
   } catch (error) {
+    console.error("Premium Check Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
