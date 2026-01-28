@@ -26,7 +26,7 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
-      "output": "server",
+      "output": "static",
       "name": "SAT Tracker - Mission Control",
       "shortName": "SAT Tracker",
       "description": "Premium SAT preparation and tracker app."
