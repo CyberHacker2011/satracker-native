@@ -5,10 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView, Card } from "../components/ThemedView";
@@ -16,10 +17,11 @@ import { Button } from "../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react-native";
 
-export default function ResetPasswordScreen() {
+const ResetPasswordScreen = () => {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
+  const params = useLocalSearchParams();
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,61 +33,134 @@ export default function ResetPasswordScreen() {
   const [isValidating, setIsValidating] = useState(true);
 
   // Extract and verify token from URL hash sent by Supabase
+  // Handle standard Supabase reset flow: Link -> Deep Link -> Extract Tokens -> Set Session
+  // Extract and verify token from URL (Deep Link) OR Route Params (from _layout redirect)
   useEffect(() => {
-    const handlePasswordResetToken = async () => {
+    let isMounted = true;
+
+    const validateSessionOrLink = async (url: string | null) => {
       try {
-        // Supabase sends tokens in URL hash like: #access_token=xxx&refresh_token=yyy&type=recovery
-        if (typeof window !== "undefined") {
-          const hashParams = new URLSearchParams(
-            window.location.hash.substring(1),
-          );
+        console.log(
+          "ResetPassword validation starting...",
+          url ? "with URL" : "checking params/session",
+        );
 
-          const error = hashParams.get("error");
-          const errorDescription = hashParams.get("error_description");
-          const type = hashParams.get("type");
+        // 0. Check for passed originalUrl from _layout
+        const nestedUrl = params.originalUrl as string;
+        const effectiveUrl = url || nestedUrl;
 
-          if (error) {
-            setError(errorDescription || "Invalid or expired reset link");
-            setIsValidating(false);
-            setTimeout(() => router.replace("/login"), 3000);
-            return;
-          }
+        // 1. Check Route Params (direct keys)
+        const queryCode = params.code as string;
+        const queryError = params.error as string;
 
-          // Check if this is a recovery link
-          if (type !== "recovery") {
-            setError("Invalid reset link");
-            setIsValidating(false);
-            setTimeout(() => router.replace("/login"), 3000);
-            return;
-          }
-        }
-
-        // Supabase client automatically handles tokens from URL when initialized
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (sessionError || !session) {
-          setError("Invalid or expired reset link. Please request a new one.");
-          setIsValidating(false);
-          setTimeout(() => router.replace("/login"), 3000);
+        if (queryError) {
+          if (isMounted)
+            setError(
+              (params.error_description as string) || "Error from redirect",
+            );
+          setTimeout(() => router.replace("/login"), 4000);
           return;
         }
 
-        // Valid session - user can now reset password
-        console.log("Valid reset session found");
-        setIsValidating(false);
+        if (queryCode) {
+          console.log("Found code in route params");
+          const { error } =
+            await supabase.auth.exchangeCodeForSession(queryCode);
+          if (error) throw error;
+          if (isMounted) setIsValidating(false);
+          return;
+        }
+
+        // 2. Check Effective URL (Deep Link or Nested)
+        const targetUrl = effectiveUrl || (await Linking.getInitialURL());
+
+        if (targetUrl) {
+          let paramsString = "";
+          const hashIdx = targetUrl.indexOf("#");
+          const queryIdx = targetUrl.indexOf("?");
+
+          // Hash takes precedence for access_token
+          if (hashIdx !== -1) {
+            paramsString = targetUrl.substring(hashIdx + 1);
+          } else if (queryIdx !== -1) {
+            paramsString = targetUrl.substring(queryIdx + 1);
+          }
+
+          if (paramsString) {
+            const urlParams = new URLSearchParams(paramsString);
+            const accessToken = urlParams.get("access_token");
+            const refreshToken = urlParams.get("refresh_token");
+            const code = urlParams.get("code");
+            const linkError = urlParams.get("error");
+
+            if (linkError) {
+              throw new Error(
+                urlParams.get("error_description") || "Link contained error",
+              );
+            }
+
+            if (code) {
+              console.log("Found code in Deep Link");
+              const { error } =
+                await supabase.auth.exchangeCodeForSession(code);
+              if (error) throw error;
+              if (isMounted) setIsValidating(false);
+              return;
+            }
+
+            if (accessToken && refreshToken) {
+              console.log("Found tokens in Deep Link hash");
+              const { error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+              if (error) throw error;
+              if (isMounted) setIsValidating(false);
+              return;
+            }
+          }
+        }
+
+        // 3. Last Resort: Check if we are ALREADY authenticated
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session) {
+          if (isMounted) setIsValidating(false);
+          return;
+        }
       } catch (err: any) {
-        console.error("Token validation error:", err);
-        setError("Failed to validate reset link");
-        setIsValidating(false);
-        setTimeout(() => router.replace("/login"), 3000);
+        console.error("Validation error:", err);
+        if (isMounted) setError(err.message || "Failed to validate session");
       }
     };
 
-    handlePasswordResetToken();
-  }, []);
+    validateSessionOrLink(null);
+
+    // Listen to new OS links
+    const sub = Linking.addEventListener("url", (e) => {
+      validateSessionOrLink(e.url);
+    });
+
+    // Fail-safe timeout
+    const finalTimeout = setTimeout(() => {
+      if (isValidating && isMounted) {
+        supabase.auth.getSession().then(({ data }) => {
+          if (!data.session) {
+            setError("Link expired or invalid. Please try again.");
+          } else {
+            setIsValidating(false);
+          }
+        });
+      }
+    }, 10000);
+
+    return () => {
+      isMounted = false;
+      sub.remove();
+      clearTimeout(finalTimeout);
+    };
+  }, [params]);
 
   const handleResetPassword = async () => {
     setError("");
@@ -263,7 +338,7 @@ export default function ResetPasswordScreen() {
       </SafeAreaView>
     </ThemedView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -336,3 +411,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+export default ResetPasswordScreen;

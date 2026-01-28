@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 function getEmailHtml(subject: string, message: string) {
   const siteUrl =
-    process.env.EXPO_PUBLIC_SITE_URL || "https://www.satracker.uz";
+    process.env.EXPO_PUBLIC_SITE_URL || "https://www.app.satracker.uz";
   return `
 <!DOCTYPE html>
 <html lang="en">

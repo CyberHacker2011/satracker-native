@@ -2,7 +2,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { ThemeProvider } from "../context/ThemeContext";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../context/ThemeContext";
-import { View, ActivityIndicator, Text, Platform } from "react-native";
+import { View, ActivityIndicator, Text, Platform, Linking } from "react-native";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { NotificationSystem } from "../components/NotificationSystem";
@@ -41,8 +41,13 @@ function RootLayoutNav() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setSession(session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (mounted) {
+        setSession(session);
+        if (event === "PASSWORD_RECOVERY") {
+          router.replace("/reset-password");
+        }
+      }
     });
 
     // Safety timeout: If Supabase hangs (e.g. storage issues), force loading false after 3s
@@ -53,10 +58,40 @@ function RootLayoutNav() {
       }
     }, 3000);
 
+    // Handle deep links that might have fallen back to root
+    const handleDeepLink = async (url: string | null) => {
+      if (!url) return;
+
+      // Check if this looks like a password recovery link
+      // Supabase sends type=recovery in query, or we see tokens
+      if (
+        url.includes("type=recovery") ||
+        url.includes("access_token=") ||
+        url.includes("code=")
+      ) {
+        if (url.includes("reset-password")) {
+          // Already heading there, do nothing to avoid loop or duplicate push
+          return;
+        }
+        console.log(
+          "Root detected auth link, redirecting to reset-password with params",
+        );
+        // Pass the original URL so the reset screen can parse it
+        router.replace({
+          pathname: "/reset-password",
+          params: { originalUrl: url },
+        });
+      }
+    };
+
+    Linking.getInitialURL().then(handleDeepLink);
+    const sub = Linking.addEventListener("url", (e) => handleDeepLink(e.url));
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
       clearTimeout(timeout);
+      sub.remove();
     };
   }, []);
 
@@ -141,6 +176,7 @@ function RootLayoutNav() {
           name="notifications"
           options={{ title: "Notifications", headerBackTitle: "Back" }}
         />
+        <Stack.Screen name="reset-password" options={{ headerShown: false }} />
         <Stack.Screen
           name="about"
           options={{ title: "About", headerBackTitle: "Back" }}
