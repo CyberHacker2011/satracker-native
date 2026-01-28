@@ -1,145 +1,212 @@
-# SAT Tracker Native - API Routes
+# SAT Tracker - API Routes (Web Only)
 
-This directory contains serverless API endpoints for the SAT Tracker Native app using Expo Router's API Routes feature.
+## ⚠️ IMPORTANT: How API Routes Work in Expo
+
+**Expo API routes work in TWO scenarios:**
+
+1. ✅ **Development mode** with Expo dev server (`expo start --web`)
+2. ✅ **Production** when deployed to platforms like Vercel, Netlify, etc.
+
+**They DO NOT work with:**
+
+- ❌ Static file serving (Electron serves static files)
+- ❌ Production builds served locally without a server
+
+## Solution: Use Expo Dev Server for Testing
+
+### Testing Locally (Development):
+
+```bash
+# Start Expo web dev server (API routes work here!)
+pnpm web
+```
+
+Then open http://localhost:8081 and:
+
+- Navigate to `/test-api` to use the testing interface
+- Or use curl:
+
+```cmd
+curl -X POST http://localhost:8081/api/dispatch_notifications -H "Authorization: Bearer 4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102"
+```
+
+```cmd
+curl -X POST http://localhost:8081/api/check_premium_expiry -H "Authorization: Bearer 4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102"
+```
 
 ## Available Endpoints
 
-### 1. Create Notification API
-**Endpoint:** `/api/create_notification`  
-**Method:** POST  
-**File:** `create_notification+api.ts`
+### 1. `/api/dispatch_notifications` ✅
 
-Creates a new notification for a user, with built-in deduplication to prevent duplicate notifications on the same day.
+**What it does:**
 
-**Request Body:**
+- ✅ Sends "plan starting" notifications when `start_time` passes
+- ✅ Sends "missed check-in" notifications when `end_time` passes & no log exists
+- ✅ Sends "create tomorrow's plan" reminder (ONCE PER DAY per user)
+- ✅ Uses Resend to email users who haven't opened the app
+  - Checks `user_activity.last_seen_at`
+  - If `last_seen_at < notification.created_at` → Send email
+- ✅ Logs everything to `cron_logs` table
+
+### 2. `/api/check_premium_expiry` ✅
+
+**What it does:**
+
+- ✅ **EXPIRES premium** by setting `is_premium = false` when `premium_expires_at < now`
+- ✅ Sends 24-hour warning before expiration
+- ✅ Creates notifications and sends emails via Resend
+- ✅ Logs all actions to `cron_logs`
+
+### 3. `/api/create_notification`
+
+**What it does:**
+
+- ✅ Creates a notification for a user
+- ✅ Prevents duplicates (won't create same message twice in one day)
+
+**Request:**
+
 ```json
 {
-  "user_id": "string",
-  "message": "string"
+  "user_id": "uuid",
+  "message": "Your notification message"
 }
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": { /* notification object */ }
-}
+## Testing in Development
+
+### Using the Web Interface:
+
+1. Start dev server:
+
+   ```bash
+   pnpm web
+   ```
+
+2. Open http://localhost:8081/test-api
+
+3. Click "Play" buttons to test each API
+
+### Using curl (Windows CMD):
+
+Start dev server first:
+
+```bash
+pnpm web
 ```
 
-**Features:**
-- Deduplication: Checks if the same notification already exists for the user today
-- Uses Supabase service role key for admin-level operations
-- Returns appropriate error messages for missing configuration or fields
+Then in another terminal:
 
----
+**Test dispatch (one line, no backslashes):**
 
-### 2. Dispatch Notifications API
-**Endpoint:** `/api/dispatch_notifications`  
-**Method:** POST  
-**File:** `dispatch_notifications+api.ts`
-
-Automated endpoint for dispatching study plan-related notifications. This is meant to be called by a cron job.
-
-**Request Headers:**
-```
-Authorization: Bearer <CRON_SECRET>
+```cmd
+curl -X POST http://localhost:8081/api/dispatch_notifications -H "Authorization: Bearer 4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102"
 ```
 
-**Response:**
+**Test premium expiry:**
+
+```cmd
+curl -X POST http://localhost:8081/api/check_premium_expiry -H "Authorization: Bearer 4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102"
+```
+
+**Test create notification:**
+
+```cmd
+curl -X POST http://localhost:8081/api/create_notification -H "Content-Type: application/json" -d "{\"user_id\":\"YOUR_USER_ID\",\"message\":\"Test notification\"}"
+```
+
+## Production Deployment
+
+Deploy to **Vercel** (recommended for Expo API routes):
+
+1. Install Vercel CLI:
+
+   ```bash
+   npm i -g vercel
+   ```
+
+2. Deploy:
+
+   ```bash
+   vercel
+   ```
+
+3. Set environment variables in Vercel dashboard
+
+4. Your APIs will be at: `https://your-app.vercel.app/api/*`
+
+### Set up Cron Jobs (cron-job.org):
+
+**Dispatch Notifications** - Every 30 minutes:
+
+- URL: `https://your-app.vercel.app/api/dispatch_notifications`
+- Method: POST
+- Header: `Authorization: Bearer YOUR_CRON_SECRET`
+- Schedule: `*/30 * * * *`
+
+**Check Premium Expiry** - Daily at midnight:
+
+- URL: `https://your-app.vercel.app/api/check_premium_expiry`
+- Method: POST
+- Header: `Authorization: Bearer YOUR_CRON_SECRET`
+- Schedule: `0 0 * * *`
+
+## Environment Variables
+
+Create `.env.local`:
+
+```env
+# Supabase
+EXPO_PUBLIC_SUPABASE_URL=https://bjxroikxfcrrislsatwl.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Cron Secret
+CRON_SECRET=4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102
+
+# Email (Resend)
+RESEND_API_KEY=re_RJ9PGC8e_3VCr9NnRJreXMe579geGtwQS
+RESEND_FROM_EMAIL=no-reply@satracker.uz
+
+# Site URL
+EXPO_PUBLIC_SITE_URL=https://app.satracker.uz/
+```
+
+## Expected Responses
+
+### Success:
+
 ```json
 {
   "success": true,
   "processed": 10,
   "notificationsCreated": 5,
-  "emails_sent": 3
+  "emails_sent": 2
 }
 ```
 
-**Features:**
-- **Plan Start Notifications**: Notifies users when their study plan is starting
-- **Missed Check-in Notifications**: Alerts users who haven't checked in for completed study plans
-- **Tomorrow's Plan Reminder**: Reminds users if they haven't created a plan for tomorrow
-- **Smart Email Sending**: Automatically sends emails to users who are inactive (on web/desktop)
-  - Checks `user_activity.last_seen_at` timestamp
-  - Sends email only if user was last seen *before* the notification was created
-  - Ensures users on mobile get push notifications while web/desktop users get emails
-- **Logging**: Records all runs in the `cron_logs` table
-- **Error Handling**: Continues processing if individual user operations fail
+### Unauthorized (wrong CRON_SECRET):
 
----
-
-## Environment Variables Required
-
-Make sure these environment variables are set in your `.env.local` file:
-
-```env
-# Supabase Configuration
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Optional: For cron job authentication
-CRON_SECRET=your_secret_key
-
-# Email Configuration (for web/desktop notifications)
-RESEND_API_KEY=your_resend_api_key
-RESEND_FROM_EMAIL=notifications@yourdomain.com
-
-# Optional: Site URL for email templates
-EXPO_PUBLIC_SITE_URL=https://www.satracker.uz
+```json
+{
+  "error": "Unauthorized"
+}
 ```
 
-## Setting Up Cron Jobs
+## Monitoring
 
-For the `dispatch_notifications` endpoint to work automatically, you'll need to set up a cron job service (like Vercel Cron, GitHub Actions, or any other cron service) to call this endpoint regularly.
+Query `cron_logs` in Supabase:
 
-**Example using curl:**
-```bash
-curl -X POST https://your-expo-app-url/api/dispatch_notifications \
-  -H "Authorization: Bearer your_cron_secret"
+```sql
+SELECT * FROM cron_logs
+ORDER BY run_at DESC
+LIMIT 10;
 ```
 
-## Differences from Web App
+## Summary
 
-The native app API routes have these key differences from the Next.js web app:
-
-1. **Smart Email Logic**: Emails are sent based on user activity
-   - If user is active (recently seen), they receive in-app/push notifications
-   - If user is inactive, they receive email notifications
-   - This works seamlessly across mobile, web, and desktop platforms
-2. **Expo Router Syntax**: Uses `+api.ts` suffix instead of `route.ts`
-3. **Response API**: Uses `Response.json()` instead of `NextResponse.json()`
-4. **Environment Variables**: Uses `EXPO_PUBLIC_SUPABASE_URL` instead of `NEXT_PUBLIC_SUPABASE_URL`
-
-## Testing
-
-To test these endpoints locally:
-
-1. Start your Expo development server:
-```bash
-pnpm start
-```
-
-2. Make requests to the endpoints:
-```bash
-# Create notification
-curl -X POST http://localhost:8081/api/create_notification \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "user-uuid", "message": "Test notification"}'
-
-# Dispatch notifications (with cron secret)
-curl -X POST http://localhost:8081/api/dispatch_notifications \
-  -H "Authorization: Bearer your_cron_secret"
-```
-
-## Database Schema Requirements
-
-These APIs require the following Supabase tables:
-
-- `notifications` - Stores user notifications
-- `study_plan` - Stores user study plans
-- `daily_log` - Stores daily check-in logs
-- `cron_logs` - Stores cron job execution logs
-- `user_activity` - Tracks user activity (used for email decision in web app)
-
-Make sure your Row Level Security (RLS) policies allow the service role to perform the necessary operations.
+- ✅ **Development**: Use `pnpm web` (Expo dev server)
+- ✅ **Production**: Deploy to Vercel or similar platform
+- ❌ **Don't use**: Built static files with Electron for API testing
+- ✅ **Emails**: Sent via Resend to users who haven't opened app
+- ✅ **Premium Expiry**: Actually sets `is_premium = false` in database
+- ✅ **Notifications**: One per day for "no tomorrow plan" reminder

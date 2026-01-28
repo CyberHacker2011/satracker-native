@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, TextInput, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useRouter, Stack } from "expo-router";
@@ -8,16 +16,36 @@ import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView, Card } from "../components/ThemedView";
 import { Button } from "../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, User, GraduationCap, Calendar, Target } from "lucide-react-native";
+import {
+  ChevronLeft,
+  User,
+  GraduationCap,
+  Calendar,
+  Target,
+} from "lucide-react-native";
 import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
-import Slider from '@react-native-community/slider';
+import Slider from "@react-native-community/slider";
+import { usePremium } from "../hooks/usePremium";
+import { useSafeBack } from "../hooks/useSafeBack";
 
-type EducationLevel = '5th' | '6th' | '7th' | '8th' | '9th' | '10th' | '11th' | '12th' | 'undergraduate' | 'graduate';
+type EducationLevel =
+  | "5th"
+  | "6th"
+  | "7th"
+  | "8th"
+  | "9th"
+  | "10th"
+  | "11th"
+  | "12th"
+  | "undergraduate"
+  | "graduate";
 
 export default function EditProfileScreen() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
+  const safeBack = useSafeBack();
+  const { isPremium } = usePremium();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorVisible, setErrorVisible] = useState(false);
@@ -34,12 +62,27 @@ export default function EditProfileScreen() {
   const [hasPreviousScore, setHasPreviousScore] = useState(false);
 
   const educationOptions: EducationLevel[] = [
-    '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th', 'undergraduate', 'graduate'
+    "5th",
+    "6th",
+    "7th",
+    "8th",
+    "9th",
+    "10th",
+    "11th",
+    "12th",
+    "undergraduate",
+    "graduate",
   ];
 
   const examDates = [
-    "March 2026", "May 2026", "June 2026", "August 2026", 
-    "October 2026", "November 2026", "December 2026", "Other"
+    "March 2026",
+    "May 2026",
+    "June 2026",
+    "August 2026",
+    "October 2026",
+    "November 2026",
+    "December 2026",
+    "Other",
   ];
 
   useEffect(() => {
@@ -48,7 +91,9 @@ export default function EditProfileScreen() {
 
   const loadProfile = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -57,7 +102,7 @@ export default function EditProfileScreen() {
         .eq("user_id", user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== "PGRST116") throw error;
 
       if (data) {
         setName(data.name || "");
@@ -67,11 +112,13 @@ export default function EditProfileScreen() {
         setTargetRW(data.target_reading_writing || 400);
         setPreviousMath(data.previous_math || 200);
         setPreviousRW(data.previous_reading_writing || 200);
-        setHasPreviousScore(!!(data.previous_math || data.previous_reading_writing));
+        setHasPreviousScore(
+          !!(data.previous_math || data.previous_reading_writing),
+        );
       }
     } catch (error: any) {
       console.error(error);
-      setErrorMsg(error.message || t('failedLoadProfile'));
+      setErrorMsg(error.message || t("failedLoadProfile"));
       setErrorVisible(true);
     } finally {
       setLoading(false);
@@ -81,8 +128,10 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t('notAuthenticated'));
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error(t("notAuthenticated"));
 
       const profileData = {
         user_id: user.id,
@@ -97,15 +146,15 @@ export default function EditProfileScreen() {
 
       const { error } = await supabase
         .from("user_profiles")
-        .upsert(profileData, { onConflict: 'user_id' });
+        .upsert(profileData, { onConflict: "user_id" });
 
       if (error) throw error;
 
-      Alert.alert(t('success'), t('profileUpdated'));
-      router.back();
+      Alert.alert(t("success"), t("profileUpdated"));
+      safeBack();
     } catch (error: any) {
       console.error(error);
-      setErrorMsg(error.message || t('failedUpdateProfile'));
+      setErrorMsg(error.message || t("failedUpdateProfile"));
       setErrorVisible(true);
     } finally {
       setSaving(false);
@@ -117,14 +166,16 @@ export default function EditProfileScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <FeedbackErrorModal 
-          visible={errorVisible} 
-          error={errorMsg} 
+      <ThemedView
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <FeedbackErrorModal
+          visible={errorVisible}
+          error={errorMsg}
           onDismiss={() => {
-              setErrorVisible(false);
-              setLoading(false);
-          }} 
+            setErrorVisible(false);
+            setLoading(false);
+          }}
           onRetry={loadProfile}
         />
         <ActivityIndicator size="large" color={theme.primary} />
@@ -134,39 +185,49 @@ export default function EditProfileScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <FeedbackErrorModal 
-        visible={errorVisible} 
-        error={errorMsg} 
+      <FeedbackErrorModal
+        visible={errorVisible}
+        error={errorMsg}
         onDismiss={() => {
-            setErrorVisible(false);
-            setLoading(false);
-        }} 
+          setErrorVisible(false);
+          setLoading(false);
+        }}
         onRetry={loadProfile}
       />
-      <Stack.Screen options={{
-        title: t('editProfile'),
-        headerShown: true,
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => router.back()}>
-            <ChevronLeft color={theme.textPrimary} size={28} />
-          </TouchableOpacity>
-        ),
-      }} />
+      <Stack.Screen
+        options={{
+          title: t("editProfile"),
+          headerShown: true,
+          headerLeft: () => (
+            <TouchableOpacity onPress={safeBack}>
+              <ChevronLeft color={theme.textPrimary} size={28} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <ScrollView contentContainerStyle={styles.container}>
-          
           {/* Personal Information */}
           <Card style={styles.section}>
             <View style={styles.sectionHeader}>
               <User size={20} color={theme.primary} />
-              <ThemedText style={styles.sectionTitle}>{t('personalInfo')}</ThemedText>
+              <ThemedText style={styles.sectionTitle}>
+                {t("personalInfo")}
+              </ThemedText>
             </View>
 
             <View style={styles.field}>
-              <ThemedText style={styles.label}>{t('name')}</ThemedText>
+              <ThemedText style={styles.label}>{t("name")}</ThemedText>
               <TextInput
-                style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
-                placeholder={t('yourName')}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    color: theme.textPrimary,
+                  },
+                ]}
+                placeholder={t("yourName")}
                 placeholderTextColor={theme.textSecondary}
                 value={name}
                 onChangeText={setName}
@@ -176,22 +237,35 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.field}>
-              <ThemedText style={styles.label}>{t('educationLevel')}</ThemedText>
+              <ThemedText style={styles.label}>
+                {t("educationLevel")}
+              </ThemedText>
               <View style={styles.grid}>
-                {educationOptions.map(option => (
+                {educationOptions.map((option) => (
                   <TouchableOpacity
                     key={option}
                     style={[
                       styles.gridBtn,
-                      { borderColor: theme.border, backgroundColor: theme.background },
-                      educationLevel === option && { backgroundColor: theme.primary, borderColor: theme.primary }
+                      {
+                        borderColor: theme.border,
+                        backgroundColor: theme.background,
+                      },
+                      educationLevel === option && {
+                        backgroundColor: theme.primary,
+                        borderColor: theme.primary,
+                      },
                     ]}
                     onPress={() => setEducationLevel(option)}
                   >
-                    <ThemedText style={[
-                      styles.gridText,
-                      educationLevel === option && { color: '#fff', fontWeight: '700' }
-                    ]}>
+                    <ThemedText
+                      style={[
+                        styles.gridText,
+                        educationLevel === option && {
+                          color: "#fff",
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
                       {t(option)}
                     </ThemedText>
                   </TouchableOpacity>
@@ -204,25 +278,40 @@ export default function EditProfileScreen() {
           <Card style={styles.section}>
             <View style={styles.sectionHeader}>
               <Calendar size={20} color={theme.primary} />
-              <ThemedText style={styles.sectionTitle}>{t('examDate')}</ThemedText>
+              <ThemedText style={styles.sectionTitle}>
+                {t("examDate")}
+              </ThemedText>
             </View>
 
             <View style={styles.dateGrid}>
-              {examDates.map(date => (
+              {examDates.map((date) => (
                 <TouchableOpacity
                   key={date}
                   style={[
                     styles.dateBtn,
-                    { borderColor: theme.border, backgroundColor: theme.background },
-                    examDate === date && { backgroundColor: theme.primary, borderColor: theme.primary }
+                    {
+                      borderColor: theme.border,
+                      backgroundColor: theme.background,
+                    },
+                    examDate === date && {
+                      backgroundColor: theme.primary,
+                      borderColor: theme.primary,
+                    },
                   ]}
                   onPress={() => setExamDate(date)}
                 >
-                  <ThemedText style={[
-                    styles.dateText,
-                    examDate === date && { color: '#fff', fontWeight: '700' }
-                  ]}>
-                    {date.split(' ')[0] === 'Other' ? t('other') : date.replace(date.split(' ')[0], t(date.split(' ')[0].toLowerCase()))}
+                  <ThemedText
+                    style={[
+                      styles.dateText,
+                      examDate === date && { color: "#fff", fontWeight: "700" },
+                    ]}
+                  >
+                    {date.split(" ")[0] === "Other"
+                      ? t("other")
+                      : date.replace(
+                          date.split(" ")[0],
+                          t(date.split(" ")[0].toLowerCase()),
+                        )}
                   </ThemedText>
                 </TouchableOpacity>
               ))}
@@ -233,12 +322,16 @@ export default function EditProfileScreen() {
           <Card style={styles.section}>
             <View style={styles.sectionHeader}>
               <Target size={20} color={theme.primary} />
-              <ThemedText style={styles.sectionTitle}>{t('satScores')}</ThemedText>
+              <ThemedText style={styles.sectionTitle}>
+                {t("satScores")}
+              </ThemedText>
             </View>
 
-            <ThemedText style={styles.subsectionTitle}>{t('targetScore')}</ThemedText>
+            <ThemedText style={styles.subsectionTitle}>
+              {t("targetScore")}
+            </ThemedText>
             <View style={styles.scoreSection}>
-              <ThemedText style={styles.scoreLabel}>{t('math')}</ThemedText>
+              <ThemedText style={styles.scoreLabel}>{t("math")}</ThemedText>
               <View style={styles.sliderRow}>
                 <Slider
                   style={styles.slider}
@@ -256,7 +349,9 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.scoreSection}>
-              <ThemedText style={styles.scoreLabel}>{t('readingWriting')}</ThemedText>
+              <ThemedText style={styles.scoreLabel}>
+                {t("readingWriting")}
+              </ThemedText>
               <View style={styles.sliderRow}>
                 <Slider
                   style={styles.slider}
@@ -273,26 +368,55 @@ export default function EditProfileScreen() {
               </View>
             </View>
 
-            <View style={[styles.totalBox, { backgroundColor: theme.primaryLight, borderColor: theme.primary }]}>
-              <ThemedText style={[styles.totalLabel, { color: theme.primary }]}>{t('totalTarget')}</ThemedText>
-              <ThemedText style={[styles.totalValue, { color: theme.primary }]}>{totalTarget}</ThemedText>
+            <View
+              style={[
+                styles.totalBox,
+                {
+                  backgroundColor: theme.primaryLight,
+                  borderColor: theme.primary,
+                },
+              ]}
+            >
+              <ThemedText style={[styles.totalLabel, { color: theme.primary }]}>
+                {t("totalTarget")}
+              </ThemedText>
+              <ThemedText style={[styles.totalValue, { color: theme.primary }]}>
+                {totalTarget}
+              </ThemedText>
             </View>
 
-            <ThemedText style={styles.subsectionTitle}>{t('previousScoreOptional')}</ThemedText>
+            <ThemedText style={styles.subsectionTitle}>
+              {t("previousScoreOptional")}
+            </ThemedText>
             <View style={styles.checkboxRow}>
-              <TouchableOpacity 
-                style={[styles.checkbox, { borderColor: theme.border }, hasPreviousScore && { backgroundColor: theme.primary, borderColor: theme.primary }]}
+              <TouchableOpacity
+                style={[
+                  styles.checkbox,
+                  { borderColor: theme.border },
+                  hasPreviousScore && {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.primary,
+                  },
+                ]}
                 onPress={() => setHasPreviousScore(!hasPreviousScore)}
               >
-                {hasPreviousScore && <ThemedText style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</ThemedText>}
+                {hasPreviousScore && (
+                  <ThemedText
+                    style={{ color: "#fff", fontSize: 12, fontWeight: "900" }}
+                  >
+                    ✓
+                  </ThemedText>
+                )}
               </TouchableOpacity>
-              <ThemedText style={styles.checkboxLabel}>{t('havePreviousScore')}</ThemedText>
+              <ThemedText style={styles.checkboxLabel}>
+                {t("havePreviousScore")}
+              </ThemedText>
             </View>
 
             {hasPreviousScore && (
               <>
                 <View style={styles.scoreSection}>
-                  <ThemedText style={styles.scoreLabel}>{t('math')}</ThemedText>
+                  <ThemedText style={styles.scoreLabel}>{t("math")}</ThemedText>
                   <View style={styles.sliderRow}>
                     <Slider
                       style={styles.slider}
@@ -305,12 +429,16 @@ export default function EditProfileScreen() {
                       maximumTrackTintColor={theme.border}
                       thumbTintColor={theme.primary}
                     />
-                    <ThemedText style={styles.scoreValue}>{previousMath}</ThemedText>
+                    <ThemedText style={styles.scoreValue}>
+                      {previousMath}
+                    </ThemedText>
                   </View>
                 </View>
 
                 <View style={styles.scoreSection}>
-                  <ThemedText style={styles.scoreLabel}>{t('readingWriting')}</ThemedText>
+                  <ThemedText style={styles.scoreLabel}>
+                    {t("readingWriting")}
+                  </ThemedText>
                   <View style={styles.sliderRow}>
                     <Slider
                       style={styles.slider}
@@ -323,20 +451,31 @@ export default function EditProfileScreen() {
                       maximumTrackTintColor={theme.border}
                       thumbTintColor={theme.primary}
                     />
-                    <ThemedText style={styles.scoreValue}>{previousRW}</ThemedText>
+                    <ThemedText style={styles.scoreValue}>
+                      {previousRW}
+                    </ThemedText>
                   </View>
                 </View>
 
-                <View style={[styles.totalBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <ThemedText style={styles.totalLabel}>{t('previousTotal')}</ThemedText>
-                  <ThemedText style={styles.totalValue}>{totalPrevious}</ThemedText>
+                <View
+                  style={[
+                    styles.totalBox,
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                  ]}
+                >
+                  <ThemedText style={styles.totalLabel}>
+                    {t("previousTotal")}
+                  </ThemedText>
+                  <ThemedText style={styles.totalValue}>
+                    {totalPrevious}
+                  </ThemedText>
                 </View>
               </>
             )}
           </Card>
 
-          <Button 
-            title={saving ? t('saving') : t('saveChanges')}
+          <Button
+            title={saving ? t("saving") : t("saveChanges")}
             onPress={handleSave}
             loading={saving}
             style={styles.saveBtn}
@@ -357,18 +496,18 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   subsectionTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     marginTop: 8,
     marginBottom: 8,
   },
@@ -377,7 +516,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   input: {
     height: 48,
@@ -385,11 +524,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   gridBtn: {
@@ -397,12 +536,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    minWidth: '18%',
-    alignItems: 'center',
+    minWidth: "18%",
+    alignItems: "center",
   },
   gridText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   dateGrid: {
     gap: 8,
@@ -415,19 +554,19 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   scoreSection: {
     gap: 8,
   },
   scoreLabel: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     opacity: 0.6,
   },
   sliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   slider: {
@@ -436,14 +575,14 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: "900",
     minWidth: 50,
-    textAlign: 'right',
+    textAlign: "right",
   },
   totalBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 14,
     borderRadius: 10,
     borderWidth: 2,
@@ -451,15 +590,15 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   totalValue: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   checkbox: {
@@ -467,12 +606,12 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 6,
     borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   checkboxLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   saveBtn: {
     height: 50,

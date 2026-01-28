@@ -11,17 +11,19 @@
     "build:all": "electron-builder --win --mac"
   },
   "build": {
-    "appId": "com.satracker.desktop",
+    "appId": "app.satracker.uz",
     "productName": "SAT Tracker",
     "directories": {
       "output": "dist"
     },
     "files": [
       "main.js",
-      "dist/**/*"
+      "dist/**/*",
+      "!dist/**/*.map"
     ],
     "win": {
       "icon": "../assets/favicon.png",
+      "sign": null,
       "target": [
         {
           "target": "nsis",
@@ -29,7 +31,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "compression": "maximum"
     },
     "mac": {
       "icon": "../assets/favicon.png",

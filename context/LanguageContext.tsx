@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -19,7 +18,8 @@ const translations: Record<Language, Translations> = {
     target: "Target",
     editGoal: "Edit Goal",
     completeProfile: "Complete Your Profile",
-    completeProfileSub: "Set your name and exam date to personalize your dashboard.",
+    completeProfileSub:
+      "Set your name and exam date to personalize your dashboard.",
     todaysPlans: "TODAY'S PLANS",
     fullCheckIn: "Full Check-in",
     noPlansToday: "No plans set for today",
@@ -29,10 +29,12 @@ const translations: Record<Language, Translations> = {
     done: "DONE",
     enterStudyRoom: "Enter Study Room",
     buildStreak: "Build Your Streak",
-    streakSub: "Consistent study is the key to a high score. Check in daily to build your momentum.",
+    streakSub:
+      "Consistent study is the key to a high score. Check in daily to build your momentum.",
     goToCheckIn: "Go to Check-in",
     studyRoom: "Study Room",
-    studyRoomSub: "Execute your scheduled objectives with integrated piece-by-piece management.",
+    studyRoomSub:
+      "Execute your scheduled objectives with integrated piece-by-piece management.",
     goToStudyRoom: "Go to Study Room",
     quickLinks: "QUICK LINKS",
     studyPlanner: "Study Planner",
@@ -40,15 +42,17 @@ const translations: Record<Language, Translations> = {
     studyHistory: "Study History",
     classicTimer: "Classic Timer",
     studyTip: "Study Tip",
-    tipQuote: "\"The secret of getting ahead is getting started.\" — Stay consistent with your daily plans to reach your target score.",
+    tipQuote:
+      '"The secret of getting ahead is getting started." — Stay consistent with your daily plans to reach your target score.',
     loadingDashboard: "Loading Dashboard...",
     feedback: "Feedback",
     haveSuggestions: "Have suggestions?",
     planClosed: "Plan Closed",
     sessionUnavailableMsg: "This session is already completed or expired.",
     standBy: "Stand By",
-    planScheduledFor: "This plan is scheduled for {time}. Access will open then.",
-    
+    planScheduledFor:
+      "This plan is scheduled for {time}. Access will open then.",
+
     // Profile / Settings
     settings: "Settings",
     preferencesAccount: "Preferences & Account",
@@ -66,7 +70,7 @@ const translations: Record<Language, Translations> = {
     signOut: "Sign Out",
     language: "Language",
     selectLanguage: "Select Language",
-    
+
     // Common
     error: "Error",
     back: "Back",
@@ -89,7 +93,8 @@ const translations: Record<Language, Translations> = {
     updateMission: "Update Mission",
     commitMission: "Commit Mission",
     instructions: "Instructions",
-    planInstructions: "Choose the section you want to study and set a clear timeframe. Be specific about your tasks to maintain focus. Once saved, these plans will appear in your dashboard and check-in timeline.",
+    planInstructions:
+      "Choose the section you want to study and set a clear timeframe. Be specific about your tasks to maintain focus. Once saved, these plans will appear in your dashboard and check-in timeline.",
     math: "MATH",
     reading: "READING",
     writing: "WRITING",
@@ -111,14 +116,17 @@ const translations: Record<Language, Translations> = {
     noCheckIns: "No plans for this day.",
     scheduleNow: "Schedule Now →",
     howItWorks: "How it works",
-    checkInInfo1: "Sessions become available for check-in after their scheduled start time. Mark your plans as \"Completed\" if you finished your tasks, or \"Missed\" if you couldn't make it.",
-    checkInInfo2: "Consistent check-ins help you track your progress and maintain study accountability over time.",
+    checkInInfo1:
+      'Sessions become available for check-in after their scheduled start time. Mark your plans as "Completed" if you finished your tasks, or "Missed" if you couldn\'t make it.',
+    checkInInfo2:
+      "Consistent check-ins help you track your progress and maintain study accountability over time.",
     incomplete: "Incomplete",
     finished: "Finished",
     scheduleNewMission: "Schedule New Mission",
     missionDeleted: "Mission deleted successfully",
     failedDelete: "Failed to delete mission",
-    sureDelete: "Are you sure you want to delete this mission? This cannot be undone.",
+    sureDelete:
+      "Are you sure you want to delete this mission? This cannot be undone.",
     locked: "Locked",
     onlyCheckInAfterStart: "You can only check in after the plan starts.",
     deletePlan: "Delete Plan",
@@ -141,7 +149,8 @@ const translations: Record<Language, Translations> = {
     breakPerPiece: "BREAK PER PIECE (m)",
     strategyInfo: "Strategy: {sessions} pieces of {focus}m focus each.",
     missionSuccess: "Mission Success",
-    missionSuccessSub: "You've completed your intensive study of {section}. Ready to log your progress?",
+    missionSuccessSub:
+      "You've completed your intensive study of {section}. Ready to log your progress?",
     logAsCompleted: "LOG AS COMPLETED",
     archiving: "ARCHIVING...",
     keepWorking: "KEEP WORKING",
@@ -153,24 +162,33 @@ const translations: Record<Language, Translations> = {
     quitSessionMsg: "Do you want to save your progress or discard it?",
     discard: "Discard",
     saveProgress: "Save",
-    resetPieceMsg: "Restart this piece? Current progress for this session will be lost.",
+    resetPieceMsg:
+      "Restart this piece? Current progress for this session will be lost.",
     expired: "Expired",
     startsAt: "Starts {time}",
     continue: "Continue",
     missionUnavailable: "Mission Unavailable",
     alreadyCompleted: "This mission is already completed.",
     alreadyExpired: "This mission has expired.",
-    failedLoadPlans: "Failed to load study plans. Please check your connection.",
+    failedLoadPlans:
+      "Failed to load study plans. Please check your connection.",
     selectDate: "Select Date",
     noRecordsDate: "No records for this date",
     missed: "MISSED",
     untracked: "UNTRACKED",
     deleteRecord: "Delete Record",
-    sureDeleteRecord: "Are you sure you want to delete this study record? This cannot be undone.",
+    sureDeleteRecord:
+      "Are you sure you want to delete this study record? This cannot be undone.",
     recordDeleted: "Record deleted successfully",
     failedDeleteRecord: "Failed to delete record",
     failedLoadHistory: "Failed to load history.",
-    mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
+    mon: "Mon",
+    tue: "Tue",
+    wed: "Wed",
+    thu: "Thu",
+    fri: "Fri",
+    sat: "Sat",
+    sun: "Sun",
 
     // Edit Profile
     personalInfo: "Personal Information",
@@ -186,7 +204,8 @@ const translations: Record<Language, Translations> = {
     previousTotal: "Previous Total",
     saveChanges: "Save Changes",
     profileUpdated: "Profile updated successfully!",
-    failedUpdateProfile: "Failed to update profile. Please check your connection.",
+    failedUpdateProfile:
+      "Failed to update profile. Please check your connection.",
     failedLoadProfile: "Failed to load profile. Please check your connection.",
     undergraduate: "Undergraduate",
     graduate: "Graduate",
@@ -209,28 +228,40 @@ const translations: Record<Language, Translations> = {
     aboutSATTracker: "About SAT Tracker",
     premiumStudyCompanion: "Premium Study Companion",
     planTrackSucceed: "Plan. Track. Succeed.",
-    aboutHeroDesc: "A comprehensive tool for modern SAT preparation. Organize your daily sessions, maintain focus, and track your progress consistently.",
+    aboutHeroDesc:
+      "A comprehensive tool for modern SAT preparation. Organize your daily sessions, maintain focus, and track your progress consistently.",
     everythingYouNeed: "Everything You Need",
-    smartToolsDesc: "Smart tools designed to increase your study habits and maximize efficiency.",
+    smartToolsDesc:
+      "Smart tools designed to increase your study habits and maximize efficiency.",
     readyOptimizeSAT: "Ready to Optimize Your SAT Study?",
-    aboutCTADesc: "Stay consistent with your daily plans to reach your target score. Consistent effort is the bridge between goals and accomplishment.",
-    studyPlanningDesc: "Create structured daily plans for Math, Reading, and Writing sections. Set specific time blocks for each task.",
-    focusTimerLongDesc: "Increase focus with work-rest intervals. Integrated directly with your study plans for seamless session tracking.",
-    dailyCheckInsLongDesc: "Maintain accountability by marking your sessions as completed. Build a daily streak of productivity.",
-    progressTrackerDesc: "View your performance history. See exactly which sessions you completed and identify areas for improvement.",
-    privacyHeroSub: "Your privacy matters to us. Here's how we handle your data.",
+    aboutCTADesc:
+      "Stay consistent with your daily plans to reach your target score. Consistent effort is the bridge between goals and accomplishment.",
+    studyPlanningDesc:
+      "Create structured daily plans for Math, Reading, and Writing sections. Set specific time blocks for each task.",
+    focusTimerLongDesc:
+      "Increase focus with work-rest intervals. Integrated directly with your study plans for seamless session tracking.",
+    dailyCheckInsLongDesc:
+      "Maintain accountability by marking your sessions as completed. Build a daily streak of productivity.",
+    progressTrackerDesc:
+      "View your performance history. See exactly which sessions you completed and identify areas for improvement.",
+    privacyHeroSub:
+      "Your privacy matters to us. Here's how we handle your data.",
     lastUpdated: "Last Updated: January 2026",
     questions: "Questions?",
-    privacyQuestionsSub: "If you have any questions about this privacy policy or how we handle your data, please reach out:",
+    privacyQuestionsSub:
+      "If you have any questions about this privacy policy or how we handle your data, please reach out:",
     dataCollection: "Data Collection",
-    dataCollectionContent: "SAT Tracker collects only the essential information needed to provide our service: your email address for authentication, study plans you create, and check-in records. We do not collect personal identifying information beyond what you explicitly provide.",
+    dataCollectionContent:
+      "SAT Tracker collects only the essential information needed to provide our service: your email address for authentication, study plans you create, and check-in records. We do not collect personal identifying information beyond what you explicitly provide.",
     dataStorage: "Data Storage",
-    dataStorageContent: "Your data is securely stored using Supabase's cloud infrastructure with industry-standard encryption. All data transmissions are encrypted using TLS/SSL protocols.",
+    dataStorageContent:
+      "Your data is securely stored using Supabase's cloud infrastructure with industry-standard encryption. All data transmissions are encrypted using TLS/SSL protocols.",
     dataUsage: "Data Usage",
-    dataUsageContent: "We use your data solely to provide the SAT Tracker service. Your study plans and progress data are never shared with third parties, sold, or used for advertising purposes.",
+    dataUsageContent:
+      "We use your data solely to provide the SAT Tracker service. Your study plans and progress data are never shared with third parties, sold, or used for advertising purposes.",
     yourRights: "Your Rights",
-    yourRightsContent: "You have the right to access, modify, or delete your data at any time. To request data deletion, please contact us via Telegram at @ibrohimfr.",
-
+    yourRightsContent:
+      "You have the right to access, modify, or delete your data at any time. To request data deletion, please contact us via Telegram at @satrackerbot.",
 
     // Focus / Classic Timer
     classicPomodoro: "Focus Timer",
@@ -244,7 +275,8 @@ const translations: Record<Language, Translations> = {
     breakDuration: "Break Duration (m)",
     configTip: "You can type numbers or use +/- while paused.",
     resetTimer: "Reset Timer",
-    confirmReset: "Are you sure you want to reset the current session? Progress will be lost.",
+    confirmReset:
+      "Are you sure you want to reset the current session? Progress will be lost.",
     session: "Session",
     break: "Break",
     start: "Start",
@@ -299,7 +331,8 @@ const translations: Record<Language, Translations> = {
     checkInNow: "Check-in Now",
     markAllRead: "Mark all as read",
     planUnavailable: "Plan Unavailable",
-    invalidCredentials: "Wrong credentials for log-in. Please check your email and password.",
+    invalidCredentials:
+      "Wrong credentials for log-in. Please check your email and password.",
     emailNotConfirmed: "Please verify your email address before logging in.",
     userNotFound: "This email does not exist for log in.",
     loginFailed: "Login failed. Please try again.",
@@ -307,9 +340,11 @@ const translations: Record<Language, Translations> = {
     enterEmail: "Please enter your email address.",
     enterPassword: "Please enter your password.",
     createPassword: "Please create a new password.",
-    passwordRequirements: "The password should be at least 6 characters and contain both letters and numbers.",
+    passwordRequirements:
+      "The password should be at least 6 characters and contain both letters and numbers.",
     passwordsDoNotMatch: "Confirm password does not match. Please try again.",
-    completeRequiredFields: "Please complete all required fields to personalize your experience.",
+    completeRequiredFields:
+      "Please complete all required fields to personalize your experience.",
     accountCreatedSuccess: "Account created successfully!",
     checkEmailVerify: "Please check your email to verify your account.",
     unexpectedError: "An unexpected error occurred.",
@@ -326,7 +361,8 @@ const translations: Record<Language, Translations> = {
     secondsShort: "S",
     at: "at",
     failedFetchData: "Failed to fetch data. Server error.",
-    noInternetCheck: "No internet connection. Please check your network and try again.",
+    noInternetCheck:
+      "No internet connection. Please check your network and try again.",
 
     // Premium Page
     getPremium: "Get Premium",
@@ -348,32 +384,41 @@ const translations: Record<Language, Translations> = {
     bestValue: "Best Value",
     save_m: "Save",
     priceGuarantee: "Price Lock Guarantee",
-    priceGuaranteeDesc: "Subscribe now and lock in current pricing forever. Even if we raise prices for new features, you'll continue paying the same rate.",
+    priceGuaranteeDesc:
+      "Subscribe now and lock in current pricing forever. Even if we raise prices for new features, you'll continue paying the same rate.",
     readyToUpgrade: "Ready to Upgrade?",
-    contactForPremium: "Contact us on Telegram to activate your premium subscription",
+    contactForPremium:
+      "Contact us on Telegram to activate your premium subscription",
     contactOnTelegram: "Contact on Telegram",
     buyPremiumMonthly: "I want to buy Premium - Monthly Plan",
     buyPremiumQuarterly: "I want to buy Premium - 3-Month Plan",
     premiumFeature1Title: "Smart Planning System",
-    premiumFeature1Desc: "Create unlimited study plans for Math, Reading, and Writing sections with flexible scheduling",
+    premiumFeature1Desc:
+      "Create unlimited study plans for Math, Reading, and Writing sections with flexible scheduling",
     premiumFeature2Title: "Flexible Timers",
-    premiumFeature2Desc: "Classic Pomodoro and integrated Study Room timers with customizable work-break intervals",
+    premiumFeature2Desc:
+      "Classic Pomodoro and integrated Study Room timers with customizable work-break intervals",
     premiumFeature3Title: "Smart Notifications",
-    premiumFeature3Desc: "Get timely reminders before your study sessions start to stay on track",
+    premiumFeature3Desc:
+      "Get timely reminders before your study sessions start to stay on track",
     premiumFeature4Title: "Progress Tracking",
-    premiumFeature4Desc: "Track all your study history, check-ins, and maintain accountability",
+    premiumFeature4Desc:
+      "Track all your study history, check-ins, and maintain accountability",
     premiumFeature5Title: "Auto-Save & Sync",
-    premiumFeature5Desc: "Never lose progress with automatic session state saving and cloud synchronization",
-    
+    premiumFeature5Desc:
+      "Never lose progress with automatic session state saving and cloud synchronization",
+
     // Premium Locks
     premiumRequired: "Premium Required",
-    buyPremiumToUse: "Subscribe to Premium to unlock all features and start your SAT prep journey",
+    buyPremiumToUse:
+      "Subscribe to Premium to unlock all features and start your SAT prep journey",
     featureRequiresPremium: "This feature requires Premium subscription",
     upgradeToPremium: "Upgrade to Premium",
     contactSupport: "Need help? Contact",
     welcomeToPremium: "Welcome to SAT Tracker!",
     premiumActive: "Premium Active",
-    expandSubscription: "Extend your premium subscription to continue enjoying all features",
+    expandSubscription:
+      "Extend your premium subscription to continue enjoying all features",
     extendPremium: "Extend Premium",
     extendPlan: "Extend Plan",
     expires: "Expires",
@@ -388,7 +433,8 @@ const translations: Record<Language, Translations> = {
     target: "Maqsad",
     editGoal: "Maqsadni o'zgartirish",
     completeProfile: "Profilingizni to'ldiring",
-    completeProfileSub: "Dashboardni shaxsiylashtirish uchun ismingiz va imtihon sanasini kiriting.",
+    completeProfileSub:
+      "Dashboardni shaxsiylashtirish uchun ismingiz va imtihon sanasini kiriting.",
     todaysPlans: "BUGUNGI REJALAR",
     fullCheckIn: "To'liq tekshirish",
     noPlansToday: "Bugun uchun rejalar yo'q",
@@ -398,10 +444,12 @@ const translations: Record<Language, Translations> = {
     done: "BAJARILDI",
     enterStudyRoom: "O'quv Xonasiga Kirish",
     buildStreak: "Streakni yarating",
-    streakSub: "Doimiy o'qish yuqori natija kalitidir. Momentumni ushlab turish uchun har kuni tekshiruvdan o'ting.",
+    streakSub:
+      "Doimiy o'qish yuqori natija kalitidir. Momentumni ushlab turish uchun har kuni tekshiruvdan o'ting.",
     goToCheckIn: "Tekshiruvga o'tish",
     studyRoom: "O'quv Xonasi",
-    studyRoomSub: "Rejalashtirilgan maqsadlaringizni bo'lakma-bo'lak boshqaruv orqali amalga oshiring.",
+    studyRoomSub:
+      "Rejalashtirilgan maqsadlaringizni bo'lakma-bo'lak boshqaruv orqali amalga oshiring.",
     goToStudyRoom: "O'quv Xonasiga o'tish",
     quickLinks: "TEZKOR HAVOLALAR",
     studyPlanner: "O'quv Rejalashtiruvchisi",
@@ -409,14 +457,17 @@ const translations: Record<Language, Translations> = {
     studyHistory: "O'qish Tarixi",
     classicTimer: "Klassik Pomodoro Taymer",
     studyTip: "O'qish Maslahati",
-    tipQuote: "\"Oldinga siljishning siri - bu boshlashdir.\" — Maqsadingizga erishish uchun kunlik rejalaringizda barqaror bo'ling.",
+    tipQuote:
+      '"Oldinga siljishning siri - bu boshlashdir." — Maqsadingizga erishish uchun kunlik rejalaringizda barqaror bo\'ling.',
     loadingDashboard: "Dashboard yuklanmoqda...",
     feedback: "Fikr-mulohaza",
     haveSuggestions: "Takliflaringiz bormi?",
     planClosed: "Reja yopilgan",
-    sessionUnavailableMsg: "Ushbu sessiya allaqachon yakunlangan yoki muddati o'tgan.",
+    sessionUnavailableMsg:
+      "Ushbu sessiya allaqachon yakunlangan yoki muddati o'tgan.",
     standBy: "Kuting",
-    planScheduledFor: "Ushbu reja {time} ga rejalashtirilgan. Kirish o'sha vaqtda ochiladi.",
+    planScheduledFor:
+      "Ushbu reja {time} ga rejalashtirilgan. Kirish o'sha vaqtda ochiladi.",
 
     // Profile / Settings
     settings: "Sozlamalar",
@@ -458,7 +509,8 @@ const translations: Record<Language, Translations> = {
     updateMission: "Missiyani yangilash",
     commitMission: "Missiyani tasdiqlash",
     instructions: "Yo'riqnoma",
-    planInstructions: "O'rganmoqchi bo'lgan bo'limingizni tanlang va aniq vaqt oralig'ini belgilang. Diqqatni jamlash uchun vazifalaringizni aniq ko'rsating. Saqlangandan so'ng, ushbu rejalar dashboardda va tekshiruv vaqt jadvalida paydo bo'ladi.",
+    planInstructions:
+      "O'rganmoqchi bo'lgan bo'limingizni tanlang va aniq vaqt oralig'ini belgilang. Diqqatni jamlash uchun vazifalaringizni aniq ko'rsating. Saqlangandan so'ng, ushbu rejalar dashboardda va tekshiruv vaqt jadvalida paydo bo'ladi.",
     math: "MATH",
     reading: "READING",
     writing: "WRITING",
@@ -480,16 +532,20 @@ const translations: Record<Language, Translations> = {
     noCheckIns: "Bu kun uchun rejalar yo'q.",
     scheduleNow: "Hozir rejalashtirish →",
     howItWorks: "Qanday ishlaydi",
-    checkInInfo1: "Sessiyalar belgilangan boshlanish vaqtidan keyin tekshirish uchun ochiq bo'ladi. Agar topshiriqlarni bajargan bo'lsangiz \"Bajarildi\", aks holda \"O'tkazib yuborildi\" deb belgilang.",
-    checkInInfo2: "Doimiy tekshiruvlar sizning natijangizni kuzatib borishga va mas'uliyatni saqlashga yordam beradi.",
+    checkInInfo1:
+      'Sessiyalar belgilangan boshlanish vaqtidan keyin tekshirish uchun ochiq bo\'ladi. Agar topshiriqlarni bajargan bo\'lsangiz "Bajarildi", aks holda "O\'tkazib yuborildi" deb belgilang.',
+    checkInInfo2:
+      "Doimiy tekshiruvlar sizning natijangizni kuzatib borishga va mas'uliyatni saqlashga yordam beradi.",
     incomplete: "Bajarilmagan",
     finished: "Tugallangan",
     scheduleNewMission: "Yangi missiya rejalashtirish",
     missionDeleted: "Missiya muvaffaqiyatli o'chirildi",
     failedDelete: "Missiyani o'chirishda xatolik",
-    sureDelete: "Ushbu missiyani o'chirishga ishonchingiz komilmi? Buni qaytarib bo'lmaydi.",
+    sureDelete:
+      "Ushbu missiyani o'chirishga ishonchingiz komilmi? Buni qaytarib bo'lmaydi.",
     locked: "Qulflangan",
-    onlyCheckInAfterStart: "Faqat reja boshlanganidan keyin tekshiruvdan o'tishingiz mumkin.",
+    onlyCheckInAfterStart:
+      "Faqat reja boshlanganidan keyin tekshiruvdan o'tishingiz mumkin.",
     deletePlan: "Rejani o'chirish",
 
     // Study Room
@@ -500,7 +556,8 @@ const translations: Record<Language, Translations> = {
     finishMission: "Missiyani yakunlash",
     syncingRoom: "Xonani sinxronlash...",
     dailyRoadmap: "Kunlik rejangizni amalga oshiring",
-    allMissionsComplete: "Bugungi barcha missiyalar bajarilgan yoki mavjud emas.",
+    allMissionsComplete:
+      "Bugungi barcha missiyalar bajarilgan yoki mavjud emas.",
     planNewMission: "Yangi missiya rejalashtirish",
     missionBriefing: "Missiya brifingi",
     totalTime: "UMUMIY VAQT",
@@ -508,9 +565,11 @@ const translations: Record<Language, Translations> = {
     configureStrategy: "Strategiyani sozlash",
     piecesSessions: "BO'LAKLAR (SESSIYALAR)",
     breakPerPiece: "HAR BIR BO'LAK UCHUN TANAFUS (m)",
-    strategyInfo: "Strategiya: har biri {focus} daqiqadan iborat {sessions} ta bo'lak.",
+    strategyInfo:
+      "Strategiya: har biri {focus} daqiqadan iborat {sessions} ta bo'lak.",
     missionSuccess: "Missiya muvaffaqiyatli",
-    missionSuccessSub: "Siz {section} bo'yicha intensiv o'qishni yakunladingiz. Natijani qayd etishga tayyormisiz?",
+    missionSuccessSub:
+      "Siz {section} bo'yicha intensiv o'qishni yakunladingiz. Natijani qayd etishga tayyormisiz?",
     logAsCompleted: "BAJARILDI DEB BELGILASH",
     archiving: "ARXIVLANMOQDA...",
     keepWorking: "DAVOM ETTIRISH",
@@ -522,7 +581,8 @@ const translations: Record<Language, Translations> = {
     quitSessionMsg: "Jarayonni saqlamoqchimisiz yoki bekor qilmoqchimisiz?",
     discard: "Bekor qilish",
     saveProgress: "Saqlash",
-    resetPieceMsg: "Ushbu bo'lakni qaytadan boshlaysizmi? Ushbu sessiya uchun jarayon yo'qoladi.",
+    resetPieceMsg:
+      "Ushbu bo'lakni qaytadan boshlaysizmi? Ushbu sessiya uchun jarayon yo'qoladi.",
     expired: "Muddati o'tdi",
     startsAt: "{time} da boshlanadi",
     continue: "Davom ettirish",
@@ -535,11 +595,18 @@ const translations: Record<Language, Translations> = {
     missed: "O'TKAZIB YUBORILDI",
     untracked: "KUZATILMAGAN",
     deleteRecord: "Qaydni o'chirish",
-    sureDeleteRecord: "Ushbu o'qish qaydini o'chirishga ishonchingiz komilmi? Buni qaytarib bo'lmaydi.",
+    sureDeleteRecord:
+      "Ushbu o'qish qaydini o'chirishga ishonchingiz komilmi? Buni qaytarib bo'lmaydi.",
     recordDeleted: "Qayd muvaffaqiyatli o'chirildi",
     failedDeleteRecord: "Qaydni o'chirishda xatolik yuz berdi",
     failedLoadHistory: "Tarixni yuklab bo'lmadi.",
-    mon: "Du", tue: "Se", wed: "Ch", thu: "Pa", fri: "Ju", sat: "Sha", sun: "Yak",
+    mon: "Du",
+    tue: "Se",
+    wed: "Ch",
+    thu: "Pa",
+    fri: "Ju",
+    sat: "Sha",
+    sun: "Yak",
 
     // Edit Profile
     personalInfo: "Shaxsiy ma'lumotlar",
@@ -578,27 +645,40 @@ const translations: Record<Language, Translations> = {
     aboutSATTracker: "SAT Tracker haqida",
     premiumStudyCompanion: "Premium o'quv hamrohi",
     planTrackSucceed: "Rejalashtir. Kuzat. Muvaffaqiyat qozon.",
-    aboutHeroDesc: "Zamonaviy SAT tayyorgarligi uchun keng qamrovli vosita. Kunlik sessiyalaringizni tashkil qiling, diqqatni jamlang va natijalaringizni doimiy ravishda kuzatib boring.",
+    aboutHeroDesc:
+      "Zamonaviy SAT tayyorgarligi uchun keng qamrovli vosita. Kunlik sessiyalaringizni tashkil qiling, diqqatni jamlang va natijalaringizni doimiy ravishda kuzatib boring.",
     everythingYouNeed: "Sizga kerak bo'lgan hamma narsa",
-    smartToolsDesc: "O'qish odatlaringizni yaxshilash va samaradorlikni oshirish uchun mo'ljallangan aqlli vositalar.",
+    smartToolsDesc:
+      "O'qish odatlaringizni yaxshilash va samaradorlikni oshirish uchun mo'ljallangan aqlli vositalar.",
     readyOptimizeSAT: "SAT o'qishingizni optimallashtirishga tayyormisiz?",
-    aboutCTADesc: "Maqsadingizga erishish uchun kunlik rejalaringizda barqaror bo'ling. Izchil harakat - bu maqsadlar va muvaffaqiyatlar o'rtasidagi ko'prikdir.",
-    studyPlanningDesc: "Matematika, O'qish va Yozish bo'limlari uchun tizimli kunlik rejalar yarating. Har bir vazifa uchun aniq vaqt bloklarini belgilang.",
-    focusTimerLongDesc: "Ish va dam olish intervallari bilan diqqatni oshiring. Sessiyalarni uzluksiz kuzatib borish uchun o'quv rejalaringiz bilan bevosita birlashtirilgan.",
-    dailyCheckInsLongDesc: "Sessiyalaringizni yakunlangan deb belgilash orqali mas'uliyatni saqlang. Hosildorlikning kunlik seriyasini (streak) yarating.",
-    progressTrackerDesc: "Natijalar tarixingizni ko'ring. Qaysi sessiyalarni bajarganingizni aniq ko'ring va yaxshilanishi kerak bo'lgan sohalarni aniqlang.",
-    privacyHeroSub: "Sizning maxfiyligingiz biz uchun muhim. Ma'lumotlaringizni qanday boshqarishimiz haqida tanishing.",
+    aboutCTADesc:
+      "Maqsadingizga erishish uchun kunlik rejalaringizda barqaror bo'ling. Izchil harakat - bu maqsadlar va muvaffaqiyatlar o'rtasidagi ko'prikdir.",
+    studyPlanningDesc:
+      "Matematika, O'qish va Yozish bo'limlari uchun tizimli kunlik rejalar yarating. Har bir vazifa uchun aniq vaqt bloklarini belgilang.",
+    focusTimerLongDesc:
+      "Ish va dam olish intervallari bilan diqqatni oshiring. Sessiyalarni uzluksiz kuzatib borish uchun o'quv rejalaringiz bilan bevosita birlashtirilgan.",
+    dailyCheckInsLongDesc:
+      "Sessiyalaringizni yakunlangan deb belgilash orqali mas'uliyatni saqlang. Hosildorlikning kunlik seriyasini (streak) yarating.",
+    progressTrackerDesc:
+      "Natijalar tarixingizni ko'ring. Qaysi sessiyalarni bajarganingizni aniq ko'ring va yaxshilanishi kerak bo'lgan sohalarni aniqlang.",
+    privacyHeroSub:
+      "Sizning maxfiyligingiz biz uchun muhim. Ma'lumotlaringizni qanday boshqarishimiz haqida tanishing.",
     lastUpdated: "Oxirgi yangilanish: Yanvar 2026",
     questions: "Savollar bormi?",
-    privacyQuestionsSub: "Agar ushbu maxfiylik siyosati yoki ma'lumotlaringizni qanday boshqarishimiz haqida savollaringiz bo'lsa, bizga murojaat qiling:",
+    privacyQuestionsSub:
+      "Agar ushbu maxfiylik siyosati yoki ma'lumotlaringizni qanday boshqarishimiz haqida savollaringiz bo'lsa, bizga murojaat qiling:",
     dataCollection: "Ma'lumotlarni yig'ish",
-    dataCollectionContent: "SAT Tracker faqat xizmat ko'rsatish uchun zarur bo'lgan ma'lumotlarni yig'adi: autentifikatsiya uchun elektron pochta manzilingiz, siz yaratgan o'quv rejalari va tekshiruv qaydlari. Biz siz taqdim etgan ma'lumotlardan tashqari shaxsiy aniqlovchi ma'lumotlarni yig'maymiz.",
+    dataCollectionContent:
+      "SAT Tracker faqat xizmat ko'rsatish uchun zarur bo'lgan ma'lumotlarni yig'adi: autentifikatsiya uchun elektron pochta manzilingiz, siz yaratgan o'quv rejalari va tekshiruv qaydlari. Biz siz taqdim etgan ma'lumotlardan tashqari shaxsiy aniqlovchi ma'lumotlarni yig'maymiz.",
     dataStorage: "Ma'lumotlarni saqlash",
-    dataStorageContent: "Ma'lumotlaringiz Supabase bulutli infratuzilmasi orqali sanoat standartidagi shifrlash bilan xavfsiz saqlanadi. Barcha ma'lumot uzatish TLS/SSL protokollari yordamida shifrlangan.",
+    dataStorageContent:
+      "Ma'lumotlaringiz Supabase bulutli infratuzilmasi orqali sanoat standartidagi shifrlash bilan xavfsiz saqlanadi. Barcha ma'lumot uzatish TLS/SSL protokollari yordamida shifrlangan.",
     dataUsage: "Ma'lumotlardan foydalanish",
-    dataUsageContent: "Biz sizning ma'lumotlaringizdan faqat SAT Tracker xizmatini taqdim etish uchun foydalanamiz. O'quv rejalaringiz va taraqqiyot ma'lumotlari uchinchi shaxslarga hech qachon berilmaydi, sotilmaydi yoki reklama maqsadlarida foydalanilmaydi.",
+    dataUsageContent:
+      "Biz sizning ma'lumotlaringizdan faqat SAT Tracker xizmatini taqdim etish uchun foydalanamiz. O'quv rejalaringiz va taraqqiyot ma'lumotlari uchinchi shaxslarga hech qachon berilmaydi, sotilmaydi yoki reklama maqsadlarida foydalanilmaydi.",
     yourRights: "Sizning huquqlaringiz",
-    yourRightsContent: "Siz istalgan vaqtda ma'lumotlaringizga kirish, ularni o'zgartirish yoki o'chirish huquqiga egasiz. Ma'lumotlarni o'chirishni so'rash uchun Telegram orqali @ibrohimfr bilan bog'laning.",
+    yourRightsContent:
+      "Siz istalgan vaqtda ma'lumotlaringizga kirish, ularni o'zgartirish yoki o'chirish huquqiga egasiz. Ma'lumotlarni o'chirishni so'rash uchun Telegram orqali @satrackerbot bilan bog'laning.",
 
     // Focus / Classic Timer
     classicPomodoro: "Diqqat Taymeri",
@@ -610,9 +690,11 @@ const translations: Record<Language, Translations> = {
     adjustSessions: "SESSIYALARNI SOZLASH",
     focusDuration: "Diqqat davomiyligi (m)",
     breakDuration: "Tanaffus davomiyligi (m)",
-    configTip: "To'xtatilgan vaqtda raqamlarni yozishingiz yoki +/- dan foydalanishingiz mumkin.",
+    configTip:
+      "To'xtatilgan vaqtda raqamlarni yozishingiz yoki +/- dan foydalanishingiz mumkin.",
     resetTimer: "Taymerni qayta boshlash",
-    confirmReset: "Hozirgi sessiyani qayta boshamoqchimisiz? Jarayon yo'qoladi.",
+    confirmReset:
+      "Hozirgi sessiyani qayta boshamoqchimisiz? Jarayon yo'qoladi.",
     session: "Sessiya",
     break: "Tanaffus",
     start: "Boshlash",
@@ -626,7 +708,8 @@ const translations: Record<Language, Translations> = {
     examDate: "Imtihon sanasi",
     allRightsReserved: "Barcha huquqlar himoyalangan",
     welcomeBack: "Xush kelibsiz",
-    signInToContinue: "SAT tayyorgarligi bo'yicha sayohatingizni davom ettirish uchun tizimga kiring",
+    signInToContinue:
+      "SAT tayyorgarligi bo'yicha sayohatingizni davom ettirish uchun tizimga kiring",
     emailAddress: "Elektron pochta manzili",
     signIn: "Tizimga kirish",
     signingIn: "Kirilmoqda...",
@@ -635,11 +718,13 @@ const translations: Record<Language, Translations> = {
     createNewAccount: "Yangi hisob yaratish",
     backToSignIn: "Tizimga kirishga qaytish",
     checkYourEmail: "Elektron pochtangizni tekshiring",
-    weSentResetLink: "Biz {email} manziliga parolni tiklash havolasini yubordik",
+    weSentResetLink:
+      "Biz {email} manziliga parolni tiklash havolasini yubordik",
     resendEmail: "E-pochtani qayta yuborish",
     resending: "Qayta yuborilmoqda...",
     needHelp: "Yordam kerakmi?",
-    enterEmailReset: "Elektron pochtangizni kiriting va biz sizga tiklash havolasini yuboramiz",
+    enterEmailReset:
+      "Elektron pochtangizni kiriting va biz sizga tiklash havolasini yuboramiz",
     sendResetLink: "Tiklash havolasini yuborish",
     sending: "Yuborilmoqda...",
     createAccount: "Hisob yaratish",
@@ -667,21 +752,29 @@ const translations: Record<Language, Translations> = {
     checkInNow: "Hozir tekshirish",
     markAllRead: "Hammasini o'qilgan deb belgilash",
     planUnavailable: "Reja mavjud emas",
-    invalidCredentials: "Kirish ma'lumotlari noto'g'ri. Elektron pochta va parolni tekshiring.",
-    emailNotConfirmed: "Tizimga kirishdan oldin elektron pochta manzilingizni tasdiqlang.",
+    invalidCredentials:
+      "Kirish ma'lumotlari noto'g'ri. Elektron pochta va parolni tekshiring.",
+    emailNotConfirmed:
+      "Tizimga kirishdan oldin elektron pochta manzilingizni tasdiqlang.",
     userNotFound: "Ushbu elektron pochta manzili mavjud emas.",
-    loginFailed: "Tizimga kirishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+    loginFailed:
+      "Tizimga kirishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
     failedSendReset: "Parolni tiklash elektron pochtasini yuborib bo'lmadi.",
     enterEmail: "Iltimos, elektron pochta manzilingizni kiriting.",
     enterPassword: "Iltimos, parolingizni kiriting.",
     createPassword: "Iltimos, yangi parol yarating.",
-    passwordRequirements: "Parol kamida 6 ta belgidan iborat bo'lishi hamda harf va raqamlarni o'z ichiga olishi kerak.",
-    passwordsDoNotMatch: "Tasdiqlash paroli mos kelmadi. Iltimos, qayta urinib ko'ring.",
-    completeRequiredFields: "Tajribangizni individuallashtirish uchun barcha majburiy maydonlarni to'ldiring.",
+    passwordRequirements:
+      "Parol kamida 6 ta belgidan iborat bo'lishi hamda harf va raqamlarni o'z ichiga olishi kerak.",
+    passwordsDoNotMatch:
+      "Tasdiqlash paroli mos kelmadi. Iltimos, qayta urinib ko'ring.",
+    completeRequiredFields:
+      "Tajribangizni individuallashtirish uchun barcha majburiy maydonlarni to'ldiring.",
     accountCreatedSuccess: "Hisob muvaffaqiyatli yaratildi!",
-    checkEmailVerify: "Hisobingizni tasdiqlash uchun elektron pochtangizni tekshiring.",
+    checkEmailVerify:
+      "Hisobingizni tasdiqlash uchun elektron pochtangizni tekshiring.",
     unexpectedError: "Kutilmagan xatolik yuz berdi.",
-    userAlreadyExists: "Foydalanuvchi allaqachon mavjud. Boshqa elektron pochta kiriting.",
+    userAlreadyExists:
+      "Foydalanuvchi allaqachon mavjud. Boshqa elektron pochta kiriting.",
     invalidEmail: "To'g'ri elektron pochta manzilini kiriting.",
     january: "Yanvar",
     february: "Fevral",
@@ -698,7 +791,8 @@ const translations: Record<Language, Translations> = {
 
     // Premium Page
     getPremium: "Premium olish",
-    unlockAllFeatures: "Barcha funksiyalarni ochib, SAT tayyorgarligingizni maksimal darajaga ko'taring",
+    unlockAllFeatures:
+      "Barcha funksiyalarni ochib, SAT tayyorgarligingizni maksimal darajaga ko'taring",
     whatYouGet: "Nima olasiz",
     choosePlan: "Rejani tanlang",
     monthlyPlan: "Oylik Reja",
@@ -716,32 +810,41 @@ const translations: Record<Language, Translations> = {
     bestValue: "Eng foydali",
     save_m: "Tejang",
     priceGuarantee: "Narx kafolati",
-    priceGuaranteeDesc: "Hozir obuna bo'ling va joriy narxda yangilanishlarga ega chiqing. Agar yangi funksiyalar uchun narxlarni oshirsak ham, siz bir xil to'lovni davom ettirasiz.",
+    priceGuaranteeDesc:
+      "Hozir obuna bo'ling va joriy narxda yangilanishlarga ega chiqing. Agar yangi funksiyalar uchun narxlarni oshirsak ham, siz bir xil to'lovni davom ettirasiz.",
     readyToUpgrade: "Yangilashga tayyormisiz?",
-    contactForPremium: "Premium obunangizni faollashtirish uchun Telegram orqali bog'laning",
+    contactForPremium:
+      "Premium obunangizni faollashtirish uchun Telegram orqali bog'laning",
     contactOnTelegram: "Telegram orqali bog'lanish",
     buyPremiumMonthly: "Premium obuna - Oylik Reja",
     buyPremiumQuarterly: "Premium obuna - 3-Oylik Reja",
     premiumFeature1Title: "Aqlli rejalashtirish tizimi",
-    premiumFeature1Desc: "Matematik, O'qish va Yozish bo'limlari uchun moslashuvchan jadval bilan cheksiz o'quv rejalarini yarating",
+    premiumFeature1Desc:
+      "Matematik, O'qish va Yozish bo'limlari uchun moslashuvchan jadval bilan cheksiz o'quv rejalarini yarating",
     premiumFeature2Title: "Moslashuvchan taymerlar",
-    premiumFeature2Desc: "Klassik Pomodoro va integratsiyalashgan O'quv Xonasi taymerlari bilan sozlanishi mumkin bo'lgan ish-tanaffus intervalilari",
+    premiumFeature2Desc:
+      "Klassik Pomodoro va integratsiyalashgan O'quv Xonasi taymerlari bilan sozlanishi mumkin bo'lgan ish-tanaffus intervalilari",
     premiumFeature3Title: "Aqlli bildirishnomalar",
-    premiumFeature3Desc: "O'quv sessiyangiz boshlanishidan oldin o'z vaqtida eslatmalar oling va rejada qoling",
+    premiumFeature3Desc:
+      "O'quv sessiyangiz boshlanishidan oldin o'z vaqtida eslatmalar oling va rejada qoling",
     premiumFeature4Title: "Taraqqiyotni kuzatish",
-    premiumFeature4Desc: "Barcha o'quv tarixingiz, tekshiruvlaringiz va mas'uliyatni kuzatib boring",
+    premiumFeature4Desc:
+      "Barcha o'quv tarixingiz, tekshiruvlaringiz va mas'uliyatni kuzatib boring",
     premiumFeature5Title: "Avtomatik saqlash va sinxronlash",
-    premiumFeature5Desc: "Avtomatik sessiya holatini saqlash va bulut sinxronlashuvi bilan hech qachon jarayoningizni yo'qotmang",
-    
+    premiumFeature5Desc:
+      "Avtomatik sessiya holatini saqlash va bulut sinxronlashuvi bilan hech qachon jarayoningizni yo'qotmang",
+
     // Premium Locks
     premiumRequired: "Premium talab qilinadi",
-    buyPremiumToUse: "Barcha funksiyalarni ochish va SAT tayyorgarligini boshlash uchun Premium obuna bo'ling",
+    buyPremiumToUse:
+      "Barcha funksiyalarni ochish va SAT tayyorgarligini boshlash uchun Premium obuna bo'ling",
     featureRequiresPremium: "Ushbu funksiya Premium obuna talab qiladi",
     upgradeToPremium: "Premium ga yangilash",
     contactSupport: "Yordam kerakmi? Bog'laning",
     welcomeToPremium: "SAT Tracker ga xush kelibsiz!",
     premiumActive: "Premium faol",
-    expandSubscription: "Barcha funksiyalardan foydalanishni davom ettirish uchun premium obunangizni uzaytiring",
+    expandSubscription:
+      "Barcha funksiyalardan foydalanishni davom ettirish uchun premium obunangizni uzaytiring",
     extendPremium: "Premium ni uzaytirish",
     extendPlan: "Rejani uzaytirish",
     expires: "Tugaydi",
@@ -756,7 +859,8 @@ const translations: Record<Language, Translations> = {
     target: "Цель",
     editGoal: "Изменить цель",
     completeProfile: "Заполните профиль",
-    completeProfileSub: "Укажите имя и дату экзамена для персонализации дашборда.",
+    completeProfileSub:
+      "Укажите имя и дату экзамена для персонализации дашборда.",
     todaysPlans: "ПЛАНЫ НА СЕГОДНЯ",
     fullCheckIn: "Полная проверка",
     noPlansToday: "На сегодня планов нет",
@@ -766,10 +870,12 @@ const translations: Record<Language, Translations> = {
     done: "ГОТОВО",
     enterStudyRoom: "Войти в учебную комнату",
     buildStreak: "Собери свою серию",
-    streakSub: "Постоянство - ключ к высокому баллу. Отмечайся ежедневно, чтобы не терять темп.",
+    streakSub:
+      "Постоянство - ключ к высокому баллу. Отмечайся ежедневно, чтобы не терять темп.",
     goToCheckIn: "Перейти к проверке",
     studyRoom: "Учебная комната",
-    studyRoomSub: "Выполняйте запланированные задачи с помощью пошагового управления.",
+    studyRoomSub:
+      "Выполняйте запланированные задачи с помощью пошагового управления.",
     goToStudyRoom: "В учебную комнату",
     quickLinks: "БЫСТРЫЕ ССЫЛКИ",
     studyPlanner: "Планировщик",
@@ -777,14 +883,17 @@ const translations: Record<Language, Translations> = {
     studyHistory: "История обучения",
     classicTimer: "Классический таймер",
     studyTip: "Совет по учебе",
-    tipQuote: "\"Секрет продвижения вперед — это начать.\" — Будьте последовательны в своих ежедневных планах, чтобы достичь цели.",
+    tipQuote:
+      '"Секрет продвижения вперед — это начать." — Будьте последовательны в своих ежедневных планах, чтобы достичь цели.',
     loadingDashboard: "Загрузка дашборда...",
     feedback: "Обратная связь",
     haveSuggestions: "Есть предложения?",
     planClosed: "План закрыт",
-    sessionUnavailableMsg: "Эта сессия уже завершена или срок ее действия истек.",
+    sessionUnavailableMsg:
+      "Эта сессия уже завершена или срок ее действия истек.",
     standBy: "Подождите",
-    planScheduledFor: "Этот план запланирован на {time}. Доступ откроется в это время.",
+    planScheduledFor:
+      "Этот план запланирован на {time}. Доступ откроется в это время.",
 
     // Profile / Settings
     settings: "Настройки",
@@ -826,7 +935,8 @@ const translations: Record<Language, Translations> = {
     updateMission: "Обновить миссию",
     commitMission: "Подтвердить миссию",
     instructions: "Инструкции",
-    planInstructions: "Выберите раздел и установите четкие временные рамки. Будьте конкретны в задачах. Планы появятся на дашборде и в графике проверок.",
+    planInstructions:
+      "Выберите раздел и установите четкие временные рамки. Будьте конкретны в задачах. Планы появятся на дашборде и в графике проверок.",
     math: "МАТЕМАТИКА",
     reading: "ЧТЕНИЕ",
     writing: "ПИСЬМО",
@@ -848,14 +958,17 @@ const translations: Record<Language, Translations> = {
     noCheckIns: "На этот день планов нет.",
     scheduleNow: "Запланировать сейчас →",
     howItWorks: "Как это работает",
-    checkInInfo1: "Сессии становятся доступными для проверки после их запланированного времени начала. Отмечайте планы как «Выполнено», если вы закончили задачи, или «Пропущено», если не смогли.",
-    checkInInfo2: "Регулярные проверки помогают отслеживать прогресс и поддерживать учебную дисциплину.",
+    checkInInfo1:
+      "Сессии становятся доступными для проверки после их запланированного времени начала. Отмечайте планы как «Выполнено», если вы закончили задачи, или «Пропущено», если не смогли.",
+    checkInInfo2:
+      "Регулярные проверки помогают отслеживать прогресс и поддерживать учебную дисциплину.",
     incomplete: "Не завершено",
     finished: "Завершено",
     scheduleNewMission: "Запланировать новую миссию",
     missionDeleted: "Миссия успешно удалена",
     failedDelete: "Не удалось удалить миссию",
-    sureDelete: "Вы уверены, что хотите удалить эту миссию? Это действие нельзя отменить.",
+    sureDelete:
+      "Вы уверены, что хотите удалить эту миссию? Это действие нельзя отменить.",
     locked: "Заблокировано",
     onlyCheckInAfterStart: "Вы можете отметиться только после начала плана.",
     deletePlan: "Удалить план",
@@ -878,7 +991,8 @@ const translations: Record<Language, Translations> = {
     breakPerPiece: "ПЕРЕРЫВ НА ЧАСТЬ (м)",
     strategyInfo: "Стратегия: {sessions} частей по {focus}м каждая.",
     missionSuccess: "Миссия выполнена",
-    missionSuccessSub: "Вы завершили интенсивное изучение {section}. Готовы зафиксировать прогресс?",
+    missionSuccessSub:
+      "Вы завершили интенсивное изучение {section}. Готовы зафиксировать прогресс?",
     logAsCompleted: "ОТМЕТИТЬ КАК ВЫПОЛНЕННОЕ",
     archiving: "АРХИВАЦИЯ...",
     keepWorking: "ПРОДОЛЖИТЬ РАБОТУ",
@@ -890,24 +1004,33 @@ const translations: Record<Language, Translations> = {
     quitSessionMsg: "Вы хотите сохранить прогресс или отменить его?",
     discard: "Отменить",
     saveProgress: "Сохранить",
-    resetPieceMsg: "Перезапустить эту часть? Текущий прогресс этой сессии будет потерян.",
+    resetPieceMsg:
+      "Перезапустить эту часть? Текущий прогресс этой сессии будет потерян.",
     expired: "Истекло",
     startsAt: "Начало в {time}",
     continue: "Продолжить",
     missionUnavailable: "Миссия недоступна",
     alreadyCompleted: "Эта миссия уже выполнена.",
     alreadyExpired: "Срок действия этой миссии истек.",
-    failedLoadPlans: "Не удалось загрузить учебные планы. Проверьте соединение.",
+    failedLoadPlans:
+      "Не удалось загрузить учебные планы. Проверьте соединение.",
     selectDate: "Выберите дату",
     noRecordsDate: "Нет записей на эту дату",
     missed: "ПРОПУЩЕНО",
     untracked: "НЕ ОТСЛЕЖИВАЕТСЯ",
     deleteRecord: "Удалить запись",
-    sureDeleteRecord: "Вы уверены, что хотите удалить эту учебную запись? Это действие нельзя отменить.",
+    sureDeleteRecord:
+      "Вы уверены, что хотите удалить эту учебную запись? Это действие нельзя отменить.",
     recordDeleted: "Запись успешно удалена",
     failedDeleteRecord: "Не удалось удалить запись",
     failedLoadHistory: "Не удалось загрузить историю.",
-    mon: "Пн", tue: "Вт", wed: "Ср", thu: "Чт", fri: "Пт", sat: "Сб", sun: "Вс",
+    mon: "Пн",
+    tue: "Вт",
+    wed: "Ср",
+    thu: "Чт",
+    fri: "Пт",
+    sat: "Сб",
+    sun: "Вс",
 
     // Edit Profile
     personalInfo: "Личная информация",
@@ -946,27 +1069,40 @@ const translations: Record<Language, Translations> = {
     aboutSATTracker: "О SAT Tracker",
     premiumStudyCompanion: "Премиальный помощник",
     planTrackSucceed: "Планируй. Отслеживай. Успевай.",
-    aboutHeroDesc: "Комплексный инструмент для современной подготовки к SAT. Организуйте свои ежедневные занятия, сохраняйте концентрацию и последовательно отслеживайте свой прогресс.",
+    aboutHeroDesc:
+      "Комплексный инструмент для современной подготовки к SAT. Организуйте свои ежедневные занятия, сохраняйте концентрацию и последовательно отслеживайте свой прогресс.",
     everythingYouNeed: "Все, что вам нужно",
-    smartToolsDesc: "Умные инструменты, разработанные для улучшения ваших учебных навыков и повышения эффективности.",
+    smartToolsDesc:
+      "Умные инструменты, разработанные для улучшения ваших учебных навыков и повышения эффективности.",
     readyOptimizeSAT: "Готовы оптимизировать подготовку к SAT?",
-    aboutCTADesc: "Будьте последовательны в своих ежедневных планах, чтобы достичь цели. Постоянные усилия - это мост между целями и достижениями.",
-    studyPlanningDesc: "Создавайте структурированные ежедневные планы для разделов математики, чтения и письма. Устанавливайте четкие временные блоки для каждой задачи.",
-    focusTimerLongDesc: "Повысьте концентрацию с помощью интервалов работы и отдыха. Интегрировано с вашими учебными планами для плавного отслеживания занятий.",
-    dailyCheckInsLongDesc: "Поддерживайте дисциплину, отмечая занятия как выполненные. Соберите ежедневную серию продуктивности.",
-    progressTrackerDesc: "Просматривайте историю своих успехов. Видьте, какие именно занятия вы выполнили, и определяйте области для улучшения.",
-    privacyHeroSub: "Ваша конфиденциальность важна для нас. Вот как мы обрабатываем ваши данные.",
+    aboutCTADesc:
+      "Будьте последовательны в своих ежедневных планах, чтобы достичь цели. Постоянные усилия - это мост между целями и достижениями.",
+    studyPlanningDesc:
+      "Создавайте структурированные ежедневные планы для разделов математики, чтения и письма. Устанавливайте четкие временные блоки для каждой задачи.",
+    focusTimerLongDesc:
+      "Повысьте концентрацию с помощью интервалов работы и отдыха. Интегрировано с вашими учебными планами для плавного отслеживания занятий.",
+    dailyCheckInsLongDesc:
+      "Поддерживайте дисциплину, отмечая занятия как выполненные. Соберите ежедневную серию продуктивности.",
+    progressTrackerDesc:
+      "Просматривайте историю своих успехов. Видьте, какие именно занятия вы выполнили, и определяйте области для улучшения.",
+    privacyHeroSub:
+      "Ваша конфиденциальность важна для нас. Вот как мы обрабатываем ваши данные.",
     lastUpdated: "Последнее обновление: Январь 2026",
     questions: "Вопросы?",
-    privacyQuestionsSub: "Если у вас есть какие-либо вопросы об этой политике конфиденциальности или о том, как мы обрабатываем ваши данные, пожалуйста, свяжитесь с нами:",
+    privacyQuestionsSub:
+      "Если у вас есть какие-либо вопросы об этой политике конфиденциальности или о том, как мы обрабатываем ваши данные, пожалуйста, свяжитесь с нами:",
     dataCollection: "Сбор данных",
-    dataCollectionContent: "SAT Tracker собирает только необходимую информацию для предоставления нашего сервиса: ваш адрес электронной почты для аутентификации, созданные вами учебные планы и записи о посещаемости. Мы не собираем личную идентифицирующую информацию, кроме той, которую вы явно предоставляете.",
+    dataCollectionContent:
+      "SAT Tracker собирает только необходимую информацию для предоставления нашего сервиса: ваш адрес электронной почты для аутентификации, созданные вами учебные планы и записи о посещаемости. Мы не собираем личную идентифицирующую информацию, кроме той, которую вы явно предоставляете.",
     dataStorage: "Хранение данных",
-    dataStorageContent: "Ваши данные надежно хранятся с использованием облачной инфраструктуры Supabase с использованием стандартного отраслевого шифрования. Все передачи данных зашифрованы с использованием протоколов TLS/SSL.",
+    dataStorageContent:
+      "Ваши данные надежно хранятся с использованием облачной инфраструктуры Supabase с использованием стандартного отраслевого шифрования. Все передачи данных зашифрованы с использованием протоколов TLS/SSL.",
     dataUsage: "Использование данных",
-    dataUsageContent: "Мы используем ваши данные исключительно для предоставления сервиса SAT Tracker. Ваши учебные планы и данные о прогрессе никогда не передаются третьим лицам, не продаются и не используются в рекламных целях.",
+    dataUsageContent:
+      "Мы используем ваши данные исключительно для предоставления сервиса SAT Tracker. Ваши учебные планы и данные о прогрессе никогда не передаются третьим лицам, не продаются и не используются в рекламных целях.",
     yourRights: "Ваши права",
-    yourRightsContent: "Вы имеете право на доступ, изменение или удаление своих данных в любое время. Чтобы запросить удаление данных, пожалуйста, свяжитесь с нами через Telegram по адресу @ibrohimfr.",
+    yourRightsContent:
+      "Вы имеете право на доступ, изменение или удаление своих данных в любое время. Чтобы запросить удаление данных, пожалуйста, свяжитесь с нами через Telegram по адресу @satrackerbot.",
 
     // Focus / Classic Timer
     classicPomodoro: "Таймер фокуса",
@@ -980,7 +1116,8 @@ const translations: Record<Language, Translations> = {
     breakDuration: "Длительность перерыва (м)",
     configTip: "Вы можете вводить числа или использовать +/- во время паузы.",
     resetTimer: "Сбросить таймер",
-    confirmReset: "Вы уверены, что хотите сбросить текущую сессию? Прогресс будет потерян.",
+    confirmReset:
+      "Вы уверены, что хотите сбросить текущую сессию? Прогресс будет потерян.",
     session: "Сессия",
     break: "Перерыв",
     start: "Старт",
@@ -1007,7 +1144,8 @@ const translations: Record<Language, Translations> = {
     resendEmail: "Отправить письмо еще раз",
     resending: "Повторная отправка...",
     needHelp: "Нужна помощь?",
-    enterEmailReset: "Введите ваш email, и мы отправим ссылку для сброса пароля",
+    enterEmailReset:
+      "Введите ваш email, и мы отправим ссылку для сброса пароля",
     sendResetLink: "Отправить ссылку",
     sending: "Отправка...",
     createAccount: "Создать аккаунт",
@@ -1035,19 +1173,24 @@ const translations: Record<Language, Translations> = {
     checkInNow: "Отметиться сейчас",
     markAllRead: "Отметить все как прочитанные",
     planUnavailable: "План недоступен",
-    invalidCredentials: "Неверные учетные данные. Пожалуйста, проверьте свой email и пароль.",
-    emailNotConfirmed: "Пожалуйста, подтвердите свой адрес электронной почты перед входом.",
+    invalidCredentials:
+      "Неверные учетные данные. Пожалуйста, проверьте свой email и пароль.",
+    emailNotConfirmed:
+      "Пожалуйста, подтвердите свой адрес электронной почты перед входом.",
     userNotFound: "Этот адрес электронной почты не зарегистрирован.",
     loginFailed: "Ошибка входа. Пожалуйста, попробуйте снова.",
     failedSendReset: "Не удалось отправить письмо для сброса пароля.",
     enterEmail: "Пожалуйста, введите свой адрес электронной почты.",
     enterPassword: "Пожалуйста, введите свой пароль.",
     createPassword: "Пожалуйста, создайте новый пароль.",
-    passwordRequirements: "Пароль должен содержать не менее 6 символов, включая буквы и цифры.",
+    passwordRequirements:
+      "Пароль должен содержать не менее 6 символов, включая буквы и цифры.",
     passwordsDoNotMatch: "Пароли не совпадают. Пожалуйста, попробуйте снова.",
-    completeRequiredFields: "Пожалуйста, заполните все обязательные поля для персонализации.",
+    completeRequiredFields:
+      "Пожалуйста, заполните все обязательные поля для персонализации.",
     accountCreatedSuccess: "Аккаунт успешно создан!",
-    checkEmailVerify: "Пожалуйста, проверьте свою электронную почту, чтобы подтвердить аккаунт.",
+    checkEmailVerify:
+      "Пожалуйста, проверьте свою электронную почту, чтобы подтвердить аккаунт.",
     unexpectedError: "Произошла непредвиденная ошибка.",
     userAlreadyExists: "Пользователь уже существует. Введите другой email.",
     invalidEmail: "Введите корректный адрес электронной почты.",
@@ -1062,7 +1205,8 @@ const translations: Record<Language, Translations> = {
     secondsShort: "С",
     at: "в",
     failedFetchData: "Не удалось загрузить данные. Ошибка сервера.",
-    noInternetCheck: "Нет подключения к интернету. Проверьте сеть и попробуйте снова.",
+    noInternetCheck:
+      "Нет подключения к интернету. Проверьте сеть и попробуйте снова.",
 
     // Premium Page
     getPremium: "Получить Premium",
@@ -1084,32 +1228,41 @@ const translations: Record<Language, Translations> = {
     bestValue: "Лучшая цена",
     save_m: "Сэкономьте",
     priceGuarantee: "Гарантия фиксированной цены",
-    priceGuaranteeDesc: "Подпишитесь сейчас и получайте обновления по текущей цене. Даже если мы повысим цены на новые функции, вы продолжите платить по той же ставке.",
+    priceGuaranteeDesc:
+      "Подпишитесь сейчас и получайте обновления по текущей цене. Даже если мы повысим цены на новые функции, вы продолжите платить по той же ставке.",
     readyToUpgrade: "Готовы к обновлению?",
-    contactForPremium: "Свяжитесь с нами в Telegram, чтобы активировать premium подписку",
+    contactForPremium:
+      "Свяжитесь с нами в Telegram, чтобы активировать premium подписку",
     contactOnTelegram: "Связаться в Telegram",
     buyPremiumMonthly: "Хочу купить Premium - Месячный тариф",
     buyPremiumQuarterly: "Хочу купить Premium - Тариф на 3 месяца",
     premiumFeature1Title: "Умная система планирования",
-    premiumFeature1Desc: "Создавайте неограниченное количество учебных планов для разделов Math, Reading и Writing с гибким расписанием",
+    premiumFeature1Desc:
+      "Создавайте неограниченное количество учебных планов для разделов Math, Reading и Writing с гибким расписанием",
     premiumFeature2Title: "Гибкие таймеры",
-    premiumFeature2Desc: "Классический Pomodoro и интегрированные таймеры Study Room с настраиваемыми интервалами работы и отдыха",
+    premiumFeature2Desc:
+      "Классический Pomodoro и интегрированные таймеры Study Room с настраиваемыми интервалами работы и отдыха",
     premiumFeature3Title: "Умные уведомления",
-    premiumFeature3Desc: "Получайте своевременные напоминания перед началом учебных сессий",
+    premiumFeature3Desc:
+      "Получайте своевременные напоминания перед началом учебных сессий",
     premiumFeature4Title: "Отслеживание прогресса",
-    premiumFeature4Desc: "Отслеживайте всю историю занятий, отметки и поддерживайте ответственность",
+    premiumFeature4Desc:
+      "Отслеживайте всю историю занятий, отметки и поддерживайте ответственность",
     premiumFeature5Title: "Автосохранение и синхронизация",
-    premiumFeature5Desc: "Никогда не теряйте прогресс с автоматическим сохранением состояния сессии и облачной синхронизацией",
-    
+    premiumFeature5Desc:
+      "Никогда не теряйте прогресс с автоматическим сохранением состояния сессии и облачной синхронизацией",
+
     // Premium Locks
     premiumRequired: "Требуется Premium",
-    buyPremiumToUse: "Подпишитесь на Premium, чтобы разблокировать все функции и начать подготовку к SAT",
+    buyPremiumToUse:
+      "Подпишитесь на Premium, чтобы разблокировать все функции и начать подготовку к SAT",
     featureRequiresPremium: "Эта функция требует Premium подписку",
     upgradeToPremium: "Обновить до Premium",
     contactSupport: "Нужна помощь? Свяжитесь",
     welcomeToPremium: "Добро пожаловать в SAT Tracker!",
     premiumActive: "Premium активен",
-    expandSubscription: "Продлите подписку Premium, чтобы продолжить пользоваться всеми функциями",
+    expandSubscription:
+      "Продлите подписку Premium, чтобы продолжить пользоваться всеми функциями",
     extendPremium: "Продлить Premium",
     extendPlan: "Продлить план",
     expires: "Истекает",
@@ -1128,7 +1281,11 @@ const LanguageContext = createContext<LanguageContextType>({
   t: (key) => key,
 });
 
-export const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
+export const LanguageProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [language, setLanguageState] = useState<Language>("uz");
 
   useEffect(() => {

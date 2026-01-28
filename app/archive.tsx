@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useRouter, Stack } from "expo-router";
@@ -8,11 +16,19 @@ import { getLocalDateString, getMonthYearString } from "../lib/dateUtils";
 import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView, Card } from "../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Calendar as CalendarIcon, CheckCircle2, XCircle, Clock, Trash2 } from "lucide-react-native";
+import {
+  ChevronLeft,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Trash2,
+} from "lucide-react-native";
 import { Toast } from "../components/Toast";
 import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
 import { checkConnection } from "../lib/network";
 import { PremiumGate } from "../components/PremiumGate";
+import { useSafeBack } from "../hooks/useSafeBack";
 
 type StudyPlan = {
   id: string;
@@ -28,60 +44,68 @@ export default function ArchiveScreen() {
   const { theme, themeName } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
-  
+  const safeBack = useSafeBack();
+
   const [plans, setPlans] = useState<StudyPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorVisible, setErrorVisible] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
+
   // Toast state
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState<'error' | 'success' | 'info'>('error');
+  const [toastType, setToastType] = useState<"error" | "success" | "info">(
+    "error",
+  );
 
-  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
+  const showToast = (
+    message: string,
+    type: "error" | "success" | "info" = "error",
+  ) => {
     setToastMessage(message);
     setToastType(type);
     setToastVisible(true);
   };
-  
+
   // Start from Yesterday
   const initialDate = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return getLocalDateString(d);
   })();
-  
+
   const [selectedDate, setSelectedDate] = useState<string>(initialDate);
 
   // Generate last 30 days starting from yesterday
   const getHistoryDays = () => {
-      const days = [];
-      const today = new Date();
-      // Start from 1 to skip today
-      for (let i = 1; i <= 30; i++) {
-          const d = new Date(today);
-          d.setDate(d.getDate() - i);
-          days.push(getLocalDateString(d));
-      }
-      return days; // [Yesterday, day-2, ...]
+    const days = [];
+    const today = new Date();
+    // Start from 1 to skip today
+    for (let i = 1; i <= 30; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      days.push(getLocalDateString(d));
+    }
+    return days; // [Yesterday, day-2, ...]
   };
 
-   const historyDays = getHistoryDays();
+  const historyDays = getHistoryDays();
   const dayNames: Record<number, string> = {
-      0: t('sun'),
-      1: t('mon'),
-      2: t('tue'),
-      3: t('wed'),
-      4: t('thu'),
-      5: t('fri'),
-      6: t('sat')
+    0: t("sun"),
+    1: t("mon"),
+    2: t("tue"),
+    3: t("wed"),
+    4: t("thu"),
+    5: t("fri"),
+    6: t("sat"),
   };
 
   async function loadPlanForDate(dateStr: string) {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: plansData, error: plansError } = await supabase
@@ -94,17 +118,17 @@ export default function ArchiveScreen() {
       if (plansError) throw plansError;
 
       if (plansData && plansData.length > 0) {
-        const planIds = plansData.map(p => p.id);
+        const planIds = plansData.map((p) => p.id);
         const { data: logsData } = await supabase
           .from("daily_log")
           .select("plan_id, status")
           .in("plan_id", planIds);
 
         const enriched = plansData.map((p: any) => {
-          const log = logsData?.find(l => l.plan_id === p.id);
+          const log = logsData?.find((l) => l.plan_id === p.id);
           return {
             ...p,
-            status: log?.status || "untracked"
+            status: log?.status || "untracked",
           };
         });
 
@@ -115,7 +139,9 @@ export default function ArchiveScreen() {
     } catch (e: any) {
       console.error(e);
       const isOnline = await checkConnection();
-      setErrorMsg(isOnline ? (e.message || t('failedLoadHistory')) : t('noInternet'));
+      setErrorMsg(
+        isOnline ? e.message || t("failedLoadHistory") : t("noInternet"),
+      );
       setErrorVisible(true);
     } finally {
       setLoading(false);
@@ -128,155 +154,266 @@ export default function ArchiveScreen() {
 
   const handleDeletePlan = async (id: string) => {
     const confirmDelete = async () => {
-        try {
-            await supabase.from("daily_log").delete().eq("plan_id", id);
-            const { error } = await supabase.from("study_plan").delete().eq("id", id);
-            if (error) throw error;
-            showToast(t('recordDeleted'), "success");
-            loadPlanForDate(selectedDate);
-        } catch (e: any) {
-            showToast(e.message || t('failedDeleteRecord'));
-        }
+      try {
+        await supabase.from("daily_log").delete().eq("plan_id", id);
+        const { error } = await supabase
+          .from("study_plan")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+        showToast(t("recordDeleted"), "success");
+        loadPlanForDate(selectedDate);
+      } catch (e: any) {
+        showToast(e.message || t("failedDeleteRecord"));
+      }
     };
 
-    if (Platform.OS === 'web') {
-        if (window.confirm(t('sureDeleteRecord'))) {
-            confirmDelete();
-        }
+    if (Platform.OS === "web") {
+      if (window.confirm(t("sureDeleteRecord"))) {
+        confirmDelete();
+      }
     } else {
-        Alert.alert(
-            t('deleteRecord'),
-            t('sureDeleteRecord'),
-            [
-                { text: t('cancel'), style: "cancel" },
-                { text: t('delete'), style: "destructive", onPress: confirmDelete }
-            ]
-        );
+      Alert.alert(t("deleteRecord"), t("sureDeleteRecord"), [
+        { text: t("cancel"), style: "cancel" },
+        { text: t("delete"), style: "destructive", onPress: confirmDelete },
+      ]);
     }
   };
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <FeedbackErrorModal 
-        visible={errorVisible} 
-        error={errorMsg} 
-        onDismiss={() => setErrorVisible(false)} 
+      <FeedbackErrorModal
+        visible={errorVisible}
+        error={errorMsg}
+        onDismiss={() => setErrorVisible(false)}
         onRetry={() => loadPlanForDate(selectedDate)}
       />
-      <Stack.Screen options={{ 
-        title: t('studyArchive'), 
-        headerShown: true,
-        headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-                <ChevronLeft color={theme.textPrimary} size={28} />
+      <Stack.Screen
+        options={{
+          title: t("studyArchive"),
+          headerShown: true,
+          headerLeft: () => (
+            <TouchableOpacity onPress={safeBack} style={{ marginLeft: 10 }}>
+              <ChevronLeft color={theme.textPrimary} size={28} />
             </TouchableOpacity>
-        ),
-        headerStyle: { backgroundColor: theme.card },
-        headerShadowVisible: false,
-      }} />
+          ),
+          headerStyle: { backgroundColor: theme.card },
+          headerShadowVisible: false,
+        }}
+      />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        <PremiumGate feature={t('studyArchive')}>
-        <View style={styles.container}>
+        <PremiumGate feature={t("studyArchive")}>
+          <View style={styles.container}>
             {/* Calendar Strip */}
             <View style={styles.calendarSection}>
-                <View style={[styles.calHeader, { justifyContent: 'space-between' }]}>
-                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                     <CalendarIcon size={16} color={theme.primary} />
-                     <ThemedText style={styles.calTitle}>{t('selectDate')}</ThemedText>
-                   </View>
-                   <ThemedText style={[styles.calTitle, { opacity: 0.8 }]}>{getMonthYearString(selectedDate, t)}</ThemedText>
+              <View
+                style={[styles.calHeader, { justifyContent: "space-between" }]}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <CalendarIcon size={16} color={theme.primary} />
+                  <ThemedText style={styles.calTitle}>
+                    {t("selectDate")}
+                  </ThemedText>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calScroll}>
-                    {/* Inverted layout logic or simpler: Reverse the array? NO. 
+                <ThemedText style={[styles.calTitle, { opacity: 0.8 }]}>
+                  {getMonthYearString(selectedDate, t)}
+                </ThemedText>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.calScroll}
+              >
+                {/* Inverted layout logic or simpler: Reverse the array? NO. 
                         We want Today on Right? Or Left? 
                         Typically history goes Left (New -> Old). 
                         Our array is [Today, Yesterday...]
                         So render as is.
                      */}
-                    {historyDays.map((d, i) => {
-                       const dayDate = new Date(d + "T00:00:00");
-                       const isSelected = selectedDate === d;
-                       return (
-                           <TouchableOpacity 
-                               key={i} 
-                               style={[
-                                   styles.dayCard, 
-                                   { borderColor: theme.border, backgroundColor: theme.card },
-                                   isSelected && { backgroundColor: theme.primary, borderColor: theme.primary }
-                               ]}
-                               onPress={() => setSelectedDate(d)}
-                           >
-                               <ThemedText style={[styles.dayName, isSelected && { color: '#fff' }]}>{dayNames[dayDate.getDay()]}</ThemedText>
-                               <ThemedText style={[styles.dayNum, isSelected && { color: '#fff' }]}>{dayDate.getDate()}</ThemedText>
-                           </TouchableOpacity>
-                       );
-                   })}
-                </ScrollView>
+                {historyDays.map((d, i) => {
+                  const dayDate = new Date(d + "T00:00:00");
+                  const isSelected = selectedDate === d;
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={[
+                        styles.dayCard,
+                        {
+                          borderColor: theme.border,
+                          backgroundColor: theme.card,
+                        },
+                        isSelected && {
+                          backgroundColor: theme.primary,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                      onPress={() => setSelectedDate(d)}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.dayName,
+                          isSelected && { color: "#fff" },
+                        ]}
+                      >
+                        {dayNames[dayDate.getDay()]}
+                      </ThemedText>
+                      <ThemedText
+                        style={[styles.dayNum, isSelected && { color: "#fff" }]}
+                      >
+                        {dayDate.getDate()}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
 
             {/* Content for Date */}
             {loading ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color={theme.primary} />
-                </View>
+              <View style={styles.center}>
+                <ActivityIndicator size="large" color={theme.primary} />
+              </View>
             ) : (
-                <ScrollView contentContainerStyle={styles.listContainer}>
-                    {plans.length === 0 ? (
-                        <View style={styles.empty}>
-                            <Clock size={64} color={theme.textSecondary} opacity={0.2} />
-                            <ThemedText style={styles.emptyText}>{t('noRecordsDate')}</ThemedText>
+              <ScrollView contentContainerStyle={styles.listContainer}>
+                {plans.length === 0 ? (
+                  <View style={styles.empty}>
+                    <Clock
+                      size={64}
+                      color={theme.textSecondary}
+                      opacity={0.2}
+                    />
+                    <ThemedText style={styles.emptyText}>
+                      {t("noRecordsDate")}
+                    </ThemedText>
+                  </View>
+                ) : (
+                  plans.map((plan: StudyPlan) => (
+                    <Card key={plan.id} style={styles.planCard}>
+                      <View style={styles.cardMain}>
+                        <View style={styles.leftInfo}>
+                          <View
+                            style={[
+                              styles.sectionIndicator,
+                              {
+                                backgroundColor:
+                                  plan.section === "math"
+                                    ? "#3b82f6"
+                                    : plan.section === "reading"
+                                      ? "#f59e0b"
+                                      : "#10b981",
+                              },
+                            ]}
+                          />
+                          <View>
+                            <ThemedText style={styles.planSubject}>
+                              {t(plan.section)}
+                            </ThemedText>
+                            <ThemedText style={styles.tasks} numberOfLines={1}>
+                              {plan.tasks_text}
+                            </ThemedText>
+                          </View>
                         </View>
-                    ) : (
-                        plans.map((plan: StudyPlan) => (
-                            <Card key={plan.id} style={styles.planCard}>
-                                <View style={styles.cardMain}>
-                                    <View style={styles.leftInfo}>
-                                        <View style={[styles.sectionIndicator, { backgroundColor: plan.section === 'math' ? '#3b82f6' : plan.section === 'reading' ? '#f59e0b' : '#10b981' }]} />
-                                        <View>
-                                            <ThemedText style={styles.planSubject}>{t(plan.section)}</ThemedText>
-                                            <ThemedText style={styles.tasks} numberOfLines={1}>{plan.tasks_text}</ThemedText>
-                                        </View>
-                                    </View>
-                                    
-                                    <View style={styles.rightInfo}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-                                            <TouchableOpacity onPress={() => handleDeletePlan(plan.id)}>
-                                                <Trash2 size={16} color="#ef4444" opacity={0.6} />
-                                            </TouchableOpacity>
-                                            <ThemedText style={styles.planTime}>
-                                                {plan.start_time} - {plan.end_time}
-                                            </ThemedText>
-                                        </View>
-                                        <View style={styles.statusBadge}>
-                                            {plan.status === "done" ? (
-                                                <View style={[styles.outcomeBadge, { backgroundColor: themeName === 'dark' ? '#064e3b' : '#f0fdf4', borderColor: '#10b981' }]}>
-                                                    <CheckCircle2 color="#10b981" size={12} strokeWidth={3} />
-                                                    <ThemedText style={[styles.outcomeText, { color: '#10b981' }]}>{t('done')}</ThemedText>
-                                                </View>
-                                            ) : plan.status === "missed" ? (
-                                                <View style={[styles.outcomeBadge, { backgroundColor: themeName === 'dark' ? '#450a0a' : '#fef2f2', borderColor: '#ef4444' }]}>
-                                                    <XCircle color="#ef4444" size={12} strokeWidth={3} />
-                                                    <ThemedText style={[styles.outcomeText, { color: '#ef4444' }]}>{t('missed')}</ThemedText>
-                                                </View>
-                                            ) : (
-                                                <ThemedText style={styles.untrackedText}>{t('untracked')}</ThemedText>
-                                            )}
-                                        </View>
-                                    </View>
-                                </View>
-                            </Card>
-                        ))
-                    )}
-                </ScrollView>
+
+                        <View style={styles.rightInfo}>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 12,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <TouchableOpacity
+                              onPress={() => handleDeletePlan(plan.id)}
+                            >
+                              <Trash2 size={16} color="#ef4444" opacity={0.6} />
+                            </TouchableOpacity>
+                            <ThemedText style={styles.planTime}>
+                              {plan.start_time} - {plan.end_time}
+                            </ThemedText>
+                          </View>
+                          <View style={styles.statusBadge}>
+                            {plan.status === "done" ? (
+                              <View
+                                style={[
+                                  styles.outcomeBadge,
+                                  {
+                                    backgroundColor:
+                                      themeName === "dark"
+                                        ? "#064e3b"
+                                        : "#f0fdf4",
+                                    borderColor: "#10b981",
+                                  },
+                                ]}
+                              >
+                                <CheckCircle2
+                                  color="#10b981"
+                                  size={12}
+                                  strokeWidth={3}
+                                />
+                                <ThemedText
+                                  style={[
+                                    styles.outcomeText,
+                                    { color: "#10b981" },
+                                  ]}
+                                >
+                                  {t("done")}
+                                </ThemedText>
+                              </View>
+                            ) : plan.status === "missed" ? (
+                              <View
+                                style={[
+                                  styles.outcomeBadge,
+                                  {
+                                    backgroundColor:
+                                      themeName === "dark"
+                                        ? "#450a0a"
+                                        : "#fef2f2",
+                                    borderColor: "#ef4444",
+                                  },
+                                ]}
+                              >
+                                <XCircle
+                                  color="#ef4444"
+                                  size={12}
+                                  strokeWidth={3}
+                                />
+                                <ThemedText
+                                  style={[
+                                    styles.outcomeText,
+                                    { color: "#ef4444" },
+                                  ]}
+                                >
+                                  {t("missed")}
+                                </ThemedText>
+                              </View>
+                            ) : (
+                              <ThemedText style={styles.untrackedText}>
+                                {t("untracked")}
+                              </ThemedText>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    </Card>
+                  ))
+                )}
+              </ScrollView>
             )}
-        </View>
-        <Toast 
-            visible={toastVisible} 
+          </View>
+          <Toast
+            visible={toastVisible}
             onDismiss={() => setToastVisible(false)}
             type={toastType}
-        >
+          >
             {toastMessage}
-        </Toast>
+          </Toast>
         </PremiumGate>
       </SafeAreaView>
     </ThemedView>
@@ -285,130 +422,130 @@ export default function ArchiveScreen() {
 
 const styles = StyleSheet.create({
   container: {
-      flex: 1,
+    flex: 1,
   },
   center: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   calendarSection: {
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: 'rgba(0,0,0,0.05)',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
   },
   calHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      marginBottom: 12,
-      paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+    paddingHorizontal: 24,
   },
   calTitle: {
-      fontSize: 12,
-      fontWeight: '900',
-      opacity: 0.4,
-      textTransform: 'uppercase',
+    fontSize: 12,
+    fontWeight: "900",
+    opacity: 0.4,
+    textTransform: "uppercase",
   },
   calScroll: {
-      paddingHorizontal: 24,
-      gap: 12,
+    paddingHorizontal: 24,
+    gap: 12,
   },
   dayCard: {
-      width: 50,
-      height: 70,
-      borderRadius: 16,
-      borderWidth: 1.5,
-      alignItems: 'center',
-      justifyContent: 'center',
+    width: 50,
+    height: 70,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
   },
   dayName: {
-      fontSize: 10,
-      fontWeight: '900',
-      opacity: 0.5,
-      marginBottom: 4,
+    fontSize: 10,
+    fontWeight: "900",
+    opacity: 0.5,
+    marginBottom: 4,
   },
   dayNum: {
-      fontSize: 18,
-      fontWeight: '900',
+    fontSize: 18,
+    fontWeight: "900",
   },
   listContainer: {
-      padding: 24,
-      gap: 16,
+    padding: 24,
+    gap: 16,
   },
   empty: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingTop: 80,
-      gap: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 80,
+    gap: 20,
   },
   emptyText: {
-      fontSize: 16,
-      fontWeight: "700",
-      opacity: 0.3,
+    fontSize: 16,
+    fontWeight: "700",
+    opacity: 0.3,
   },
   planCard: {
-      padding: 16,
+    padding: 16,
   },
   cardMain: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   leftInfo: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
   },
   sectionIndicator: {
-      width: 4,
-      height: 32,
-      borderRadius: 2,
+    width: 4,
+    height: 32,
+    borderRadius: 2,
   },
   planSubject: {
-      fontSize: 10,
-      fontWeight: "900",
-      opacity: 0.4,
-      letterSpacing: 1,
-      marginBottom: 4,
+    fontSize: 10,
+    fontWeight: "900",
+    opacity: 0.4,
+    letterSpacing: 1,
+    marginBottom: 4,
   },
   tasks: {
-      fontSize: 14,
-      fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "700",
   },
   rightInfo: {
-      alignItems: "flex-end",
-      gap: 6,
+    alignItems: "flex-end",
+    gap: 6,
   },
   planTime: {
-      fontSize: 11,
-      fontWeight: "800",
-      opacity: 0.5,
-      fontVariant: ["tabular-nums"],
+    fontSize: 11,
+    fontWeight: "800",
+    opacity: 0.5,
+    fontVariant: ["tabular-nums"],
   },
   statusBadge: {
-      flexDirection: "row",
-      alignItems: "center",
+    flexDirection: "row",
+    alignItems: "center",
   },
   outcomeBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 6,
-      borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
   },
   outcomeText: {
-      fontSize: 9,
-      fontWeight: "900",
-      letterSpacing: 0.5,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
   untrackedText: {
-      fontSize: 9,
-      fontWeight: "900",
-      opacity: 0.3,
-      letterSpacing: 0.5,
+    fontSize: 9,
+    fontWeight: "900",
+    opacity: 0.3,
+    letterSpacing: 0.5,
   },
 });

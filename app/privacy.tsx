@@ -14,45 +14,50 @@ export default function PrivacyScreen() {
 
   const sections = [
     {
-      title: t('dataCollection'),
+      title: t("dataCollection"),
       icon: Database,
       color: "#3b82f6",
-      content: t('dataCollectionContent')
+      content: t("dataCollectionContent"),
     },
     {
-      title: t('dataStorage'),
+      title: t("dataStorage"),
       icon: Lock,
       color: "#10b981",
-      content: t('dataStorageContent')
+      content: t("dataStorageContent"),
     },
     {
-      title: t('dataUsage'),
+      title: t("dataUsage"),
       icon: Eye,
       color: "#f59e0b",
-      content: t('dataUsageContent')
+      content: t("dataUsageContent"),
     },
     {
-      title: t('yourRights'),
+      title: t("yourRights"),
       icon: Shield,
       color: "#8b5cf6",
-      content: t('yourRightsContent')
-    }
+      content: t("yourRightsContent"),
+    },
   ];
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: t('privacyPolicy') }} />
+      <Stack.Screen options={{ title: t("privacyPolicy") }} />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.header}>
-            <View style={[styles.iconContainer, { backgroundColor: theme.primaryLight }]}>
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: theme.primaryLight },
+              ]}
+            >
               <Shield size={40} color={theme.primary} />
             </View>
-            <Heading style={styles.title}>{t('privacyPolicy')}</Heading>
+            <Heading style={styles.title}>{t("privacyPolicy")}</Heading>
             <ThemedText style={styles.subtitle}>
-              {t('privacyHeroSub')}
+              {t("privacyHeroSub")}
             </ThemedText>
-            <ThemedText style={styles.date}>{t('lastUpdated')}</ThemedText>
+            <ThemedText style={styles.date}>{t("lastUpdated")}</ThemedText>
           </View>
 
           {sections.map((section, index) => {
@@ -60,23 +65,44 @@ export default function PrivacyScreen() {
             return (
               <Card key={index} style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.sectionIcon, { backgroundColor: section.color + '20' }]}>
+                  <View
+                    style={[
+                      styles.sectionIcon,
+                      { backgroundColor: section.color + "20" },
+                    ]}
+                  >
                     <Icon size={24} color={section.color} />
                   </View>
                   <Heading style={styles.sectionTitle}>{section.title}</Heading>
                 </View>
-                <ThemedText style={styles.sectionContent}>{section.content}</ThemedText>
+                <ThemedText style={styles.sectionContent}>
+                  {section.content}
+                </ThemedText>
               </Card>
             );
           })}
 
-          <Card style={[styles.contactCard, { backgroundColor: themeName === 'dark' ? 'rgba(245, 158, 11, 0.1)' : '#fffbeb' }]}>
-            <ThemedText style={[styles.contactTitle, { color: theme.primary }]}>{t('questions')}</ThemedText>
-            <ThemedText style={styles.contactText}>
-              {t('privacyQuestionsSub')}
+          <Card
+            style={[
+              styles.contactCard,
+              {
+                backgroundColor:
+                  themeName === "dark" ? "rgba(245, 158, 11, 0.1)" : "#fffbeb",
+              },
+            ]}
+          >
+            <ThemedText style={[styles.contactTitle, { color: theme.primary }]}>
+              {t("questions")}
             </ThemedText>
-            <ThemedText style={styles.contactEmail}>ibrohimshaymardanov011@gmail.com</ThemedText>
-            <ThemedText style={styles.contactEmail}>t.me/@ibrohimfr</ThemedText>
+            <ThemedText style={styles.contactText}>
+              {t("privacyQuestionsSub")}
+            </ThemedText>
+            <ThemedText style={styles.contactEmail}>
+              ibrohimshaymardanov011@gmail.com
+            </ThemedText>
+            <ThemedText style={styles.contactEmail}>
+              t.me/@satrackerbot
+            </ThemedText>
           </Card>
 
           <ThemedText style={styles.footer}>

@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useRouter, Stack } from "expo-router";
@@ -7,9 +15,18 @@ import { supabase } from "../lib/supabase";
 import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView, Card } from "../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Bell, BellOff, X, Play, CheckCheck, Calendar as CalendarIcon } from "lucide-react-native";
+import {
+  ChevronLeft,
+  Bell,
+  BellOff,
+  X,
+  Play,
+  CheckCheck,
+  Calendar as CalendarIcon,
+} from "lucide-react-native";
 import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
 import { checkConnection } from "../lib/network";
+import { useSafeBack } from "../hooks/useSafeBack";
 
 type Notification = {
   id: string;
@@ -22,7 +39,8 @@ export default function NotificationsScreen() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
-  
+  const safeBack = useSafeBack();
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorVisible, setErrorVisible] = useState(false);
@@ -30,7 +48,9 @@ export default function NotificationsScreen() {
 
   const loadNotifications = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -44,7 +64,9 @@ export default function NotificationsScreen() {
     } catch (e: any) {
       console.error(e);
       const isOnline = await checkConnection();
-      setErrorMsg(isOnline ? (e.message || t('failedLoadPlans')) : t('noInternet'));
+      setErrorMsg(
+        isOnline ? e.message || t("failedLoadPlans") : t("noInternet"),
+      );
       setErrorVisible(true);
     } finally {
       setLoading(false);
@@ -59,7 +81,7 @@ export default function NotificationsScreen() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications" },
-        () => loadNotifications()
+        () => loadNotifications(),
       )
       .subscribe();
 
@@ -76,35 +98,51 @@ export default function NotificationsScreen() {
         .eq("id", id);
       if (error) throw error;
       // Local update for speed
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, dismissed_at: new Date().toISOString() } : n));
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, dismissed_at: new Date().toISOString() } : n,
+        ),
+      );
     } catch (e: any) {
-      Alert.alert(t('error'), e.message);
+      Alert.alert(t("error"), e.message);
     }
   };
-  
+
   const handleMarkAllRead = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
-      
+
       const { error } = await supabase
         .from("notifications")
         .update({ dismissed_at: new Date().toISOString() })
         .eq("user_id", user.id)
         .is("dismissed_at", null);
-        
+
       if (error) throw error;
-      
-      setNotifications(prev => prev.map(n => n.dismissed_at ? n : { ...n, dismissed_at: new Date().toISOString() }));
+
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.dismissed_at ? n : { ...n, dismissed_at: new Date().toISOString() },
+        ),
+      );
     } catch (e: any) {
       console.error(e);
     }
   };
 
-  const active = notifications.filter(n => !n.dismissed_at);
-  const past = notifications.filter(n => !!n.dismissed_at);
+  const active = notifications.filter((n) => !n.dismissed_at);
+  const past = notifications.filter((n) => !!n.dismissed_at);
 
-  const NotificationItem = ({ n, isNew }: { n: Notification; isNew: boolean }) => {
+  const NotificationItem = ({
+    n,
+    isNew,
+  }: {
+    n: Notification;
+    isNew: boolean;
+  }) => {
     const [expanded, setExpanded] = useState(false);
     const planMatch = n.message.match(/{{planId:(.*?)}}/);
     const planId = planMatch?.[1];
@@ -118,10 +156,19 @@ export default function NotificationsScreen() {
     const isLong = cleanMessage.length > 70;
 
     return (
-      <Card style={[styles.notifCard, !isNew && { opacity: 0.6, backgroundColor: theme.background }]}>
+      <Card
+        style={[
+          styles.notifCard,
+          !isNew && { opacity: 0.6, backgroundColor: theme.background },
+        ]}
+      >
         <View style={styles.notifHeader}>
           <ThemedText style={styles.notifTime}>
-            {new Date(n.created_at).toLocaleDateString()} {t('at')} {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date(n.created_at).toLocaleDateString()} {t("at")}{" "}
+            {new Date(n.created_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </ThemedText>
           {isNew && (
             <TouchableOpacity onPress={() => handleDismiss(n.id)}>
@@ -129,53 +176,83 @@ export default function NotificationsScreen() {
             </TouchableOpacity>
           )}
         </View>
-        <ThemedText style={styles.notifMessage} numberOfLines={expanded ? undefined : 2}>{cleanMessage}</ThemedText>
-        
+        <ThemedText
+          style={styles.notifMessage}
+          numberOfLines={expanded ? undefined : 2}
+        >
+          {cleanMessage}
+        </ThemedText>
+
         {isLong && (
-            <TouchableOpacity onPress={() => setExpanded(!expanded)} style={{ marginTop: 4 }}>
-                <ThemedText style={[styles.readMore, { color: theme.primary }]}>{expanded ? t('showLess') : t('showMore')}</ThemedText>
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setExpanded(!expanded)}
+            style={{ marginTop: 4 }}
+          >
+            <ThemedText style={[styles.readMore, { color: theme.primary }]}>
+              {expanded ? t("showLess") : t("showMore")}
+            </ThemedText>
+          </TouchableOpacity>
         )}
 
         {isNew && goToPlan && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
             onPress={() => router.push("/(tabs)/plan")}
           >
             <CalendarIcon size={12} color="#fff" />
-            <ThemedText style={styles.actionText}>{t('goToPlanner')}</ThemedText>
+            <ThemedText style={styles.actionText}>
+              {t("goToPlanner")}
+            </ThemedText>
           </TouchableOpacity>
         )}
 
         {isNew && planId && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
             onPress={async () => {
-                const { data: log } = await supabase.from("daily_log").select("status").eq("plan_id", planId).maybeSingle();
-                
-                // Check if plan is past
-                const { data: planData } = await supabase.from("study_plan").select("date, end_time").eq("id", planId).single();
-                const now = new Date();
-                const isPast = planData ? (now > new Date(planData.date + "T" + planData.end_time)) : false;
+              const { data: log } = await supabase
+                .from("daily_log")
+                .select("status")
+                .eq("plan_id", planId)
+                .maybeSingle();
 
-                const isMissed = n.message.includes("{{type:plan_missed}}");
-                const canCheckInPast = isMissed && !log;
+              // Check if plan is past
+              const { data: planData } = await supabase
+                .from("study_plan")
+                .select("date, end_time")
+                .eq("id", planId)
+                .single();
+              const now = new Date();
+              const isPast = planData
+                ? now > new Date(planData.date + "T" + planData.end_time)
+                : false;
 
-                if (log || (isPast && !canCheckInPast)) {
-                    const msg = log ? (log.status === 'done' ? t('alreadyCompleted') : t('planClosed')) : t('alreadyExpired');
-                    if (Platform.OS === 'web') window.alert(msg);
-                    else Alert.alert(t('planUnavailable'), msg);
-                    return;
-                }
-                if (cleanMessage.includes("no check-in")) {
-                    router.push(`/(tabs)/check-in?openPlanId=${planId}`);
-                } else {
-                    router.push(`/(tabs)/study-room?planId=${planId}`);
-                }
+              const isMissed = n.message.includes("{{type:plan_missed}}");
+              const canCheckInPast = isMissed && !log;
+
+              if (log || (isPast && !canCheckInPast)) {
+                const msg = log
+                  ? log.status === "done"
+                    ? t("alreadyCompleted")
+                    : t("planClosed")
+                  : t("alreadyExpired");
+                if (Platform.OS === "web") window.alert(msg);
+                else Alert.alert(t("planUnavailable"), msg);
+                return;
+              }
+              if (cleanMessage.includes("no check-in")) {
+                router.push(`/(tabs)/check-in?openPlanId=${planId}`);
+              } else {
+                router.push(`/(tabs)/study-room?planId=${planId}`);
+              }
             }}
           >
             <Play size={12} color="#fff" fill="#fff" />
-            <ThemedText style={styles.actionText}>{cleanMessage.includes("no check-in") ? t('checkInNow') : t('goToStudyRoom')}</ThemedText>
+            <ThemedText style={styles.actionText}>
+              {cleanMessage.includes("no check-in")
+                ? t("checkInNow")
+                : t("goToStudyRoom")}
+            </ThemedText>
           </TouchableOpacity>
         )}
       </Card>
@@ -184,57 +261,71 @@ export default function NotificationsScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <FeedbackErrorModal 
-        visible={errorVisible} 
-        error={errorMsg} 
-        onDismiss={() => setErrorVisible(false)} 
+      <FeedbackErrorModal
+        visible={errorVisible}
+        error={errorMsg}
+        onDismiss={() => setErrorVisible(false)}
         onRetry={loadNotifications}
       />
-      <Stack.Screen options={{ 
-        title: t('notifications'),
-        headerShown: true,
-        headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
-                <ChevronLeft color={theme.textPrimary} size={28} />
+      <Stack.Screen
+        options={{
+          title: t("notifications"),
+          headerShown: true,
+          headerLeft: () => (
+            <TouchableOpacity onPress={safeBack}>
+              <ChevronLeft color={theme.textPrimary} size={28} />
             </TouchableOpacity>
-        ),
-        headerRight: () => (
-             notifications.some(n => !n.dismissed_at) ? (
-                 <TouchableOpacity onPress={handleMarkAllRead} style={{ marginRight: 10 }}>
-                     <CheckCheck color={theme.primary} size={24} />
-                 </TouchableOpacity>
-             ) : null
-        )
-      }} />
+          ),
+          headerRight: () =>
+            notifications.some((n) => !n.dismissed_at) ? (
+              <TouchableOpacity
+                onPress={handleMarkAllRead}
+                style={{ marginRight: 10 }}
+              >
+                <CheckCheck color={theme.primary} size={24} />
+              </TouchableOpacity>
+            ) : null,
+        }}
+      />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         {loading ? (
-            <View style={styles.center}>
-                <ActivityIndicator size="large" color={theme.primary} />
-            </View>
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={theme.primary} />
+          </View>
         ) : (
-            <ScrollView contentContainerStyle={styles.container}>
-                {notifications.length === 0 ? (
-                    <View style={styles.empty}>
-                        <BellOff size={64} color={theme.textSecondary} opacity={0.2} />
-                        <ThemedText style={styles.emptyText}>{t('noNotificationsYet')}</ThemedText>
-                    </View>
-                ) : (
-                    <>
-                        {active.length > 0 && (
-                            <View style={styles.group}>
-                                <ThemedText style={styles.groupLabel}>{t('newUpdates')}</ThemedText>
-                                {active.map(n => <NotificationItem key={n.id} n={n} isNew={true} />)}
-                            </View>
-                        )}
-                        {past.length > 0 && (
-                            <View style={styles.group}>
-                                <ThemedText style={styles.groupLabel}>{t('pastNotifications')}</ThemedText>
-                                {past.map(n => <NotificationItem key={n.id} n={n} isNew={false} />)}
-                            </View>
-                        )}
-                    </>
+          <ScrollView contentContainerStyle={styles.container}>
+            {notifications.length === 0 ? (
+              <View style={styles.empty}>
+                <BellOff size={64} color={theme.textSecondary} opacity={0.2} />
+                <ThemedText style={styles.emptyText}>
+                  {t("noNotificationsYet")}
+                </ThemedText>
+              </View>
+            ) : (
+              <>
+                {active.length > 0 && (
+                  <View style={styles.group}>
+                    <ThemedText style={styles.groupLabel}>
+                      {t("newUpdates")}
+                    </ThemedText>
+                    {active.map((n) => (
+                      <NotificationItem key={n.id} n={n} isNew={true} />
+                    ))}
+                  </View>
                 )}
-            </ScrollView>
+                {past.length > 0 && (
+                  <View style={styles.group}>
+                    <ThemedText style={styles.groupLabel}>
+                      {t("pastNotifications")}
+                    </ThemedText>
+                    {past.map((n) => (
+                      <NotificationItem key={n.id} n={n} isNew={false} />
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </ScrollView>
         )}
       </SafeAreaView>
     </ThemedView>
@@ -262,56 +353,56 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   group: {
-      marginBottom: 32,
+    marginBottom: 32,
   },
   groupLabel: {
-      fontSize: 10,
-      fontWeight: "900",
-      letterSpacing: 2,
-      opacity: 0.4,
-      marginBottom: 16,
-      marginLeft: 4,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 2,
+    opacity: 0.4,
+    marginBottom: 16,
+    marginLeft: 4,
   },
   notifCard: {
-      marginBottom: 12,
-      padding: 16,
+    marginBottom: 12,
+    padding: 16,
   },
   notifHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
   notifTime: {
-      fontSize: 10,
-      fontWeight: "800",
-      opacity: 0.4,
+    fontSize: 10,
+    fontWeight: "800",
+    opacity: 0.4,
   },
   notifMessage: {
-      fontSize: 14,
-      fontWeight: "700",
-      lineHeight: 20,
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20,
   },
   actionButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      alignSelf: "flex-start",
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
-      marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 12,
   },
   actionText: {
-      color: "#fff",
-      fontSize: 10,
-      fontWeight: "900",
-      textTransform: "uppercase",
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   readMore: {
-      fontSize: 10,
-      fontWeight: "900",
-      textTransform: "uppercase",
-      marginTop: 2,
-  }
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    marginTop: 2,
+  },
 });
