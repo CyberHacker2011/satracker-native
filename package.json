@@ -24,6 +24,7 @@
     "@react-native-community/datetimepicker": "^8.6.0",
     "@react-native-community/slider": "^5.1.2",
     "@supabase/supabase-js": "^2.91.0",
+    "cors": "^2.8.6",
     "expo": "~54.0.31",
     "expo-av": "~16.0.8",
     "expo-constants": "^18.0.13",

@@ -1,11 +1,36 @@
 const express = require("express");
 const { createClient } = require("@supabase/supabase-js");
-const cors = require("cors");
-require("dotenv").config();
+require("dotenv").config({ path: ".env.local" });
 
 const app = express();
-app.use(cors());
+
+// Manual CORS middleware
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  next();
+});
+
 app.use(express.json());
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+app.get("/", (req, res) => {
+  res.send("SAT Tracker API Server is running!");
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", time: new Date().toISOString() });
+});
 
 // Helper for Resend emails since we can't use SDK with restricted keys easily
 async function sendEmail(userEmail, subject, message) {
@@ -122,13 +147,11 @@ app.post("/api/dispatch_notifications", authMiddleware, async (req, res) => {
               .maybeSingle();
 
             if (!existing) {
-              await supabase
-                .from("notifications")
-                .insert({
-                  user_id: user.id,
-                  message,
-                  created_at: new Date().toISOString(),
-                });
+              await supabase.from("notifications").insert({
+                user_id: user.id,
+                message,
+                created_at: new Date().toISOString(),
+              });
               notificationsCreated++;
               const sent = await sendEmail(
                 user.email,
@@ -157,13 +180,11 @@ app.post("/api/dispatch_notifications", authMiddleware, async (req, res) => {
           .gte("created_at", midnightUTC)
           .maybeSingle();
         if (!existing) {
-          await supabase
-            .from("notifications")
-            .insert({
-              user_id: user.id,
-              message,
-              created_at: new Date().toISOString(),
-            });
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            message,
+            created_at: new Date().toISOString(),
+          });
           notificationsCreated++;
           const sent = await sendEmail(
             user.email,
@@ -175,15 +196,13 @@ app.post("/api/dispatch_notifications", authMiddleware, async (req, res) => {
       }
     }
 
-    await supabase
-      .from("cron_logs")
-      .insert({
-        run_at: runStartTime,
-        status: "success",
-        users_processed: usersProcessed,
-        notifications_created: notificationsCreated,
-        emails_sent: emailsSent,
-      });
+    await supabase.from("cron_logs").insert({
+      run_at: runStartTime,
+      status: "success",
+      users_processed: usersProcessed,
+      notifications_created: notificationsCreated,
+      emails_sent: emailsSent,
+    });
     res.json({
       success: true,
       processed: usersProcessed,
@@ -238,6 +257,10 @@ app.post("/api/check_premium_expiry", authMiddleware, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✓ API Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`✓ API Server running locally on port ${PORT}`);
+  });
+}
+
+module.exports = app;

@@ -35,13 +35,18 @@ export default function TestAPIScreen() {
         headers["Authorization"] = `Bearer ${cronSecret}`;
       }
 
-      // In development, call the standalone server on port 3000
-      // In production, this will point to your deployed API
-      const baseUrl = __DEV__
+      // Detect if we are running on localhost
+      const isLocalhost =
+        typeof window !== "undefined" &&
+        window.location.hostname === "localhost";
+      const baseUrl = isLocalhost
         ? "http://localhost:3000"
         : "https://app.satracker.uz";
 
-      const response = await fetch(`${baseUrl}/api/${endpoint}`, {
+      const targetUrl = `${baseUrl}/api/${endpoint}`;
+      console.log(`Testing API: ${targetUrl}`);
+
+      const response = await fetch(targetUrl, {
         method: "POST",
         headers,
       });
@@ -53,7 +58,10 @@ export default function TestAPIScreen() {
       } catch (e) {
         data = {
           error: "Non-JSON response received",
-          raw: text.substring(0, 100),
+          status: response.status,
+          statusText: response.statusText,
+          url: targetUrl,
+          raw: text.substring(0, 500),
         };
       }
 
