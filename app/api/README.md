@@ -1,212 +1,120 @@
-# SAT Tracker - API Routes (Web Only)
+# SAT Tracker - Backend Logic (Supabase Edge Functions)
 
-## ⚠️ IMPORTANT: How API Routes Work in Expo
+The backend logic for automated notifications and premium management has been migrated to **Supabase Edge Functions** for maximum reliability and ease of deployment.
 
-**Expo API routes work in TWO scenarios:**
+## Why Supabase Edge Functions?
 
-1. ✅ **Development mode** with Expo dev server (`expo start --web`)
-2. ✅ **Production** when deployed to platforms like Vercel, Netlify, etc.
+- ✅ **Reliability**: They run in a stable environment, independent of your local bundler or web hosting.
+- ✅ **Security**: They use Supabase's secure environment and can safely use your `SERVICE_ROLE_KEY`.
+- ✅ **Scalability**: They auto-scale to handle any number of users.
+- ✅ **Ease of Cron**: They are designed to be called by external cron services.
 
-**They DO NOT work with:**
+## Available Functions
 
-- ❌ Static file serving (Electron serves static files)
-- ❌ Production builds served locally without a server
+### 1. `dispatch-notifications`
 
-## Solution: Use Expo Dev Server for Testing
+**Endpoint**: `https://bjxroikxfcrrislsatwl.supabase.co/functions/v1/dispatch-notifications`
+**Method**: POST
+**Auth**: `Authorization: Bearer <CRON_SECRET>`
 
-### Testing Locally (Development):
+**Functionality**:
+
+- Checks today's study plans for all users.
+- Sends "Plan Starting" notifications when a plan's start time is reached.
+- Sends "Missed Check-in" notifications when a plan's end time is reached without a log.
+- Sends "No Plan for Tomorrow" reminders if no plan is scheduled for the next day.
+- **Smart Email Logic**: Sends an email via Resend if the user hasn't opened the app recently (`last_seen_at` check).
+
+---
+
+### 2. `check-premium-expiry`
+
+**Endpoint**: `https://bjxroikxfcrrislsatwl.supabase.co/functions/v1/check-premium-expiry`
+**Method**: POST
+**Auth**: `Authorization: Bearer <CRON_SECRET>`
+
+**Functionality**:
+
+- Checks all premium users.
+- **Revokes Premium**: If the expiry date has passed, it sets `is_premium = false`, clears the expiry date, and notifies the user.
+- **Expiry Warning**: If premium expires in less than 24 hours, it sends a warning notification and email.
+
+---
+
+### 3. `create-notification`
+
+**Endpoint**: `https://bjxroikxfcrrislsatwl.supabase.co/functions/v1/create-notification`
+**Method**: POST
+**Auth**: None (Uses internal logic)
+
+**Request Body**:
+
+```json
+{
+  "user_id": "uuid-of-user",
+  "message": "Notification message text"
+}
+```
+
+**Functionality**:
+
+- Creates a notification in the database.
+- **Deduplication**: Won't create the same notification for the same user on the same day.
+
+## Deployment Instructions
+
+### 1. Install Supabase CLI
 
 ```bash
-# Start Expo web dev server (API routes work here!)
-pnpm web
+npm install -g supabase
 ```
 
-Then open http://localhost:8081 and:
-
-- Navigate to `/test-api` to use the testing interface
-- Or use curl:
-
-```cmd
-curl -X POST http://localhost:8081/api/dispatch_notifications -H "Authorization: Bearer 4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102"
-```
-
-```cmd
-curl -X POST http://localhost:8081/api/check_premium_expiry -H "Authorization: Bearer 4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102"
-```
-
-## Available Endpoints
-
-### 1. `/api/dispatch_notifications` ✅
-
-**What it does:**
-
-- ✅ Sends "plan starting" notifications when `start_time` passes
-- ✅ Sends "missed check-in" notifications when `end_time` passes & no log exists
-- ✅ Sends "create tomorrow's plan" reminder (ONCE PER DAY per user)
-- ✅ Uses Resend to email users who haven't opened the app
-  - Checks `user_activity.last_seen_at`
-  - If `last_seen_at < notification.created_at` → Send email
-- ✅ Logs everything to `cron_logs` table
-
-### 2. `/api/check_premium_expiry` ✅
-
-**What it does:**
-
-- ✅ **EXPIRES premium** by setting `is_premium = false` when `premium_expires_at < now`
-- ✅ Sends 24-hour warning before expiration
-- ✅ Creates notifications and sends emails via Resend
-- ✅ Logs all actions to `cron_logs`
-
-### 3. `/api/create_notification`
-
-**What it does:**
-
-- ✅ Creates a notification for a user
-- ✅ Prevents duplicates (won't create same message twice in one day)
-
-**Request:**
-
-```json
-{
-  "user_id": "uuid",
-  "message": "Your notification message"
-}
-```
-
-## Testing in Development
-
-### Using the Web Interface:
-
-1. Start dev server:
-
-   ```bash
-   pnpm web
-   ```
-
-2. Open http://localhost:8081/test-api
-
-3. Click "Play" buttons to test each API
-
-### Using curl (Windows CMD):
-
-Start dev server first:
+### 2. Login & Link Project
 
 ```bash
-pnpm web
+supabase login
+supabase link --project-ref bjxroikxfcrrislsatwl
 ```
 
-Then in another terminal:
+### 3. Set Edge Function Secrets
 
-**Test dispatch (one line, no backslashes):**
+You must set these secrets in your Supabase project for the functions to work:
 
-```cmd
-curl -X POST http://localhost:8081/api/dispatch_notifications -H "Authorization: Bearer 4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102"
+```bash
+supabase secrets set CRON_SECRET="your-very-long-secret-key"
+supabase secrets set RESEND_API_KEY="re_..."
+supabase secrets set RESEND_FROM_EMAIL="no-reply@satracker.uz"
+supabase secrets set SITE_URL="https://app.satracker.uz"
 ```
 
-**Test premium expiry:**
+### 4. Deploy Functions
 
-```cmd
-curl -X POST http://localhost:8081/api/check_premium_expiry -H "Authorization: Bearer 4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102"
+```bash
+supabase functions deploy dispatch-notifications
+supabase functions deploy check-premium-expiry
+supabase functions deploy create-notification
 ```
 
-**Test create notification:**
+## Setup Cron Jobs (Recommended)
 
-```cmd
-curl -X POST http://localhost:8081/api/create_notification -H "Content-Type: application/json" -d "{\"user_id\":\"YOUR_USER_ID\",\"message\":\"Test notification\"}"
+Use a service like **cron-job.org** to automate these functions:
+
+1. **Dispatch Notifications** (Every 30-60 minutes):
+   - **URL**: `https://bjxroikxfcrrislsatwl.supabase.co/functions/v1/dispatch-notifications`
+   - **Method**: POST
+   - **Header**: `Authorization: Bearer <CRON_SECRET>`
+
+2. **Check Premium Expiry** (Once per day):
+   - **URL**: `https://bjxroikxfcrrislsatwl.supabase.co/functions/v1/check-premium-expiry`
+   - **Method**: POST
+   - **Header**: `Authorization: Bearer <CRON_SECRET>`
+
+## Testing Locally
+
+You can test these functions locally using the Supabase CLI:
+
+```bash
+supabase functions serve
 ```
 
-## Production Deployment
-
-Deploy to **Vercel** (recommended for Expo API routes):
-
-1. Install Vercel CLI:
-
-   ```bash
-   npm i -g vercel
-   ```
-
-2. Deploy:
-
-   ```bash
-   vercel
-   ```
-
-3. Set environment variables in Vercel dashboard
-
-4. Your APIs will be at: `https://your-app.vercel.app/api/*`
-
-### Set up Cron Jobs (cron-job.org):
-
-**Dispatch Notifications** - Every 30 minutes:
-
-- URL: `https://your-app.vercel.app/api/dispatch_notifications`
-- Method: POST
-- Header: `Authorization: Bearer YOUR_CRON_SECRET`
-- Schedule: `*/30 * * * *`
-
-**Check Premium Expiry** - Daily at midnight:
-
-- URL: `https://your-app.vercel.app/api/check_premium_expiry`
-- Method: POST
-- Header: `Authorization: Bearer YOUR_CRON_SECRET`
-- Schedule: `0 0 * * *`
-
-## Environment Variables
-
-Create `.env.local`:
-
-```env
-# Supabase
-EXPO_PUBLIC_SUPABASE_URL=https://bjxroikxfcrrislsatwl.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Cron Secret
-CRON_SECRET=4f18426e26ac997e625ffe51f196474a5d36ee2507f02c821d7c4fbe878303f9cda4045cae606000c84d2bbdd5cc05ae0e067c20f2d2efa2d84c1b645dsf82fc97cb255ce32284c58ecb3efc3a7a5102
-
-# Email (Resend)
-RESEND_API_KEY=re_RJ9PGC8e_3VCr9NnRJreXMe579geGtwQS
-RESEND_FROM_EMAIL=no-reply@satracker.uz
-
-# Site URL
-EXPO_PUBLIC_SITE_URL=https://app.satracker.uz/
-```
-
-## Expected Responses
-
-### Success:
-
-```json
-{
-  "success": true,
-  "processed": 10,
-  "notificationsCreated": 5,
-  "emails_sent": 2
-}
-```
-
-### Unauthorized (wrong CRON_SECRET):
-
-```json
-{
-  "error": "Unauthorized"
-}
-```
-
-## Monitoring
-
-Query `cron_logs` in Supabase:
-
-```sql
-SELECT * FROM cron_logs
-ORDER BY run_at DESC
-LIMIT 10;
-```
-
-## Summary
-
-- ✅ **Development**: Use `pnpm web` (Expo dev server)
-- ✅ **Production**: Deploy to Vercel or similar platform
-- ❌ **Don't use**: Built static files with Electron for API testing
-- ✅ **Emails**: Sent via Resend to users who haven't opened app
-- ✅ **Premium Expiry**: Actually sets `is_premium = false` in database
-- ✅ **Notifications**: One per day for "no tomorrow plan" reminder
+Then use `curl` to call the local endpoint (usually `http://localhost:54321/functions/v1/...`).

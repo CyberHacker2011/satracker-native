@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 
 function getEmailHtml(subject: string, message: string) {
-  const siteUrl = process.env.EXPO_PUBLIC_SITE_URL || 'https://www.satracker.uz';
-  
+  const siteUrl =
+    process.env.EXPO_PUBLIC_SITE_URL || "https://www.satracker.uz";
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -64,16 +64,32 @@ function hasTimePassed(hhmm: string, dateString: string) {
 
 async function sendEmail(userEmail: string, subject: string, message: string) {
   const resendApiKey = process.env.RESEND_API_KEY;
+  const fromEmail =
+    process.env.RESEND_FROM_EMAIL || "notifications@satracker.uz";
+
   if (!resendApiKey || !userEmail) return false;
 
   try {
-    const resend = new Resend(resendApiKey);
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "notifications@yourdomain.com",
-      to: userEmail,
-      subject,
-      html: getEmailHtml(subject, message),
+    // We use direct fetch to avoid Resend SDK doing any 'GET' requests which fails with restricted keys
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: userEmail,
+        subject: subject,
+        html: getEmailHtml(subject, message),
+      }),
     });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("Resend API error:", data);
+      return false;
+    }
     return true;
   } catch (error) {
     console.error("Error sending email:", error);
@@ -102,10 +118,7 @@ export async function POST(request: Request) {
 
     if (!supabaseUrl || !supabaseServiceKey) {
       errorMessage = "Missing Supabase configuration";
-      return Response.json(
-        { error: errorMessage },
-        { status: 500 }
-      );
+      return Response.json({ error: errorMessage }, { status: 500 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -119,7 +132,8 @@ export async function POST(request: Request) {
     const tomorrow = getTomorrowDateString();
 
     // Get all users
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
+    const { data: users, error: usersError } =
+      await supabase.auth.admin.listUsers();
 
     if (usersError) {
       errorMessage = usersError.message;
@@ -173,28 +187,30 @@ export async function POST(request: Request) {
               if (startTimePassed && !endTimePassed && !hasLog) {
                 const message = `Your ${plan.section} plan is starting at ${plan.start_time}. {{planId:${plan.id}}}`;
 
+                const midnightUTC = `${today}T00:00:00.000Z`;
+
                 // Check if notification already exists for this plan today
                 const { data: existingStartNotif } = await supabase
                   .from("notifications")
                   .select("id")
                   .eq("user_id", user.id)
                   .eq("message", message)
-                  .gte("created_at", new Date(today + "T00:00:00").toISOString())
-                  .limit(1)
-                  .single();
+                  .gte("created_at", midnightUTC)
+                  .maybeSingle();
 
                 if (!existingStartNotif) {
                   const now = new Date().toISOString();
 
-                  const { data: notification, error: notifError } = await supabase
-                    .from("notifications")
-                    .insert({
-                      user_id: user.id,
-                      message,
-                      created_at: now,
-                    })
-                    .select()
-                    .single();
+                  const { data: notification, error: notifError } =
+                    await supabase
+                      .from("notifications")
+                      .insert({
+                        user_id: user.id,
+                        message,
+                        created_at: now,
+                      })
+                      .select()
+                      .single();
 
                   if (!notifError && notification) {
                     notificationsCreated++;
@@ -218,7 +234,7 @@ export async function POST(request: Request) {
                       const emailSent = await sendEmail(
                         user.email || "",
                         "SAT Plan Starting",
-                        message.replace(/{{planId:.*?}}/g, "")
+                        message.replace(/{{planId:.*?}}/g, ""),
                       );
                       if (emailSent) emailsSent++;
                     }
@@ -230,28 +246,30 @@ export async function POST(request: Request) {
               if (endTimePassed && !hasLog) {
                 const message = `Your ${plan.section} plan ending at ${plan.end_time} has no check-in.`;
 
+                const midnightUTC = `${today}T00:00:00.000Z`;
+
                 // Idempotency: Check if notification already exists for this plan today
                 const { data: existingNotif } = await supabase
                   .from("notifications")
                   .select("id")
                   .eq("user_id", user.id)
                   .eq("message", message)
-                  .gte("created_at", new Date(today + "T00:00:00").toISOString())
-                  .limit(1)
-                  .single();
+                  .gte("created_at", midnightUTC)
+                  .maybeSingle();
 
                 if (!existingNotif) {
                   const now = new Date().toISOString();
 
-                  const { data: notification, error: notifError } = await supabase
-                    .from("notifications")
-                    .insert({
-                      user_id: user.id,
-                      message,
-                      created_at: now,
-                    })
-                    .select()
-                    .single();
+                  const { data: notification, error: notifError } =
+                    await supabase
+                      .from("notifications")
+                      .insert({
+                        user_id: user.id,
+                        message,
+                        created_at: now,
+                      })
+                      .select()
+                      .single();
 
                   if (!notifError && notification) {
                     notificationsCreated++;
@@ -275,7 +293,7 @@ export async function POST(request: Request) {
                       const emailSent = await sendEmail(
                         user.email || "",
                         "SAT Plan Not Checked In",
-                        message
+                        message,
                       );
                       if (emailSent) emailsSent++;
                     }
@@ -297,7 +315,10 @@ export async function POST(request: Request) {
           const hasPlanForTomorrow = tomorrowPlans && tomorrowPlans.length > 0;
 
           if (!hasPlanForTomorrow) {
-            const message = "You have not created a SAT study plan for tomorrow.";
+            const message =
+              "You have not created a SAT study plan for tomorrow.";
+
+            const midnightUTC = `${today}T00:00:00.000Z`;
 
             // Idempotency: Check if notification already exists today
             const { data: existingNotif } = await supabase
@@ -305,9 +326,8 @@ export async function POST(request: Request) {
               .select("id")
               .eq("user_id", user.id)
               .eq("message", message)
-              .gte("created_at", new Date(today + "T00:00:00").toISOString())
-              .limit(1)
-              .single();
+              .gte("created_at", midnightUTC)
+              .maybeSingle();
 
             if (!existingNotif) {
               const now = new Date().toISOString();
@@ -344,7 +364,7 @@ export async function POST(request: Request) {
                   const emailSent = await sendEmail(
                     user.email || "",
                     "No SAT Plan for Tomorrow",
-                    message
+                    message,
                   );
                   if (emailSent) emailsSent++;
                 }
@@ -374,7 +394,8 @@ export async function POST(request: Request) {
       emails_sent: emailsSent,
     });
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Internal server error";
+    errorMessage =
+      error instanceof Error ? error.message : "Internal server error";
 
     // Log failed run
     try {
@@ -400,9 +421,6 @@ export async function POST(request: Request) {
       console.error("Error logging cron run:", logError);
     }
 
-    return Response.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return Response.json({ error: errorMessage }, { status: 500 });
   }
 }

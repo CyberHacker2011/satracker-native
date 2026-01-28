@@ -25,7 +25,9 @@ export default function TestAPIScreen() {
   const testAPI = async (endpoint: string, requiresAuth: boolean = true) => {
     setLoading(endpoint);
     try {
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
 
       if (requiresAuth) {
         const cronSecret =
