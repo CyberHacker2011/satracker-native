@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabase";
 import { NotificationSystem } from "../components/NotificationSystem";
 import { useUserActivity } from "../hooks/useUserActivity";
 import { LanguageProvider } from "../context/LanguageContext";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 function RootLayoutNav() {
   useUserActivity();
@@ -164,10 +165,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <RootLayoutNav />
-      </LanguageProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <LanguageProvider>
+          <RootLayoutNav />
+        </LanguageProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
