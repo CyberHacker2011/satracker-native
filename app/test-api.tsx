@@ -35,12 +35,27 @@ export default function TestAPIScreen() {
         headers["Authorization"] = `Bearer ${cronSecret}`;
       }
 
-      const response = await fetch(`/api/${endpoint}`, {
+      // In development, call the standalone server on port 3000
+      // In production, this will point to your deployed API
+      const baseUrl = __DEV__
+        ? "http://localhost:3000"
+        : "https://app.satracker.uz";
+
+      const response = await fetch(`${baseUrl}/api/${endpoint}`, {
         method: "POST",
         headers,
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = {
+          error: "Non-JSON response received",
+          raw: text.substring(0, 100),
+        };
+      }
 
       setResults((prev) => ({
         ...prev,
