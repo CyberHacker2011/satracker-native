@@ -14,7 +14,7 @@
     "build:macos": "pnpm build:web && cd electron && pnpm run build:mac",
     "build:windows": "pnpm build:web && cd electron && pnpm run build:win",
     "build:desktop": "pnpm build:web && cd electron && pnpm run build:all",
-    "server": "node server.js",
+    "server": "node api/index.js",
     "dev:api": "pnpm build:web && pnpm server"
   },
   "homepage": "./",

@@ -1,6 +1,11 @@
 const express = require("express");
 const { createClient } = require("@supabase/supabase-js");
-require("dotenv").config({ path: ".env.local" });
+const path = require("path");
+
+// Only load dotenv locally
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config({ path: path.join(__dirname, "../.env.local") });
+}
 
 const app = express();
 
