@@ -44,21 +44,40 @@ export default function CheckInScreen() {
 
   const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  // Optimize: Avoid unmounting/remounting spinner on every focus
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   const loadData = async () => {
-    setLoading(true);
+    // Only show spinner on first load
+    if (isInitialLoad) setLoading(true);
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
+
+      const startDate = getLocalDateString(new Date());
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 30);
+      const endDateStr = getLocalDateString(endDate);
+
+      // Only fetch plans for relevant window
       const { data: plans } = await supabase
         .from("study_plan")
         .select("*")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .gte("date", startDate)
+        .lte("date", endDateStr);
+
+      // Only fetch logs for relevant window (if needed) or matching plans
+      // Optimally, fetch logs for the plan IDs we found, but date range is simpler for batch
       const { data: logs } = await supabase
         .from("daily_log")
         .select("*")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .gte("date", startDate)
+        .lte("date", endDateStr);
 
       const grouped: Record<string, any[]> = {};
       plans?.forEach((p) => {
@@ -71,6 +90,7 @@ export default function CheckInScreen() {
       console.error(e);
     } finally {
       setLoading(false);
+      setIsInitialLoad(false);
     }
   };
 
@@ -378,6 +398,12 @@ export default function CheckInScreen() {
                                   text: "Delete",
                                   style: "destructive",
                                   onPress: async () => {
+                                    // First delete from daily_log to satisfy constraints
+                                    await supabase
+                                      .from("daily_log")
+                                      .delete()
+                                      .eq("plan_id", p.id);
+
                                     const { error } = await supabase
                                       .from("study_plan")
                                       .delete()

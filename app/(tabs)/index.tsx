@@ -190,17 +190,19 @@ export default function DashboardScreen() {
       if (user) {
         const { data: profile } = await supabase
           .from("user_profiles")
-          .select("*")
+          .select("name, exam_date, target_math, target_reading_writing")
           .eq("user_id", user.id)
           .single();
         setUserProfile(profile);
 
         // Fetch streak from daily_log (consecutive days)
+        // Limit to reasonable history (e.g. last 365 entries) to avoid perf issues
         const { data: logHistory } = await supabase
           .from("daily_log")
           .select("date")
           .eq("user_id", user.id)
-          .order("date", { ascending: false });
+          .order("date", { ascending: false })
+          .limit(365);
 
         if (logHistory) {
           const dates = Array.from(new Set(logHistory.map((l) => l.date)));

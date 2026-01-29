@@ -14,7 +14,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { getLocalDateString, getLocalTimeString } from "../../lib/dateUtils";
 import { useTheme } from "../../context/ThemeContext";
@@ -111,8 +111,11 @@ export default function StudyRoomScreen() {
     borderColor: mode === "break" ? "#10b981" : theme.primary,
   }));
 
+  // Optimize: Avoid unmounting/remounting spinner
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   const loadData = useCallback(async () => {
-    setLoading(true);
+    if (isInitialLoad) setLoading(true);
     try {
       const {
         data: { user },
@@ -176,12 +179,15 @@ export default function StudyRoomScreen() {
       console.error(e);
     } finally {
       setLoading(false);
+      setIsInitialLoad(false);
     }
-  }, [planIdParam]);
+  }, [planIdParam, isInitialLoad]);
 
-  useEffect(() => {
-    loadData();
-  }, [planIdParam]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
 
   useEffect(() => {
     if (loading || !plan || isSettingUp) return;
@@ -207,14 +213,12 @@ export default function StudyRoomScreen() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      await supabase
-        .from("daily_log")
-        .insert({
-          user_id: user?.id,
-          plan_id: plan.id,
-          date: plan.date,
-          status: "done",
-        });
+      await supabase.from("daily_log").insert({
+        user_id: user?.id,
+        plan_id: plan.id,
+        date: plan.date,
+        status: "done",
+      });
       await storage.removeItem(`study_room_state_${plan.id}`);
       router.replace("/(tabs)");
     } catch (e) {

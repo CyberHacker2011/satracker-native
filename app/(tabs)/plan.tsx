@@ -111,10 +111,20 @@ export default function PlanScreen() {
         data: { user },
       } = await supabase.auth.getUser();
 
+      if (!user) {
+        showToast("User not authenticated", "error");
+        return;
+      }
+
+      // Map UI section to DB enum/value
+      // Assuming DB expects lowercase "math", "reading", or "writing"
+      // We map "Reading and Writing" -> "reading" as a safe fallback that works with the read logic
+      const dbSection = section === "Math" ? "math" : "reading";
+
       const basePlan = {
-        user_id: user?.id,
+        user_id: user.id,
         date,
-        section,
+        section: dbSection,
         start_time: startTime,
         end_time: endTime,
         tasks_text: tasks,

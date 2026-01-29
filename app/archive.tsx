@@ -190,6 +190,12 @@ export default function ArchiveScreen() {
                                 text: "Delete",
                                 style: "destructive",
                                 onPress: async () => {
+                                  // Delete associated logs first
+                                  await supabase
+                                    .from("daily_log")
+                                    .delete()
+                                    .eq("plan_id", p.id);
+
                                   const { error } = await supabase
                                     .from("study_plan")
                                     .delete()
