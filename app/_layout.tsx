@@ -74,42 +74,54 @@ function RootLayoutNav() {
     const handleDeepLink = async (url: string | null) => {
       if (!url) return;
 
-      // Check for auth callback hash properly
-      if (url.includes("access_token") && url.includes("refresh_token")) {
+      // WORKAROUND: Handle cases where URL fragments are treated as paths or missing #
+      // e.g. https://app.satracker.uz/access_token=...
+      let customUrl = url;
+      if (customUrl.includes("/access_token")) {
+        // Force it to be a hash or query so parsing works standardly
+        customUrl = customUrl.replace("/access_token", "#access_token");
+      }
+
+      // Standard Hash/Query Check
+      if (
+        customUrl.includes("access_token") &&
+        customUrl.includes("refresh_token")
+      ) {
         // Parse hash params safely
-        const str = url.replace("#", "?"); // easier to parse as query
-        const urlObj = new URL(str);
+        const str = customUrl.replace("#", "?");
+        try {
+          const urlObj = new URL(str);
+          let params = new URLSearchParams(
+            urlObj.search || urlObj.hash.replace("#", ""),
+          );
 
-        const params = new URLSearchParams(
-          urlObj.search || urlObj.hash.replace("#", ""),
-        );
-        // In React Native environment URL might not work fully as expected for fragments
-        // depending on polyfills, so we do manual regex backup
+          let accessToken = params.get("access_token");
+          let refreshToken = params.get("refresh_token");
 
-        let accessToken = params.get("access_token");
-        let refreshToken = params.get("refresh_token");
-
-        if (!accessToken) {
-          const matchAccess = url.match(/access_token=([^&]*)/);
-          if (matchAccess) accessToken = matchAccess[1];
-          const matchRefresh = url.match(/refresh_token=([^&]*)/);
-          if (matchRefresh) refreshToken = matchRefresh[1];
-        }
-
-        if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (!error) {
-            // Successful session set, router effect will handle redirect
-            return;
+          // Fallback regex if URLSearchParams fails
+          if (!accessToken) {
+            const matchAccess = customUrl.match(/access_token=([^&]*)/);
+            if (matchAccess) accessToken = matchAccess[1];
+            const matchRefresh = customUrl.match(/refresh_token=([^&]*)/);
+            if (matchRefresh) refreshToken = matchRefresh[1];
           }
+
+          if (accessToken && refreshToken) {
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            if (!error) {
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Deep link parse error", e);
         }
       }
 
-      if (url.includes("type=recovery")) {
+      if (customUrl.includes("type=recovery")) {
         router.replace("/reset-password");
       }
     };

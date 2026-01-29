@@ -55,8 +55,10 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      // Point to our specific "middleware" route
-      const redirectTo = Linking.createURL("/auth/callback");
+      // Use the configured production URL if available, otherwise fallback to linking
+      const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
+      const redirectTo = siteUrl ? siteUrl : Linking.createURL("/");
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
