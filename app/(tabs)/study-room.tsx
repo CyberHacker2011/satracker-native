@@ -144,7 +144,17 @@ export default function StudyRoomScreen() {
           }),
         );
         setAvailablePlans(
-          processed.sort((a, b) => a.start_time.localeCompare(b.start_time)),
+          processed.sort((a, b) => {
+            const aActive = !a.isMarked && !a.isPast;
+            const bActive = !b.isMarked && !b.isPast;
+
+            // Prioritize active plans
+            if (aActive && !bActive) return -1;
+            if (!aActive && bActive) return 1;
+
+            // If same status, sort by start time
+            return a.start_time.localeCompare(b.start_time);
+          }),
         );
 
         if (planIdParam) {
@@ -188,6 +198,30 @@ export default function StudyRoomScreen() {
       loadData();
     }, [loadData]),
   );
+
+  // Auto-calculate focus time based on plan duration
+  useEffect(() => {
+    if (plan && isSettingUp) {
+      const parseMinutes = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return h * 60 + m;
+      };
+      const start = parseMinutes(plan.start_time);
+      const end = parseMinutes(plan.end_time);
+      let diff = end - start;
+      if (diff < 0) diff += 1440; // Handle midnight overlap
+
+      if (settings.sessions > 0) {
+        // formula: duration / sessions, nearest 5 mins
+        const raw = diff / settings.sessions;
+        const rounded = Math.round(raw / 5) * 5;
+        const focus = Math.max(5, rounded);
+        if (settings.focus !== focus) {
+          setSettings((prev) => ({ ...prev, focus }));
+        }
+      }
+    }
+  }, [plan, settings.sessions, isSettingUp]);
 
   useEffect(() => {
     if (loading || !plan || isSettingUp) return;
@@ -329,6 +363,21 @@ export default function StudyRoomScreen() {
                     <Plus size={20} color={theme.textPrimary} />
                   </TouchableOpacity>
                 </View>
+              </View>
+
+              <View style={styles.configGroup}>
+                <ThemedText style={styles.configLabel}>
+                  FOCUS DURATION (AUTO-CALC)
+                </ThemedText>
+                <View style={[styles.stepper, { opacity: 0.7 }]}>
+                  <ThemedText style={[styles.stepVal, { marginLeft: 12 }]}>
+                    {settings.focus} min
+                  </ThemedText>
+                </View>
+                <ThemedText style={{ fontSize: 10, opacity: 0.4 }}>
+                  Calculated from plan duration: {plan.start_time}-
+                  {plan.end_time}
+                </ThemedText>
               </View>
 
               <View style={styles.configGroup}>

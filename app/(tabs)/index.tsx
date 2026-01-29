@@ -237,18 +237,36 @@ export default function DashboardScreen() {
           .eq("user_id", user.id)
           .eq("date", todayDate);
 
+        const { data: todayLogs } = await supabase
+          .from("daily_log")
+          .select("plan_id")
+          .eq("user_id", user.id)
+          .eq("date", todayDate);
+
         if (plans) {
           const now = new Date();
           const curTime = getLocalTimeString(now);
           setTodayPlans(
             plans
-              .map((p) => ({
-                ...p,
-                isActive: curTime >= p.start_time && curTime <= p.end_time,
-                isPast: curTime > p.end_time,
-              }))
-              // Show all plans for the day, sorted by time
-              .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+              .map((p) => {
+                const isCompleted = todayLogs?.some((l) => l.plan_id === p.id);
+                return {
+                  ...p,
+                  isActive: curTime >= p.start_time && curTime <= p.end_time,
+                  isPast: curTime > p.end_time,
+                  isCompleted,
+                };
+              })
+              // Sort: Active/Upcoming first, then Completed/Past
+              .sort((a, b) => {
+                const aActive = !a.isCompleted && !a.isPast;
+                const bActive = !b.isCompleted && !b.isPast;
+
+                if (aActive && !bActive) return -1;
+                if (!aActive && bActive) return 1;
+
+                return a.start_time.localeCompare(b.start_time);
+              }),
           );
         }
       }
@@ -395,6 +413,7 @@ export default function DashboardScreen() {
                     {
                       backgroundColor: theme.card,
                       borderColor: plan.isActive ? theme.primary : theme.border,
+                      opacity: plan.isCompleted || plan.isPast ? 0.5 : 1,
                     },
                   ]}
                   onPress={() =>

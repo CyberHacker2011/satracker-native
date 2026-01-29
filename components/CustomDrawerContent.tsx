@@ -40,8 +40,21 @@ export function CustomDrawerContent({ onClose }: { onClose?: () => void }) {
     // if (onClose) onClose(); // Keep sidebar open on navigate
   };
 
-  const isActive = (path: string) =>
-    pathname === path || pathname.startsWith(path + "/");
+  const isActive = (path: string) => {
+    // Normalize paths to ignore grouping (e.g., /(tabs))
+    const cleanPath = path.replace(/\/\(tabs\)/, "") || "/";
+    const cleanPathname = pathname.replace(/\/\(tabs\)/, "") || "/";
+
+    // Exact match for root "/"
+    if (cleanPath === "/") {
+      return cleanPathname === "/" || cleanPathname === "/index";
+    }
+
+    // Exact match or sub-route match for others
+    return (
+      cleanPathname === cleanPath || cleanPathname.startsWith(cleanPath + "/")
+    );
+  };
 
   const DrawerLink = ({
     href,
