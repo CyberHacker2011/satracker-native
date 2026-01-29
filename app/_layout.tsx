@@ -2,7 +2,14 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { ThemeProvider } from "../context/ThemeContext";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../context/ThemeContext";
-import { View, ActivityIndicator, Text, Platform, Linking } from "react-native";
+import {
+  View,
+  ActivityIndicator,
+  Text,
+  Platform,
+  Linking,
+  useWindowDimensions,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
@@ -166,18 +173,27 @@ function RootLayoutNav() {
     }
   }, [session, initialLoading, segments]);
 
-  const isMobile = Platform.OS !== "web";
-  const sidebarWidth = useSharedValue(240);
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 768;
+  const sidebarWidthVal = isSmallScreen ? 280 : 240;
+  const sidebarWidth = useSharedValue(sidebarVisible ? sidebarWidthVal : 0);
 
   useEffect(() => {
-    sidebarWidth.value = withTiming(sidebarVisible ? 240 : 0, {
+    sidebarWidth.value = withTiming(sidebarVisible ? sidebarWidthVal : 0, {
       duration: 300,
     });
-  }, [sidebarVisible]);
+  }, [sidebarVisible, isSmallScreen, sidebarWidthVal]);
 
   const animatedSidebarStyle = useAnimatedStyle(() => ({
     width: sidebarWidth.value,
     borderRightWidth: sidebarWidth.value > 0 ? 1 : 0,
+    position: isSmallScreen ? "absolute" : "relative",
+    zIndex: 1000,
+  }));
+
+  const animatedBackdropStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(sidebarVisible ? 1 : 0),
+    display: sidebarVisible || sidebarWidth.value > 0 ? "flex" : "none",
   }));
 
   if (initialLoading) {
@@ -218,18 +234,43 @@ function RootLayoutNav() {
       <StatusBar style={themeName === "dark" ? "light" : "dark"} />
 
       {!!session && !isAuthPage && (
-        <Animated.View
-          style={[
-            {
-              overflow: "hidden",
-              borderRightColor: theme.border,
-              height: "100%",
-            },
-            animatedSidebarStyle,
-          ]}
-        >
-          <CustomDrawerContent onClose={toggleSidebar} />
-        </Animated.View>
+        <>
+          {isSmallScreen && sidebarVisible && (
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  zIndex: 999,
+                },
+                animatedBackdropStyle,
+              ]}
+            >
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                activeOpacity={1}
+                onPress={toggleSidebar}
+              />
+            </Animated.View>
+          )}
+          <Animated.View
+            style={[
+              {
+                overflow: "hidden",
+                borderRightColor: theme.border,
+                height: "100%",
+                backgroundColor: theme.card,
+              },
+              animatedSidebarStyle,
+            ]}
+          >
+            <CustomDrawerContent onClose={toggleSidebar} />
+          </Animated.View>
+        </>
       )}
 
       <View style={{ flex: 1, position: "relative", overflow: "visible" }}>

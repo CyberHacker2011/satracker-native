@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 20,
   },
-  container: { padding: 24, gap: 24 },
+  container: { paddingHorizontal: 20, paddingVertical: 24, gap: 24 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -388,22 +389,22 @@ const styles = StyleSheet.create({
     marginBottom: -8,
   },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "900",
-    opacity: 0.4,
-    letterSpacing: 1.5,
+    opacity: 0.5,
+    letterSpacing: 1.2,
   },
   dateList: { gap: 10 },
   dateCard: {
-    width: 56,
-    height: 72,
+    width: 60,
+    height: 76,
     borderRadius: 16,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
-  dateDay: { fontSize: 9, fontWeight: "900", opacity: 0.5, marginBottom: 2 },
-  dateNum: { fontSize: 18, fontWeight: "900" },
+  dateDay: { fontSize: 10, fontWeight: "900", opacity: 0.5, marginBottom: 2 },
+  dateNum: { fontSize: 19, fontWeight: "900" },
   tabRow: { flexDirection: "row", gap: 8 },
   tab: {
     flex: 1,
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tabText: { fontSize: 10, fontWeight: "900", opacity: 0.5 },
+  tabText: { fontSize: 12, fontWeight: "900", opacity: 0.6 },
   timeRow: { flexDirection: "row", gap: 16 },
   timeInput: {
     height: 52,
@@ -425,11 +426,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   textArea: {
-    height: 100,
+    height: 120,
     borderRadius: 16,
     borderWidth: 1.5,
     padding: 16,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     textAlignVertical: "top",
   },
@@ -457,13 +458,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  dayText: { fontSize: 10, fontWeight: "900" },
+  dayText: { fontSize: 11, fontWeight: "900" },
   saveBtn: { height: 56, borderRadius: 16, marginTop: 12 },
 });

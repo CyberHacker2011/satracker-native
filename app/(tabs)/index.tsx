@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -279,19 +280,32 @@ export default function DashboardScreen() {
   const nextActivePlan =
     todayPlans.find((p) => p.isActive) || todayPlans.find((p) => !p.isPast);
 
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 400;
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.container,
+            isSmallScreen && { padding: 16 },
+          ]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
           {/* Main Hero & Stats Row */}
-          <View style={styles.heroRow}>
+          <View
+            style={[
+              styles.heroRow,
+              isSmallScreen && { flexDirection: "column", marginBottom: 24 },
+            ]}
+          >
             <View style={styles.heroMain}>
-              <Heading style={styles.greeting}>
+              <Heading
+                style={[styles.greeting, isSmallScreen && { fontSize: 24 }]}
+              >
                 {t("hello")}, {userProfile?.name?.split(" ")[0] || t("friend")}!
               </Heading>
 
@@ -305,7 +319,12 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            <View style={styles.scoreHalf}>
+            <View
+              style={[
+                styles.scoreHalf,
+                isSmallScreen && { flex: 0, marginTop: 12 },
+              ]}
+            >
               <View
                 style={[
                   styles.scoreCard,
@@ -313,6 +332,7 @@ export default function DashboardScreen() {
                     backgroundColor: theme.primary + "10",
                     borderColor: theme.primary,
                   },
+                  isSmallScreen && { alignSelf: "flex-start", minWidth: 120 },
                 ]}
               >
                 <Target size={18} color={theme.primary} />
@@ -320,7 +340,7 @@ export default function DashboardScreen() {
                   {userProfile?.target_math +
                     userProfile?.target_reading_writing || 1600}
                 </ThemedText>
-                <ThemedText style={styles.scoreLabel}>GOAL</ThemedText>
+                <ThemedText style={styles.scoreLabel}>GOAL TARGET</ThemedText>
               </View>
             </View>
           </View>
