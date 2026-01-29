@@ -269,6 +269,9 @@ export default function DashboardScreen() {
     fetchData();
   }, []);
 
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 400;
+
   if (loading) {
     return (
       <ThemedView style={styles.center}>
@@ -279,9 +282,6 @@ export default function DashboardScreen() {
 
   const nextActivePlan =
     todayPlans.find((p) => p.isActive) || todayPlans.find((p) => !p.isPast);
-
-  const { width: windowWidth } = useWindowDimensions();
-  const isSmallScreen = windowWidth < 400;
 
   return (
     <ThemedView style={{ flex: 1 }}>
