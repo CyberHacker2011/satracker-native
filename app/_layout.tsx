@@ -73,18 +73,44 @@ function RootLayoutNav() {
 
     const handleDeepLink = async (url: string | null) => {
       if (!url) return;
-      if (
-        url.includes("type=recovery") ||
-        url.includes("access_token=") ||
-        url.includes("code=")
-      ) {
-        if (url.includes("reset-password")) {
-          return;
+
+      // Check for auth callback hash properly
+      if (url.includes("access_token") && url.includes("refresh_token")) {
+        // Parse hash params safely
+        const str = url.replace("#", "?"); // easier to parse as query
+        const urlObj = new URL(str);
+
+        const params = new URLSearchParams(
+          urlObj.search || urlObj.hash.replace("#", ""),
+        );
+        // In React Native environment URL might not work fully as expected for fragments
+        // depending on polyfills, so we do manual regex backup
+
+        let accessToken = params.get("access_token");
+        let refreshToken = params.get("refresh_token");
+
+        if (!accessToken) {
+          const matchAccess = url.match(/access_token=([^&]*)/);
+          if (matchAccess) accessToken = matchAccess[1];
+          const matchRefresh = url.match(/refresh_token=([^&]*)/);
+          if (matchRefresh) refreshToken = matchRefresh[1];
         }
-        router.replace({
-          pathname: "/reset-password",
-          params: { originalUrl: url },
-        });
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (!error) {
+            // Successful session set, router effect will handle redirect
+            return;
+          }
+        }
+      }
+
+      if (url.includes("type=recovery")) {
+        router.replace("/reset-password");
       }
     };
 
