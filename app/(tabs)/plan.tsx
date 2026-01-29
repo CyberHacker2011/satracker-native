@@ -41,6 +41,8 @@ export default function PlanScreen() {
   const { t } = useLanguage();
   const router = useRouter();
   const { editId } = useLocalSearchParams<{ editId: string }>();
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 380;
 
   const now = new Date();
   const [date, setDate] = useState(getLocalDateString(now));
@@ -230,7 +232,12 @@ export default function PlanScreen() {
               <BookOpen size={16} color={theme.primary} />
               <ThemedText style={styles.sectionLabel}>FOCUS AREA</ThemedText>
             </View>
-            <View style={styles.tabRow}>
+            <View
+              style={[
+                styles.tabRow,
+                isSmallScreen && { flexDirection: "column" },
+              ]}
+            >
               {(["Math", "Reading and Writing"] as Section[]).map((s) => (
                 <TouchableOpacity
                   key={s}
@@ -253,8 +260,13 @@ export default function PlanScreen() {
               ))}
             </View>
 
-            <View style={styles.timeRow}>
-              <View style={{ flex: 1 }}>
+            <View
+              style={[
+                styles.timeRow,
+                isSmallScreen && { flexDirection: "column", gap: 8 },
+              ]}
+            >
+              <View style={isSmallScreen ? { width: "100%" } : { flex: 1 }}>
                 <ThemedText style={styles.sectionLabel}>START</ThemedText>
                 <TextInput
                   style={[
@@ -266,7 +278,7 @@ export default function PlanScreen() {
                   placeholder="09:00"
                 />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={isSmallScreen ? { width: "100%" } : { flex: 1 }}>
                 <ThemedText style={styles.sectionLabel}>END</ThemedText>
                 <TextInput
                   style={[

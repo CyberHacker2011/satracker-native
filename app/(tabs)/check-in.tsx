@@ -8,6 +8,7 @@ import {
   Modal,
   Platform,
   Alert,
+  useWindowDimensions,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -43,6 +44,8 @@ export default function CheckInScreen() {
   const [isRepeating, setIsRepeating] = useState(false);
 
   const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 380;
 
   // Optimize: Avoid unmounting/remounting spinner on every focus
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -232,7 +235,10 @@ export default function CheckInScreen() {
                       key={d}
                       style={[
                         styles.calCell,
-                        { borderColor: theme.border },
+                        {
+                          borderColor: theme.border,
+                          width: isSmallScreen ? "13%" : "15%",
+                        },
                         isToday && {
                           borderColor: theme.primary,
                           borderWidth: 2,
@@ -319,10 +325,20 @@ export default function CheckInScreen() {
                         key={p.id}
                         style={[
                           styles.modalPlanItem,
-                          { borderColor: theme.border },
+                          {
+                            borderColor: theme.border,
+                            flexDirection: isSmallScreen ? "column" : "row",
+                            alignItems: isSmallScreen ? "flex-start" : "center",
+                            gap: isSmallScreen ? 16 : 12,
+                          },
                         ]}
                       >
-                        <View style={{ flex: 1 }}>
+                        <View
+                          style={{
+                            flex: 1,
+                            width: isSmallScreen ? "100%" : "auto",
+                          }}
+                        >
                           <ThemedText style={styles.planTime}>
                             {p.start_time} - {p.end_time}
                           </ThemedText>
@@ -330,7 +346,16 @@ export default function CheckInScreen() {
                             {p.tasks_text}
                           </ThemedText>
                         </View>
-                        <View style={styles.planActions}>
+                        <View
+                          style={[
+                            styles.planActions,
+                            isSmallScreen && {
+                              paddingTop: 8,
+                              justifyContent: "flex-end",
+                              width: "100%",
+                            },
+                          ]}
+                        >
                           {/* Status Buttons - Circles */}
                           <TouchableOpacity
                             onPress={() =>
@@ -399,10 +424,26 @@ export default function CheckInScreen() {
                                   style: "destructive",
                                   onPress: async () => {
                                     // First delete from daily_log to satisfy constraints
-                                    await supabase
+                                    const { error: logError } = await supabase
                                       .from("daily_log")
                                       .delete()
                                       .eq("plan_id", p.id);
+
+                                    if (logError) {
+                                      console.error(
+                                        "Log delete error:",
+                                        logError,
+                                      );
+                                      // Proceed anyway? No, might fail FK.
+                                      // But if logError is "Row not found", it's fine?
+                                      // supabase delete doesn't error if not found.
+                                      // It errors on permission or connection.
+                                      Alert.alert(
+                                        "Error deleting logs",
+                                        logError.message,
+                                      );
+                                      return;
+                                    }
 
                                     const { error } = await supabase
                                       .from("study_plan")

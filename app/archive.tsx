@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -32,6 +33,8 @@ export default function ArchiveScreen() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 380;
 
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,7 +168,13 @@ export default function ArchiveScreen() {
                 plans.map((p) => (
                   <View
                     key={p.id}
-                    style={[styles.planItem, { borderColor: theme.border }]}
+                    style={[
+                      styles.planItem,
+                      {
+                        borderColor: theme.border,
+                        flexDirection: isSmallScreen ? "column" : "column",
+                      },
+                    ]}
                   >
                     <View style={styles.planHeader}>
                       <ThemedText style={styles.planTag}>
