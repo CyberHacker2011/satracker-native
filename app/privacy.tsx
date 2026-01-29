@@ -1,113 +1,89 @@
 import React from "react";
-import { StyleSheet, View, ScrollView } from "react-native";
+import { StyleSheet, View, ScrollView, TouchableOpacity } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
-import { Stack } from "expo-router";
+import { useRouter } from "expo-router";
 import { ThemedText, Heading } from "../components/ThemedText";
-import { ThemedView, Card } from "../components/ThemedView";
+import { ThemedView } from "../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Shield, Lock, Eye, Database } from "lucide-react-native";
+import {
+  ChevronLeft,
+  Shield,
+  Lock,
+  FileText,
+  UserCheck,
+} from "lucide-react-native";
 
 export default function PrivacyScreen() {
-  const { theme, themeName } = useTheme();
-  const { t } = useLanguage();
+  const { theme } = useTheme();
+  const router = useRouter();
 
-  const sections = [
-    {
-      title: t("dataCollection"),
-      icon: Database,
-      color: "#3b82f6",
-      content: t("dataCollectionContent"),
-    },
-    {
-      title: t("dataStorage"),
-      icon: Lock,
-      color: "#10b981",
-      content: t("dataStorageContent"),
-    },
-    {
-      title: t("dataUsage"),
-      icon: Eye,
-      color: "#f59e0b",
-      content: t("dataUsageContent"),
-    },
-    {
-      title: t("yourRights"),
-      icon: Shield,
-      color: "#8b5cf6",
-      content: t("yourRightsContent"),
-    },
-  ];
+  const Section = ({ icon: Icon, title, content }: any) => (
+    <View style={styles.section}>
+      <View style={styles.sectionHead}>
+        <View
+          style={[styles.iconBox, { backgroundColor: theme.primary + "15" }]}
+        >
+          <Icon size={18} color={theme.primary} />
+        </View>
+        <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
+      </View>
+      <ThemedText style={styles.textContent}>{content}</ThemedText>
+    </View>
+  );
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: t("privacyPolicy") }} />
-      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ChevronLeft size={24} color={theme.textPrimary} />
+          </TouchableOpacity>
+          <Heading style={{ fontSize: 20 }}>Privacy Policy</Heading>
+          <View style={{ width: 24 }} />
+        </View>
+
         <ScrollView contentContainerStyle={styles.container}>
-          <View style={styles.header}>
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: theme.primaryLight },
-              ]}
-            >
-              <Shield size={40} color={theme.primary} />
-            </View>
-            <Heading style={styles.title}>{t("privacyPolicy")}</Heading>
+          <View style={styles.hero}>
+            <Shield size={48} color={theme.primary} />
+            <Heading style={styles.title}>Your Privacy Matters</Heading>
             <ThemedText style={styles.subtitle}>
-              {t("privacyHeroSub")}
+              Last updated: January 2026
             </ThemedText>
-            <ThemedText style={styles.date}>{t("lastUpdated")}</ThemedText>
           </View>
 
-          {sections.map((section, index) => {
-            const Icon = section.icon;
-            return (
-              <Card key={index} style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                  <View
-                    style={[
-                      styles.sectionIcon,
-                      { backgroundColor: section.color + "20" },
-                    ]}
-                  >
-                    <Icon size={24} color={section.color} />
-                  </View>
-                  <Heading style={styles.sectionTitle}>{section.title}</Heading>
-                </View>
-                <ThemedText style={styles.sectionContent}>
-                  {section.content}
-                </ThemedText>
-              </Card>
-            );
-          })}
+          <Section
+            icon={Lock}
+            title="Data Security"
+            content="We use industry-standard encryption to protect your personal information and study data. Your data is stored securely on Supabase servers."
+          />
 
-          <Card
+          <Section
+            icon={UserCheck}
+            title="Information Use"
+            content="We collect only necessary information like your name, education level, and SAT goals to provide a personalized study experience. We never sell your data."
+          />
+
+          <Section
+            icon={FileText}
+            title="Your Rights"
+            content="You have full control over your data. You can request to export or delete your account and all associated data at any time through the settings."
+          />
+
+          <View
             style={[
-              styles.contactCard,
+              styles.infoCard,
               {
-                backgroundColor:
-                  themeName === "dark" ? "rgba(245, 158, 11, 0.1)" : "#fffbeb",
+                backgroundColor: theme.primary + "05",
+                borderColor: theme.primary + "20",
               },
             ]}
           >
-            <ThemedText style={[styles.contactTitle, { color: theme.primary }]}>
-              {t("questions")}
+            <ThemedText style={styles.infoText}>
+              By using SAT Tracker, you agree to our terms of service and this
+              privacy policy. We prioritize your privacy above all else.
             </ThemedText>
-            <ThemedText style={styles.contactText}>
-              {t("privacyQuestionsSub")}
-            </ThemedText>
-            <ThemedText style={styles.contactEmail}>
-              ibrohimshaymardanov011@gmail.com
-            </ThemedText>
-            <ThemedText style={styles.contactEmail}>
-              t.me/@satrackerbot
-            </ThemedText>
-          </Card>
-
-          <ThemedText style={styles.footer}>
-            © 2026 SAT Tracker. All Rights Reserved.
-          </ThemedText>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -115,90 +91,43 @@ export default function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-    paddingBottom: 60,
-  },
   header: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    opacity: 0.6,
-    textAlign: "center",
-    fontWeight: "600",
-    maxWidth: 300,
-  },
-  date: {
-    fontSize: 12,
-    opacity: 0.3,
-    fontWeight: "700",
-    marginTop: 12,
-  },
-  sectionCard: {
-    marginBottom: 16,
-  },
-  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
+    justifyContent: "space-between",
+    padding: 20,
   },
-  sectionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  container: { padding: 24, gap: 32 },
+  hero: { alignItems: "center", gap: 12, marginBottom: 10 },
+  title: { fontSize: 24, fontWeight: "900", textAlign: "center" },
+  subtitle: { fontSize: 11, fontWeight: "800", opacity: 0.3, letterSpacing: 1 },
+  section: { gap: 12 },
+  sectionHead: { flexDirection: "row", alignItems: "center", gap: 12 },
+  iconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
   },
-  sectionTitle: {
-    fontSize: 18,
-  },
-  sectionContent: {
+  sectionTitle: { fontSize: 16, fontWeight: "900", letterSpacing: 0.5 },
+  textContent: {
     fontSize: 14,
-    lineHeight: 22,
-    opacity: 0.7,
+    lineHeight: 24,
+    opacity: 0.6,
     fontWeight: "500",
   },
-  contactCard: {
-    marginTop: 16,
-    alignItems: "center",
-    padding: 24,
+  infoCard: {
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: "dashed",
   },
-  contactTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: 8,
-  },
-  contactText: {
-    fontSize: 14,
-    opacity: 0.6,
+  infoText: {
+    fontSize: 12,
     textAlign: "center",
-    marginBottom: 12,
-  },
-  contactEmail: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontStyle: "italic",
     opacity: 0.5,
-  },
-  footer: {
-    textAlign: "center",
-    fontSize: 11,
-    opacity: 0.2,
-    fontWeight: "700",
-    marginTop: 32,
+    lineHeight: 18,
   },
 });

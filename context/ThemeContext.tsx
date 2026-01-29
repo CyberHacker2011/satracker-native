@@ -13,18 +13,16 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
-  const [themeName, setThemeNameState] = useState<ThemeName>("light");
+  const [themeName, setThemeNameState] = useState<ThemeName>("blue");
 
   useEffect(() => {
     // Load saved theme
     storage.getItem("user-theme").then((saved: string | null) => {
       if (saved) {
         setThemeNameState(saved as ThemeName);
-      } else if (systemScheme === "dark") {
-        setThemeNameState("dark");
       }
     });
-  }, [systemScheme]);
+  }, []);
 
   const setThemeName = (name: ThemeName) => {
     setThemeNameState(name);

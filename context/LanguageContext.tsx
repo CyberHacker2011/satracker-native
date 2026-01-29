@@ -1286,17 +1286,16 @@ export const LanguageProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [language, setLanguageState] = useState<Language>("uz");
+  const [language, setLanguageState] = useState<Language>("en");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load saved language or default to uz
-    AsyncStorage.getItem("user-language").then((saved) => {
-      if (saved && (saved === "en" || saved === "uz" || saved === "ru")) {
-        setLanguageState(saved as Language);
-      } else {
-        setLanguageState("uz"); // Default to Uzbek as requested
-      }
-    });
+    const loadLanguage = async () => {
+      const saved = await AsyncStorage.getItem("user-language");
+      if (saved) setLanguageState(saved as Language);
+      setLoading(false);
+    };
+    loadLanguage();
   }, []);
 
   const setLanguage = async (lang: Language) => {

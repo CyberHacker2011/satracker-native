@@ -11,378 +11,196 @@ import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useRouter } from "expo-router";
 import { ThemedText, Heading } from "../components/ThemedText";
-import { ThemedView, Card } from "../components/ThemedView";
+import { ThemedView } from "../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
   Crown,
   Check,
-  Calendar,
-  Clock,
-  Bell,
-  Database,
-  RefreshCw,
+  Star,
   Zap,
   TrendingUp,
-  Star,
 } from "lucide-react-native";
 import { usePremium } from "../hooks/usePremium";
-import { useSafeBack } from "../hooks/useSafeBack";
+import { Button } from "../components/Button";
 
 export default function PremiumScreen() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
-  const safeBack = useSafeBack();
   const { isPremium, subscriptionType, expiresAt } = usePremium();
+  const [currency, setCurrency] = React.useState<"USD" | "UZS">("UZS");
 
-  const handleBuyPremium = async (plan: "monthly" | "quarterly") => {
-    const telegramUrl = `https://t.me/satrackerbot`;
-
-    try {
-      const canOpen = await Linking.canOpenURL(telegramUrl);
-      if (canOpen) {
-        await Linking.openURL(telegramUrl);
-      } else {
-        if (Platform.OS === "web") {
-          window.open(telegramUrl, "_blank");
-        }
-      }
-    } catch (error) {
-      console.error("Error opening Telegram:", error);
-    }
+  const prices = {
+    UZS: { monthly: "34 000", quarterly: "87 000" },
+    USD: { monthly: "$2.83", quarterly: "$7.25" }, // UZS / 12 approximately
   };
 
-  const features = [
-    {
-      icon: Calendar,
-      title: t("premiumFeature1Title"),
-      description: t("premiumFeature1Desc"),
-    },
-    {
-      icon: Clock,
-      title: t("premiumFeature2Title"),
-      description: t("premiumFeature2Desc"),
-    },
-    {
-      icon: Bell,
-      title: t("premiumFeature3Title"),
-      description: t("premiumFeature3Desc"),
-    },
-    {
-      icon: Database,
-      title: t("premiumFeature4Title"),
-      description: t("premiumFeature4Desc"),
-    },
-    {
-      icon: RefreshCw,
-      title: t("premiumFeature5Title"),
-      description: t("premiumFeature5Desc"),
-    },
-  ];
-
-  const monthlyPrice = 34540;
-  const quarterlyPrice = 97570;
-  const monthlySavings = monthlyPrice * 3 - quarterlyPrice;
-  const savingsPercent = Math.round(
-    (monthlySavings / (monthlyPrice * 3)) * 100,
-  );
-
-  const formatExpiryDate = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    return date.toLocaleDateString();
+  const handleContact = async () => {
+    const plan = prices[currency];
+    const msg = `I want to buy Premium - ${currency} Plan`;
+    const telegramUrl = `https://t.me/satrackerbot?text=${encodeURIComponent(msg)}`;
+    if (await Linking.canOpenURL(telegramUrl))
+      await Linking.openURL(telegramUrl);
+    else if (Platform.OS === "web") window.open(telegramUrl, "_blank");
   };
 
   return (
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.container}>
-          <TouchableOpacity
-            onPress={safeBack}
-            style={[
-              styles.backButton,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.push("/(tabs)")}>
             <ChevronLeft size={24} color={theme.textPrimary} />
           </TouchableOpacity>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <View
+          <Heading style={{ fontSize: 20 }}>Premium</Heading>
+          <View
+            style={[
+              styles.currencyPill,
+              {
+                backgroundColor: theme.primary + "15",
+                borderColor: theme.primary + "30",
+              },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => setCurrency("USD")}
               style={[
-                styles.crownIcon,
-                { backgroundColor: isPremium ? "#FFD700" : theme.primary },
+                styles.pillItem,
+                currency === "USD" && { backgroundColor: theme.primary },
               ]}
             >
-              {isPremium ? (
-                <Star size={32} color="#fff" fill="#fff" />
-              ) : (
-                <Crown size={32} color="#fff" fill="#fff" />
-              )}
+              <ThemedText
+                style={[
+                  styles.pillText,
+                  { color: currency === "USD" ? "#fff" : theme.primary },
+                ]}
+              >
+                USD
+              </ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setCurrency("UZS")}
+              style={[
+                styles.pillItem,
+                currency === "UZS" && { backgroundColor: theme.primary },
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.pillText,
+                  { color: currency === "UZS" ? "#fff" : theme.primary },
+                ]}
+              >
+                UZS
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.hero}>
+            <View
+              style={[styles.crownIcon, { backgroundColor: theme.primary }]}
+            >
+              <Crown size={40} color="#fff" fill="#fff" />
             </View>
             <Heading style={styles.title}>
-              {isPremium ? t("premiumActive") : t("getPremium")}
+              {isPremium ? "Active Member" : "Elevate Your Study"}
             </Heading>
             <ThemedText style={styles.subtitle}>
-              {isPremium ? t("expandSubscription") : t("unlockAllFeatures")}
+              Unlock the full potential of your SAT preparation with exclusive
+              features.
             </ThemedText>
-            {isPremium && expiresAt && (
-              <Card
-                style={[
-                  styles.premiumBadge,
-                  {
-                    backgroundColor: theme.primaryLight,
-                    borderColor: theme.primary,
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={[styles.premiumBadgeText, { color: theme.primary }]}
-                >
-                  {subscriptionType === "monthly"
-                    ? t("monthlyPlan")
-                    : t("quarterlyPlan")}{" "}
-                  • {t("expires")}: {formatExpiryDate(expiresAt)}
-                </ThemedText>
-              </Card>
-            )}
           </View>
 
-          {/* Pricing Cards FIRST */}
-          <View style={styles.pricingSection}>
-            <Heading style={styles.sectionTitle}>
-              {isPremium ? t("extendPremium") : t("choosePlan")}
-            </Heading>
-
-            {/* Monthly Plan */}
-            <Card
+          <View style={styles.pricingRow}>
+            <View style={[styles.planCard, { borderColor: theme.border }]}>
+              <ThemedText style={styles.planLabel}>MONTHLY</ThemedText>
+              <ThemedText style={styles.price}>
+                {prices[currency].monthly}
+                {currency === "UZS" && (
+                  <ThemedText style={{ fontSize: 14 }}> uzs</ThemedText>
+                )}
+              </ThemedText>
+              <ThemedText style={styles.priceSub}>per month</ThemedText>
+              <Button
+                title="Select"
+                variant="secondary"
+                style={styles.selectBtn}
+                onPress={handleContact}
+              />
+            </View>
+            <View
               style={[
-                styles.pricingCard,
-                styles.verticalCard,
-                { borderColor: theme.border },
-              ]}
-            >
-              <View style={styles.pricingHeader}>
-                <ThemedText style={styles.planName}>
-                  {t("monthlyPlan")}
-                </ThemedText>
-                <View style={styles.pricingRow}>
-                  <ThemedText style={[styles.price, { color: theme.primary }]}>
-                    {monthlyPrice.toLocaleString()} {t("uzs")}
-                  </ThemedText>
-                  <ThemedText style={styles.period}>/ {t("month")}</ThemedText>
-                </View>
-              </View>
-              <View style={styles.benefitsList}>
-                <View style={styles.benefitItem}>
-                  <Check size={16} color="#10b981" />
-                  <ThemedText style={styles.benefitText}>
-                    {t("fullAccess")}
-                  </ThemedText>
-                </View>
-                <View style={styles.benefitItem}>
-                  <Check size={16} color="#10b981" />
-                  <ThemedText style={styles.benefitText}>
-                    {t("allFeatures")}
-                  </ThemedText>
-                </View>
-                <View style={styles.benefitItem}>
-                  <Check size={16} color="#10b981" />
-                  <ThemedText style={styles.benefitText}>
-                    {t("monthlyUpdates")}
-                  </ThemedText>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.buyButton,
-                  { backgroundColor: theme.card, borderColor: theme.primary },
-                ]}
-                onPress={() => handleBuyPremium("monthly")}
-              >
-                <ThemedText
-                  style={[styles.buyButtonText, { color: theme.primary }]}
-                >
-                  {isPremium ? t("extendPlan") : t("selectPlan")}
-                </ThemedText>
-              </TouchableOpacity>
-            </Card>
-
-            {/* Quarterly Plan (Best Value) */}
-            <Card
-              style={[
-                styles.pricingCard,
-                styles.verticalCard,
-                styles.recommendedCard,
+                styles.planCard,
                 {
                   borderColor: theme.primary,
-                  backgroundColor: theme.primaryLight,
+                  backgroundColor: theme.primary + "08",
                 },
               ]}
             >
-              <View style={[styles.badge, { backgroundColor: theme.primary }]}>
-                <TrendingUp size={12} color="#fff" />
-                <ThemedText style={styles.badgeText}>
-                  {t("bestValue")}
-                </ThemedText>
+              <View style={styles.bestBadge}>
+                <ThemedText style={styles.bestText}>BEST VALUE</ThemedText>
               </View>
-
-              <View style={styles.pricingHeader}>
-                <ThemedText style={styles.planName}>
-                  {t("quarterlyPlan")}
-                </ThemedText>
-                <View style={styles.pricingRow}>
-                  <View style={styles.oldPriceContainer}>
-                    <ThemedText style={styles.oldPrice}>
-                      {(monthlyPrice * 3).toLocaleString()} {t("uzs")}
-                    </ThemedText>
-                    <View
-                      style={[
-                        styles.strikethrough,
-                        { backgroundColor: theme.textSecondary },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.savingsBadge}>
-                    <Zap size={12} color="#10b981" fill="#10b981" />
-                    <ThemedText style={styles.savingsText}>
-                      {t("save_m")} {savingsPercent}%
-                    </ThemedText>
-                  </View>
-                </View>
-                <View style={styles.pricingRow}>
-                  <ThemedText
-                    style={[
-                      styles.price,
-                      styles.bigPrice,
-                      { color: theme.primary },
-                    ]}
-                  >
-                    {quarterlyPrice.toLocaleString()} {t("uzs")}
-                  </ThemedText>
-                  <ThemedText style={styles.period}>
-                    / 3 {t("months")}
-                  </ThemedText>
-                </View>
-              </View>
-
-              <View style={styles.benefitsList}>
-                <View style={styles.benefitItem}>
-                  <Check size={16} color="#10b981" />
-                  <ThemedText style={styles.benefitText}>
-                    {t("fullAccess")}
-                  </ThemedText>
-                </View>
-                <View style={styles.benefitItem}>
-                  <Check size={16} color="#10b981" />
-                  <ThemedText style={styles.benefitText}>
-                    {t("allFeatures")}
-                  </ThemedText>
-                </View>
-                <View style={styles.benefitItem}>
-                  <Check size={16} color="#10b981" />
-                  <ThemedText style={styles.benefitText}>
-                    {t("futureUpdates")}
-                  </ThemedText>
-                </View>
-                <View style={styles.benefitItem}>
-                  <Check size={16} color="#10b981" />
-                  <ThemedText
-                    style={[
-                      styles.benefitText,
-                      { fontWeight: "900", color: theme.primary },
-                    ]}
-                  >
-                    {t("lockPrice")}
-                  </ThemedText>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.buyButton,
-                  styles.primaryButton,
-                  { backgroundColor: theme.primary },
-                ]}
-                onPress={() => handleBuyPremium("quarterly")}
-              >
-                <Crown size={16} color="#fff" fill="#fff" />
-                <ThemedText
-                  style={[styles.buyButtonText, styles.primaryButtonText]}
-                >
-                  {isPremium ? t("extendPlan") : t("getBestDeal")}
-                </ThemedText>
-              </TouchableOpacity>
-            </Card>
-          </View>
-
-          {/* Features Grid AFTER pricing */}
-          <View style={styles.featuresSection}>
-            <Heading style={styles.sectionTitle}>{t("whatYouGet")}</Heading>
-            <View style={styles.featuresGrid}>
-              {features.map((feature, index) => {
-                const Icon = feature.icon;
-                return (
-                  <Card key={index} style={styles.featureCard}>
-                    <View
-                      style={[
-                        styles.featureIconBox,
-                        { backgroundColor: theme.primaryLight },
-                      ]}
-                    >
-                      <Icon size={24} color={theme.primary} />
-                    </View>
-                    <ThemedText style={styles.featureTitle}>
-                      {feature.title}
-                    </ThemedText>
-                    <ThemedText style={styles.featureDesc}>
-                      {feature.description}
-                    </ThemedText>
-                  </Card>
-                );
-              })}
+              <ThemedText style={styles.planLabel}>QUARTERLY</ThemedText>
+              <ThemedText style={styles.price}>
+                {prices[currency].quarterly}
+                {currency === "UZS" && (
+                  <ThemedText style={{ fontSize: 14 }}> uzs</ThemedText>
+                )}
+              </ThemedText>
+              <ThemedText style={styles.priceSub}>save 15%</ThemedText>
+              <Button
+                title="Select"
+                style={styles.selectBtn}
+                onPress={handleContact}
+              />
             </View>
           </View>
 
-          {/* Benefits Notice */}
-          <Card
-            style={[
-              styles.noticeCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <View style={styles.noticeHeader}>
-              <Clock size={20} color={theme.primary} />
-              <ThemedText
-                style={[styles.noticeTitle, { color: theme.primary }]}
-              >
-                {t("priceGuarantee")}
+          <View style={styles.features}>
+            <View style={styles.featureItem}>
+              <Check size={18} color={theme.primary} />
+              <ThemedText style={styles.featureText}>
+                Unlimited Focus Timer Sessions
               </ThemedText>
             </View>
-            <ThemedText style={styles.noticeText}>
-              {t("priceGuaranteeDesc")}
-            </ThemedText>
-          </Card>
+            <View style={styles.featureItem}>
+              <Check size={18} color={theme.primary} />
+              <ThemedText style={styles.featureText}>
+                Full History & Detailed Analytics
+              </ThemedText>
+            </View>
+            <View style={styles.featureItem}>
+              <Check size={18} color={theme.primary} />
+              <ThemedText style={styles.featureText}>
+                Smart Notifications & Reminders
+              </ThemedText>
+            </View>
+            <View style={styles.featureItem}>
+              <Check size={18} color={theme.primary} />
+              <ThemedText style={styles.featureText}>
+                Priority Support
+              </ThemedText>
+            </View>
+          </View>
 
-          {/* Contact Info */}
-          <Card style={[styles.contactCard, { backgroundColor: theme.card }]}>
-            <ThemedText style={styles.contactTitle}>
-              {t("readyToUpgrade")}
+          <View style={styles.footer}>
+            <ThemedText style={styles.footerText}>
+              Questions? Contact us on Telegram
             </ThemedText>
-            <ThemedText style={styles.contactText}>
-              {t("contactForPremium")}
-            </ThemedText>
-            <TouchableOpacity
-              style={[styles.telegramButton, { backgroundColor: "#0088cc" }]}
-              onPress={() => handleBuyPremium("monthly")}
-            >
-              <ThemedText style={styles.telegramButtonText}>
-                {t("contactOnTelegram")}
+            <TouchableOpacity onPress={handleContact}>
+              <ThemedText
+                style={{
+                  color: theme.primary,
+                  fontWeight: "800",
+                  marginTop: 8,
+                }}
+              >
+                @satrackerbot
               </ThemedText>
             </TouchableOpacity>
-          </Card>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -390,252 +208,79 @@ export default function PremiumScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    paddingBottom: 60,
-  },
-  backButton: {
-    marginBottom: 16,
-    alignSelf: "flex-start",
-    padding: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
   header: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 40,
+    justifyContent: "space-between",
+    padding: 20,
   },
+  container: { padding: 24, gap: 40 },
+  hero: { alignItems: "center", gap: 16 },
   crownIcon: {
     width: 80,
     height: 80,
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
   },
-  title: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
+  title: { fontSize: 28, textAlign: "center" },
   subtitle: {
-    fontSize: 14,
-    opacity: 0.6,
+    textAlign: "center",
+    opacity: 0.5,
+    lineHeight: 22,
     fontWeight: "600",
-    textAlign: "center",
   },
-  premiumBadge: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 2,
-  },
-  premiumBadgeText: {
-    fontSize: 12,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  pricingSection: {
-    marginBottom: 40,
-    gap: 20,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    marginBottom: 20,
-  },
-  pricingCard: {
-    padding: 28,
-    borderWidth: 2,
-    position: "relative",
-  },
-  verticalCard: {
-    minHeight: 280,
-  },
-  recommendedCard: {
-    borderWidth: 2,
-  },
-  badge: {
-    position: "absolute",
-    top: -12,
-    right: 20,
-    flexDirection: "row",
+  pricingRow: { flexDirection: "row", gap: 16 },
+  planCard: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1.5,
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
   },
-  badgeText: {
-    color: "#fff",
+  planLabel: {
     fontSize: 10,
     fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  pricingHeader: {
-    marginBottom: 24,
-    gap: 10,
-  },
-  planName: {
-    fontSize: 20,
-    fontWeight: "900",
-  },
-  pricingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  oldPriceContainer: {
-    position: "relative",
-  },
-  oldPrice: {
-    fontSize: 14,
-    fontWeight: "700",
     opacity: 0.4,
+    letterSpacing: 1.5,
+    marginBottom: 12,
   },
-  strikethrough: {
-    position: "absolute",
-    top: "50%",
-    left: 0,
-    right: 0,
-    height: 2,
-    opacity: 0.6,
-  },
-  savingsBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  savingsText: {
+  price: { fontSize: 28, fontWeight: "900" },
+  priceSub: {
     fontSize: 11,
-    fontWeight: "900",
-    color: "#10b981",
-  },
-  price: {
-    fontSize: 26,
-    fontWeight: "900",
-  },
-  bigPrice: {
-    fontSize: 30,
-  },
-  period: {
-    fontSize: 14,
-    fontWeight: "700",
-    opacity: 0.5,
-  },
-  benefitsList: {
-    gap: 14,
-    marginBottom: 24,
-    flex: 1,
-  },
-  benefitItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  benefitText: {
-    fontSize: 14,
-    fontWeight: "700",
-    opacity: 0.7,
-  },
-  buyButton: {
-    height: 56,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    flexDirection: "row",
-    gap: 8,
-  },
-  primaryButton: {
-    borderWidth: 0,
-  },
-  buyButtonText: {
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  primaryButtonText: {
-    color: "#fff",
-  },
-  featuresSection: {
-    marginBottom: 40,
-  },
-  featuresGrid: {
-    gap: 16,
-  },
-  featureCard: {
-    padding: 20,
-    gap: 12,
-  },
-  featureIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  featureDesc: {
-    fontSize: 13,
-    fontWeight: "600",
-    opacity: 0.6,
-    lineHeight: 20,
-  },
-  noticeCard: {
-    padding: 20,
+    fontWeight: "800",
+    opacity: 0.4,
+    marginTop: 4,
     marginBottom: 20,
+  },
+  selectBtn: { height: 44, width: "100%", borderRadius: 12 },
+  bestBadge: {
+    position: "absolute",
+    top: -12,
+    backgroundColor: "#3b82f6",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  bestText: { fontSize: 8, fontWeight: "900", color: "#fff" },
+  features: { gap: 16 },
+  featureItem: { flexDirection: "row", alignItems: "center", gap: 12 },
+  featureText: { fontSize: 15, fontWeight: "700", opacity: 0.7 },
+  footer: { alignItems: "center", marginTop: 20 },
+  footerText: { opacity: 0.4, fontWeight: "600" },
+  currencyPill: {
+    flexDirection: "row",
+    padding: 3,
+    borderRadius: 20,
     borderWidth: 1,
   },
-  noticeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
+  pillItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
   },
-  noticeTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  noticeText: {
-    fontSize: 13,
-    fontWeight: "600",
-    opacity: 0.7,
-    lineHeight: 20,
-  },
-  contactCard: {
-    padding: 24,
-    alignItems: "center",
-    gap: 12,
-  },
-  contactTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  contactText: {
-    fontSize: 13,
-    fontWeight: "600",
-    opacity: 0.6,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  telegramButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
-  },
-  telegramButtonText: {
-    color: "#fff",
-    fontSize: 14,
+  pillText: {
+    fontSize: 10,
     fontWeight: "900",
   },
 });

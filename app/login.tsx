@@ -4,7 +4,6 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,9 +17,16 @@ import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView } from "../components/ThemedView";
 import { Button } from "../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react-native";
-import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  AlertCircle,
+  Chrome,
+} from "lucide-react-native";
 import { Toast } from "../components/Toast";
+import * as Linking from "expo-linking";
 
 type Screen = "login" | "forgot-password" | "check-email";
 
@@ -35,46 +41,49 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
 
-  // Toast state
+  // Toast
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState<"error" | "success" | "info">(
-    "error",
-  );
-
-  const showToast = (
-    message: string,
-    type: "error" | "success" | "info" = "error",
-  ) => {
-    setToastMessage(message);
-    setToastType(type);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
     setToastVisible(true);
   };
 
   const passwordRef = useRef<TextInput>(null);
 
-  React.useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        router.replace("/(tabs)");
-      } else {
-        setIsCheckingAuth(false);
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      // Point to our specific "middleware" route
+      const redirectTo = Linking.createURL("/auth/callback");
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (error) throw error;
+      if (data.url) {
+        if (Platform.OS === "web") {
+          window.location.href = data.url;
+        } else {
+          Linking.openURL(data.url);
+        }
       }
-    });
-  }, []);
+    } catch (e: any) {
+      showToast(e.message || "Google Sign-In failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     setErrorMessage(null);
-    if (!email) {
-      setErrorMessage(t("enterEmail"));
-      return;
-    }
-    if (!password) {
-      setErrorMessage(t("enterPassword"));
+    if (!email || !password) {
+      setErrorMessage(t("fillAllFields"));
       return;
     }
 
@@ -84,66 +93,35 @@ export default function LoginScreen() {
         email,
         password,
       });
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          throw new Error(t("invalidCredentials"));
-        } else if (error.message.includes("Email not confirmed")) {
-          throw new Error(t("emailNotConfirmed"));
-        } else if (error.message.includes("User not found")) {
-          throw new Error(t("userNotFound"));
-        }
-        throw error;
-      }
+      if (error) throw error;
       router.replace("/(tabs)");
     } catch (error: any) {
-      const msg = error.message || t("loginFailed");
-      if (msg === t("invalidCredentials")) {
-        setErrorMessage(msg);
-      } else {
-        showToast(msg);
-      }
+      setErrorMessage(error.message || t("loginFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
-    setErrorMessage(null);
     if (!email) {
-      setErrorMessage("Please enter your email address.");
+      setErrorMessage(t("enterEmail"));
       return;
     }
-
     setLoading(true);
     try {
+      // Use the deep link for reset password
+      const redirectTo = Linking.createURL("/reset-password");
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "https://app.satracker.uz/reset-password",
+        redirectTo,
       });
       if (error) throw error;
       setScreen("check-email");
     } catch (error: any) {
-      showToast(error.message || t("failedSendReset"));
+      showToast(error.message || "Failed to send reset link");
     } finally {
       setLoading(false);
     }
   };
-
-  const handleResendEmail = async () => {
-    await handleForgotPassword();
-  };
-
-  if (isCheckingAuth) {
-    return (
-      <ThemedView
-        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-      >
-        <ActivityIndicator size="large" color={theme.primary} />
-        <ThemedText style={{ marginTop: 10, opacity: 0.5, fontWeight: "700" }}>
-          {t("loadingDashboard")}
-        </ThemedText>
-      </ThemedView>
-    );
-  }
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -152,299 +130,236 @@ export default function LoginScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
-          <ScrollView contentContainerStyle={styles.container}>
-            <View style={styles.content}>
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.header}>
               <View style={[styles.logo, { backgroundColor: theme.primary }]}>
                 <ThemedText style={styles.logoText}>S</ThemedText>
               </View>
+              <ThemedText style={styles.appName}>SAT Tracker</ThemedText>
+            </View>
 
-              {/* Login Screen */}
-              {screen === "login" && (
+            <View style={styles.card}>
+              {screen === "login" ? (
                 <>
                   <Heading style={styles.title}>{t("welcomeBack")}</Heading>
                   <ThemedText style={styles.subtitle}>
                     {t("signInToContinue")}
                   </ThemedText>
 
+                  {/* Google Sign In */}
+                  <TouchableOpacity
+                    style={[
+                      styles.googleBtn,
+                      {
+                        borderColor: theme.border,
+                        flexDirection: "row",
+                        gap: 10,
+                        justifyContent: "center",
+                      },
+                    ]}
+                    onPress={handleGoogleLogin}
+                    disabled={loading}
+                  >
+                    <Chrome size={20} color={theme.textPrimary} />
+                    <ThemedText style={styles.googleText}>
+                      Sign in with Google
+                    </ThemedText>
+                  </TouchableOpacity>
+
+                  <View style={styles.divider}>
+                    <View
+                      style={[styles.line, { backgroundColor: theme.border }]}
+                    />
+                    <ThemedText style={styles.orText}>{t("or")}</ThemedText>
+                    <View
+                      style={[styles.line, { backgroundColor: theme.border }]}
+                    />
+                  </View>
+
                   <View style={styles.form}>
-                    <View style={styles.inputGroup}>
-                      <View style={styles.labelRow}>
-                        <Mail size={16} color={theme.textSecondary} />
-                        <ThemedText style={styles.label}>
-                          {t("emailAddress")}
-                        </ThemedText>
-                      </View>
+                    <View style={styles.inputContainer}>
+                      <Mail
+                        size={20}
+                        color={theme.textSecondary}
+                        style={styles.icon}
+                      />
                       <TextInput
-                        style={[
-                          styles.input,
-                          {
-                            backgroundColor: theme.card,
-                            borderColor: theme.border,
-                            color: theme.textPrimary,
-                          },
-                        ]}
-                        placeholder="your.email@example.com"
+                        style={[styles.input, { color: theme.textPrimary }]}
+                        placeholder={t("emailAddress")}
                         placeholderTextColor={theme.textSecondary}
                         value={email}
                         onChangeText={setEmail}
-                        keyboardType="email-address"
                         autoCapitalize="none"
+                        keyboardType="email-address"
                         returnKeyType="next"
                         onSubmitEditing={() => passwordRef.current?.focus()}
-                        blurOnSubmit={false}
                       />
                     </View>
 
-                    <View style={styles.inputGroup}>
-                      <View style={styles.labelRow}>
-                        <Lock size={16} color={theme.textSecondary} />
-                        <ThemedText style={styles.label}>
-                          {t("password")}
-                        </ThemedText>
-                      </View>
-                      <View style={styles.passwordContainer}>
-                        <TextInput
-                          style={[
-                            styles.input,
-                            {
-                              backgroundColor: theme.card,
-                              borderColor: theme.border,
-                              color: theme.textPrimary,
-                              flex: 1,
-                            },
-                          ]}
-                          placeholder="••••••••"
-                          placeholderTextColor={theme.textSecondary}
-                          value={password}
-                          onChangeText={setPassword}
-                          secureTextEntry={!showPassword}
-                          ref={passwordRef}
-                          returnKeyType="go"
-                          onSubmitEditing={handleLogin}
-                        />
-                        <TouchableOpacity
-                          onPress={() => setShowPassword(!showPassword)}
-                          style={styles.eyeBtn}
-                        >
-                          {showPassword ? (
-                            <EyeOff size={20} color={theme.textSecondary} />
-                          ) : (
-                            <Eye size={20} color={theme.textSecondary} />
-                          )}
-                        </TouchableOpacity>
-                      </View>
+                    <View style={styles.inputContainer}>
+                      <Lock
+                        size={20}
+                        color={theme.textSecondary}
+                        style={styles.icon}
+                      />
+                      <TextInput
+                        ref={passwordRef}
+                        style={[styles.input, { color: theme.textPrimary }]}
+                        placeholder={t("password")}
+                        placeholderTextColor={theme.textSecondary}
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!showPassword}
+                        returnKeyType="go"
+                        onSubmitEditing={handleLogin}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeBtn}
+                      >
+                        {showPassword ? (
+                          <EyeOff size={20} color={theme.textSecondary} />
+                        ) : (
+                          <Eye size={20} color={theme.textSecondary} />
+                        )}
+                      </TouchableOpacity>
                     </View>
 
                     {errorMessage && (
-                      <View style={styles.errorContainer}>
-                        <AlertCircle size={14} color="#ef4444" />
-                        <ThemedText style={styles.errorText}>
+                      <View style={styles.errorBox}>
+                        <AlertCircle size={16} color={theme.error} />
+                        <ThemedText
+                          style={[styles.errorText, { color: theme.error }]}
+                        >
                           {errorMessage}
                         </ThemedText>
                       </View>
                     )}
+
+                    <TouchableOpacity
+                      style={{ alignSelf: "flex-end", marginBottom: 20 }}
+                      onPress={() => setScreen("forgot-password")}
+                    >
+                      <ThemedText
+                        style={{
+                          color: theme.primary,
+                          fontSize: 13,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {t("forgotPassword")}?
+                      </ThemedText>
+                    </TouchableOpacity>
 
                     <Button
                       title={loading ? t("signingIn") : t("signIn")}
                       onPress={handleLogin}
                       loading={loading}
-                      style={styles.submitButton}
                     />
 
-                    <TouchableOpacity
-                      onPress={() => setScreen("forgot-password")}
-                      style={{ marginTop: 16 }}
-                    >
-                      <ThemedText
-                        style={[styles.linkText, { color: theme.primary }]}
-                      >
-                        {t("forgotPassword")}
+                    <View style={styles.footerRow}>
+                      <ThemedText style={{ color: theme.textSecondary }}>
+                        {t("dontHaveAccount")}
                       </ThemedText>
-                    </TouchableOpacity>
-
-                    <View style={styles.divider}>
-                      <View
-                        style={[
-                          styles.dividerLine,
-                          { backgroundColor: theme.border },
-                        ]}
-                      />
-                      <ThemedText style={styles.dividerText}>
-                        {t("or")}
-                      </ThemedText>
-                      <View
-                        style={[
-                          styles.dividerLine,
-                          { backgroundColor: theme.border },
-                        ]}
-                      />
+                      <TouchableOpacity onPress={() => router.push("/signup")}>
+                        <ThemedText
+                          style={[styles.link, { color: theme.primary }]}
+                        >
+                          {t("signUp")}
+                        </ThemedText>
+                      </TouchableOpacity>
                     </View>
-
-                    <Button
-                      title={t("createNewAccount")}
-                      variant="secondary"
-                      onPress={() => router.push("/signup")}
-                      style={styles.secondaryButton}
-                    />
                   </View>
                 </>
-              )}
-
-              {/* Forgot Password Screen */}
-              {screen === "forgot-password" && (
+              ) : screen === "forgot-password" ? (
                 <>
-                  <Heading style={styles.title}>{t("forgotPassword")}</Heading>
+                  <Heading style={styles.title}>{t("resetPassword")}</Heading>
                   <ThemedText style={styles.subtitle}>
                     {t("enterEmailReset")}
                   </ThemedText>
 
                   <View style={styles.form}>
-                    <View style={styles.inputGroup}>
-                      <View style={styles.labelRow}>
-                        <Mail size={16} color={theme.textSecondary} />
-                        <ThemedText style={styles.label}>Email</ThemedText>
-                      </View>
+                    <View style={styles.inputContainer}>
+                      <Mail
+                        size={20}
+                        color={theme.textSecondary}
+                        style={styles.icon}
+                      />
                       <TextInput
-                        style={[
-                          styles.input,
-                          {
-                            backgroundColor: theme.card,
-                            borderColor: theme.border,
-                            color: theme.textPrimary,
-                          },
-                        ]}
-                        placeholder="your.email@example.com"
+                        style={[styles.input, { color: theme.textPrimary }]}
+                        placeholder={t("emailAddress")}
                         placeholderTextColor={theme.textSecondary}
                         value={email}
                         onChangeText={setEmail}
-                        keyboardType="email-address"
                         autoCapitalize="none"
-                        returnKeyType="go"
-                        onSubmitEditing={handleForgotPassword}
+                        keyboardType="email-address"
                       />
                     </View>
 
                     {errorMessage && (
-                      <View style={styles.errorContainer}>
-                        <AlertCircle size={14} color="#ef4444" />
-                        <ThemedText style={styles.errorText}>
+                      <View style={styles.errorBox}>
+                        <AlertCircle size={16} color={theme.error} />
+                        <ThemedText
+                          style={[styles.errorText, { color: theme.error }]}
+                        >
                           {errorMessage}
                         </ThemedText>
                       </View>
                     )}
 
                     <Button
-                      title={loading ? t("sending") : t("sendResetLink")}
+                      title={loading ? "Sending..." : t("sendResetLink")}
                       onPress={handleForgotPassword}
                       loading={loading}
-                      style={styles.submitButton}
                     />
 
                     <TouchableOpacity
+                      style={styles.backBtn}
                       onPress={() => setScreen("login")}
-                      style={{ marginTop: 20 }}
                     >
-                      <ThemedText
-                        style={[styles.linkText, { color: theme.primary }]}
-                      >
+                      <ThemedText style={{ color: theme.textSecondary }}>
                         {t("backToSignIn")}
                       </ThemedText>
                     </TouchableOpacity>
                   </View>
                 </>
-              )}
-
-              {/* Check Email Screen */}
-              {screen === "check-email" && (
+              ) : (
                 <>
                   <View
                     style={[
-                      styles.successIcon,
+                      styles.iconBox,
                       { backgroundColor: theme.primaryLight },
                     ]}
                   >
-                    <Mail size={40} color={theme.primary} />
+                    <Mail size={32} color={theme.primary} />
                   </View>
-                  <Heading style={styles.title}>{t("checkYourEmail")}</Heading>
+                  <Heading style={styles.title}>{t("checkEmail")}</Heading>
                   <ThemedText
                     style={[styles.subtitle, { textAlign: "center" }]}
                   >
-                    {t("weSentResetLink").replace("{email}", email)}
+                    {t("resetLinkSent")} {email}
                   </ThemedText>
 
-                  <View style={styles.form}>
-                    <Button
-                      title={loading ? t("resending") : t("resendEmail")}
-                      variant="secondary"
-                      onPress={handleResendEmail}
-                      loading={loading}
-                      style={styles.submitButton}
-                    />
-
-                    <TouchableOpacity
-                      onPress={() => setScreen("login")}
-                      style={{ marginTop: 20 }}
-                    >
-                      <ThemedText
-                        style={[styles.linkText, { color: theme.primary }]}
-                      >
-                        {t("backToSignIn")}
-                      </ThemedText>
-                    </TouchableOpacity>
-
-                    <View
-                      style={[
-                        styles.contactBox,
-                        {
-                          backgroundColor: theme.card,
-                          borderColor: theme.border,
-                        },
-                      ]}
-                    >
-                      <ThemedText style={styles.contactTitle}>
-                        {t("needHelp")}
-                      </ThemedText>
-                      <ThemedText style={styles.contactText}>
-                        ibrohimshaymardanov011@gmail.com
-                      </ThemedText>
-                      <ThemedText style={styles.contactText}>
-                        t.me/@satrackerbot
-                      </ThemedText>
-                    </View>
-                  </View>
+                  <Button
+                    title={t("backToSignIn")}
+                    onPress={() => setScreen("login")}
+                    variant="secondary"
+                  />
                 </>
               )}
-            </View>
-
-            {/* Footer */}
-            <View style={styles.footer}>
-              <ThemedText style={styles.footerText}>
-                © 2026 SAT Tracker. {t("allRightsReserved")}.
-              </ThemedText>
-              <View style={styles.footerLinks}>
-                <ThemedText style={styles.footerLink}>
-                  ibrohimshaymardanov011@gmail.com
-                </ThemedText>
-                <ThemedText style={styles.footerDot}>•</ThemedText>
-                <ThemedText style={styles.footerLink}>
-                  t.me/@satrackerbot
-                </ThemedText>
-              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
         <Toast
           visible={toastVisible}
           onDismiss={() => setToastVisible(false)}
-          type={toastType}
+          type="error"
         >
           {toastMessage}
         </Toast>
-        <FeedbackErrorModal
-          visible={modalVisible}
-          error={modalError}
-          onDismiss={() => setModalVisible(false)}
-        />
       </SafeAreaView>
     </ThemedView>
   );
@@ -454,168 +369,128 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 24,
-    justifyContent: "space-between",
-  },
-  content: {
-    flex: 1,
     justifyContent: "center",
-    maxWidth: 400,
-    width: "100%",
-    alignSelf: "center",
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 40,
   },
   logo: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    alignSelf: "center",
-    marginBottom: 32,
+    marginBottom: 12,
   },
   logoText: {
-    fontSize: 32,
-    fontWeight: "900",
     color: "#fff",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  appName: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
   },
   title: {
-    fontSize: 28,
-    textAlign: "center",
+    fontSize: 24,
     marginBottom: 8,
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 15,
-    opacity: 0.6,
-    textAlign: "center",
-    marginBottom: 40,
-    fontWeight: "600",
-  },
-  form: {
-    gap: 20,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  labelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginLeft: 4,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  input: {
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    position: "relative",
-  },
-  eyeBtn: {
-    position: "absolute",
-    right: 16,
-    padding: 8,
-  },
-  errorContainer: {
-    padding: 12,
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.2)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  errorText: {
-    color: "#ef4444",
-    fontSize: 13,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  submitButton: {
-    height: 56,
-    borderRadius: 14,
-  },
-  secondaryButton: {
-    height: 52,
-    borderRadius: 14,
-  },
-  linkText: {
     fontSize: 14,
-    fontWeight: "700",
     textAlign: "center",
+    opacity: 0.6,
+    marginBottom: 32,
+  },
+  googleBtn: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  googleText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
   divider: {
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-    marginVertical: 8,
+    marginBottom: 24,
   },
-  dividerLine: {
+  line: {
     flex: 1,
     height: 1,
   },
-  dividerText: {
+  orText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "600",
     opacity: 0.4,
   },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+  form: {
+    gap: 12,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "transparent",
+    backgroundColor: "rgba(100,100,100,0.05)",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
+  },
+  icon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    height: "100%",
+    fontSize: 15,
+  },
+  eyeBtn: {
+    padding: 8,
+  },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    backgroundColor: "rgba(239,68,68,0.1)",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 24,
+  },
+  link: {
+    fontWeight: "700",
+  },
+  backBtn: {
+    alignItems: "center",
+    marginTop: 20,
+  },
+  iconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
     marginBottom: 24,
-  },
-  contactBox: {
-    marginTop: 32,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 8,
-  },
-  contactTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-  contactText: {
-    fontSize: 12,
-    fontWeight: "600",
-    opacity: 0.6,
-  },
-  footer: {
-    marginTop: 40,
-    alignItems: "center",
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 11,
-    fontWeight: "600",
-    opacity: 0.4,
-  },
-  footerLinks: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  footerLink: {
-    fontSize: 10,
-    fontWeight: "600",
-    opacity: 0.3,
-  },
-  footerDot: {
-    fontSize: 10,
-    opacity: 0.2,
   },
 });

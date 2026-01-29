@@ -3,12 +3,25 @@ import { ThemeProvider } from "../context/ThemeContext";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../context/ThemeContext";
 import { View, ActivityIndicator, Text, Platform, Linking } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { NotificationSystem } from "../components/NotificationSystem";
 import { useUserActivity } from "../hooks/useUserActivity";
 import { LanguageProvider } from "../context/LanguageContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { CustomDrawerContent } from "../components/CustomDrawerContent";
+import { Timer, ChevronLeft, Clock, X, Menu } from "lucide-react-native";
+import { TouchableOpacity } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+} from "react-native-reanimated";
+
+import { SidebarProvider, useSidebar } from "../context/SidebarContext";
+import { SidebarToggle } from "../components/SidebarToggle";
 
 function RootLayoutNav() {
   useUserActivity();
@@ -17,6 +30,7 @@ function RootLayoutNav() {
   const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [initialLoading, setInitialLoading] = useState(true);
+  const { sidebarVisible, toggleSidebar } = useSidebar();
 
   useEffect(() => {
     let mounted = true;
@@ -50,7 +64,6 @@ function RootLayoutNav() {
       }
     });
 
-    // Safety timeout: If Supabase hangs (e.g. storage issues), force loading false after 3s
     const timeout = setTimeout(() => {
       if (mounted && initialLoading) {
         console.warn("Forcing initial loading to completion.");
@@ -58,25 +71,16 @@ function RootLayoutNav() {
       }
     }, 3000);
 
-    // Handle deep links that might have fallen back to root
     const handleDeepLink = async (url: string | null) => {
       if (!url) return;
-
-      // Check if this looks like a password recovery link
-      // Supabase sends type=recovery in query, or we see tokens
       if (
         url.includes("type=recovery") ||
         url.includes("access_token=") ||
         url.includes("code=")
       ) {
         if (url.includes("reset-password")) {
-          // Already heading there, do nothing to avoid loop or duplicate push
           return;
         }
-        console.log(
-          "Root detected auth link, redirecting to reset-password with params",
-        );
-        // Pass the original URL so the reset screen can parse it
         router.replace({
           pathname: "/reset-password",
           params: { originalUrl: url },
@@ -102,14 +106,12 @@ function RootLayoutNav() {
     const isAuthPage = rootSegment === "login" || rootSegment === "signup";
     const inTabsGroup = rootSegment === "(tabs)";
 
-    // Handle root path / undefined segments
     if (!rootSegment) {
       if (session) router.replace("/(tabs)");
       else router.replace("/login");
       return;
     }
 
-    // Not logged in and trying to access protected routes
     if (
       !session &&
       (inTabsGroup ||
@@ -121,12 +123,24 @@ function RootLayoutNav() {
           rootSegment !== "about"))
     ) {
       router.replace("/login");
-    }
-    // Logged in but on login/signup page
-    else if (session && isAuthPage) {
+    } else if (session && isAuthPage) {
       router.replace("/(tabs)");
     }
   }, [session, initialLoading, segments]);
+
+  const isMobile = Platform.OS !== "web";
+  const sidebarWidth = useSharedValue(240);
+
+  useEffect(() => {
+    sidebarWidth.value = withTiming(sidebarVisible ? 240 : 0, {
+      duration: 300,
+    });
+  }, [sidebarVisible]);
+
+  const animatedSidebarStyle = useAnimatedStyle(() => ({
+    width: sidebarWidth.value,
+    borderRightWidth: sidebarWidth.value > 0 ? 1 : 0,
+  }));
 
   if (initialLoading) {
     return (
@@ -152,49 +166,80 @@ function RootLayoutNav() {
     );
   }
 
+  const rootSegment = segments[0];
+  const isAuthPage = rootSegment === "login" || rootSegment === "signup";
+
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.background,
+        flexDirection: "row",
+      }}
+    >
       <StatusBar style={themeName === "dark" ? "light" : "dark"} />
-      <NotificationSystem />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: theme.card },
-          headerTintColor: theme.primary,
-          headerTitleStyle: { fontWeight: "bold" },
-          contentStyle: { backgroundColor: theme.background },
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="signup" options={{ headerShown: false }} />
-        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="archive"
-          options={{ title: "Study Archive", headerBackTitle: "Back" }}
-        />
-        <Stack.Screen
-          name="notifications"
-          options={{ title: "Notifications", headerBackTitle: "Back" }}
-        />
-        <Stack.Screen name="reset-password" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="about"
-          options={{ title: "About", headerBackTitle: "Back" }}
-        />
-        <Stack.Screen
-          name="privacy"
-          options={{ title: "Privacy Policy", headerBackTitle: "Back" }}
-        />
-        <Stack.Screen
-          name="premium"
-          options={{
-            title: "Premium",
-            headerBackTitle: "Back",
-            headerShown: false,
+
+      {!!session && !isAuthPage && (
+        <Animated.View
+          style={[
+            {
+              overflow: "hidden",
+              borderRightColor: theme.border,
+              height: "100%",
+            },
+            animatedSidebarStyle,
+          ]}
+        >
+          <CustomDrawerContent onClose={toggleSidebar} />
+        </Animated.View>
+      )}
+
+      <View style={{ flex: 1, position: "relative", overflow: "visible" }}>
+        <NotificationSystem />
+        <Stack
+          screenOptions={{
+            headerLeft: () => <SidebarToggle />,
+            headerStyle: { backgroundColor: theme.card },
+            headerTintColor: theme.primary,
+            headerTitleStyle: { fontWeight: "bold" },
+            contentStyle: { backgroundColor: theme.background },
           }}
-        />
-        <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
-      </Stack>
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="signup" options={{ headerShown: false }} />
+          <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="archive"
+            options={{ title: "Study Archive", headerBackTitle: "Back" }}
+          />
+          <Stack.Screen
+            name="notifications"
+            options={{ title: "Notifications", headerBackTitle: "Back" }}
+          />
+          <Stack.Screen
+            name="reset-password"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="about"
+            options={{ title: "About", headerBackTitle: "Back" }}
+          />
+          <Stack.Screen
+            name="privacy"
+            options={{ title: "Privacy Policy", headerBackTitle: "Back" }}
+          />
+          <Stack.Screen
+            name="premium"
+            options={{
+              title: "Premium",
+              headerBackTitle: "Back",
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
+        </Stack>
+      </View>
     </View>
   );
 }
@@ -203,9 +248,11 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <LanguageProvider>
-          <RootLayoutNav />
-        </LanguageProvider>
+        <SidebarProvider>
+          <LanguageProvider>
+            <RootLayoutNav />
+          </LanguageProvider>
+        </SidebarProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

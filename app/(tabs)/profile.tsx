@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
@@ -12,28 +12,30 @@ import { useLanguage } from "../../context/LanguageContext";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { ThemedText, Heading } from "../../components/ThemedText";
-import { ThemedView, Card } from "../../components/ThemedView";
+import { ThemedView } from "../../components/ThemedView";
 import { Button } from "../../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Moon,
   Sun,
   Monitor,
-  LogOut,
-  ChevronRight,
+  User,
   Settings,
-  MessageSquare,
   Info,
-  Clock,
-  BookOpen,
+  ChevronRight,
+  LogOut,
+  Globe,
   Shield,
-  Languages,
+  Palette,
 } from "lucide-react-native";
+
+type TabType = "account" | "preferences" | "appearance" | "about";
 
 export default function ProfileScreen() {
   const { theme, themeName, setThemeName } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<TabType>("account");
 
   const handleSignOut = async () => {
     try {
@@ -44,390 +46,321 @@ export default function ProfileScreen() {
     }
   };
 
-  const themes = [
-    { id: "light", label: t("classic"), icon: Sun },
-    { id: "dark", label: t("midnight"), icon: Moon },
-    { id: "blue", label: t("ocean"), icon: Monitor },
-  ] as const;
+  const tabs = [
+    { id: "account", label: "Account", icon: User },
+    { id: "preferences", label: "Preferences", icon: Settings },
+    { id: "appearance", label: "Appearance", icon: Palette },
+    { id: "about", label: "About", icon: Info },
+  ];
 
-  const languages = [
-    { id: "en", label: "English" },
-    { id: "uz", label: "O'zbek" },
-    { id: "ru", label: "Русский" },
-  ] as const;
+  const renderContent = () => {
+    switch (activeTab) {
+      case "account":
+        return (
+          <ScrollView contentContainerStyle={styles.tabContent}>
+            <Heading style={styles.tabHeading}>Account Settings</Heading>
+            <ThemedText style={styles.tabSubheading}>
+              Manage your personal information
+            </ThemedText>
+
+            <TouchableOpacity
+              style={[styles.settingItem, { borderColor: theme.border }]}
+              onPress={() => router.push("/edit-profile")}
+            >
+              <ThemedText style={styles.settingLabel}>
+                Edit Profile Information
+              </ThemedText>
+              <ChevronRight size={18} color={theme.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.settingItem, { borderColor: theme.border }]}
+              onPress={() => router.push("/archive")}
+            >
+              <ThemedText style={styles.settingLabel}>Study Archive</ThemedText>
+              <ChevronRight size={18} color={theme.textSecondary} />
+            </TouchableOpacity>
+
+            <Button
+              title="Sign Out"
+              variant="secondary"
+              onPress={handleSignOut}
+              style={styles.signOutBtn}
+            />
+          </ScrollView>
+        );
+      case "preferences":
+        return (
+          <ScrollView contentContainerStyle={styles.tabContent}>
+            <Heading style={styles.tabHeading}>Preferences</Heading>
+            <ThemedText style={styles.tabSubheading}>
+              Customize your study experience
+            </ThemedText>
+
+            <ThemedText style={styles.groupLabel}>Language</ThemedText>
+            <View style={styles.optionGrid}>
+              {[
+                { id: "en", label: "English", flag: "🇺🇸" },
+                { id: "uz", label: "O'zbek", flag: "🇺🇿" },
+                { id: "ru", label: "Русский", flag: "🇷🇺" },
+              ].map((lang) => (
+                <TouchableOpacity
+                  key={lang.id}
+                  style={[
+                    styles.optionCard,
+                    {
+                      borderColor:
+                        language === lang.id ? theme.primary : theme.border,
+                      backgroundColor: theme.card,
+                    },
+                  ]}
+                  onPress={() => setLanguage(lang.id as any)}
+                >
+                  <ThemedText style={{ fontSize: 20 }}>{lang.flag}</ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.optionLabel,
+                      language === lang.id && { color: theme.primary },
+                    ]}
+                  >
+                    {lang.label}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        );
+      case "appearance":
+        return (
+          <ScrollView contentContainerStyle={styles.tabContent}>
+            <Heading style={styles.tabHeading}>Appearance</Heading>
+            <ThemedText style={styles.tabSubheading}>
+              Personalize the look and feel
+            </ThemedText>
+
+            <ThemedText style={styles.groupLabel}>Theme</ThemedText>
+            <View style={styles.optionGrid}>
+              {[
+                { id: "light", label: "Light", icon: Sun },
+                { id: "dark", label: "Dark", icon: Moon },
+                { id: "blue", label: "Blue", icon: Monitor },
+              ].map((mode) => (
+                <TouchableOpacity
+                  key={mode.id}
+                  style={[
+                    styles.optionCard,
+                    {
+                      borderColor:
+                        themeName === mode.id ? theme.primary : theme.border,
+                      backgroundColor: theme.card,
+                    },
+                  ]}
+                  onPress={() => setThemeName(mode.id as any)}
+                >
+                  <mode.icon
+                    size={20}
+                    color={
+                      themeName === mode.id
+                        ? theme.primary
+                        : theme.textSecondary
+                    }
+                  />
+                  <ThemedText
+                    style={[
+                      styles.optionLabel,
+                      themeName === mode.id && { color: theme.primary },
+                    ]}
+                  >
+                    {mode.label}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        );
+      case "about":
+        return (
+          <ScrollView contentContainerStyle={styles.tabContent}>
+            <Heading style={styles.tabHeading}>About App</Heading>
+            <ThemedText style={styles.tabSubheading}>
+              Information and Support
+            </ThemedText>
+
+            <TouchableOpacity
+              style={[styles.settingItem, { borderColor: theme.border }]}
+              onPress={() => Linking.openURL("https://t.me/satrackerbot")}
+            >
+              <ThemedText style={styles.settingLabel}>
+                Support / Feedback
+              </ThemedText>
+              <ThemedText style={{ color: theme.primary, fontSize: 12 }}>
+                t.me/@satrackerbot
+              </ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.settingItem, { borderColor: theme.border }]}
+              onPress={() => router.push("/privacy")}
+            >
+              <ThemedText style={styles.settingLabel}>
+                Privacy Policy
+              </ThemedText>
+              <ChevronRight size={18} color={theme.textSecondary} />
+            </TouchableOpacity>
+
+            <View style={styles.aboutFooter}>
+              <ThemedText style={styles.versionText}>
+                SAT Tracker v1.0.0 (Native)
+              </ThemedText>
+              <ThemedText style={styles.copyrightText}>
+                © 2026 iDevelopers. All rights reserved.
+              </ThemedText>
+            </View>
+          </ScrollView>
+        );
+    }
+  };
 
   return (
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.container}>
-          <Heading style={styles.title}>{t("settings")}</Heading>
-          <ThemedText style={styles.subtitle}>
-            {t("preferencesAccount")}
-          </ThemedText>
-
-          {/* Language Section */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>{t("language")}</ThemedText>
-            <View style={styles.themeGrid}>
-              {languages.map((l) => {
-                const isActive = language === l.id;
-                return (
-                  <TouchableOpacity
-                    key={l.id}
-                    onPress={() => setLanguage(l.id as any)}
-                    style={[
-                      styles.themeCard,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: isActive ? theme.primary : theme.border,
-                      },
-                    ]}
-                  >
-                    <ThemedText style={{ fontSize: 24 }}>
-                      {l.id === "en" ? "🇺🇸" : l.id === "uz" ? "🇺🇿" : "🇷🇺"}
-                    </ThemedText>
-                    <ThemedText
-                      style={[
-                        styles.themeLabel,
-                        isActive && { color: theme.primary, fontWeight: "900" },
-                      ]}
-                    >
-                      {l.label}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+        <View style={styles.layout}>
+          {/* Side Sub-Navigation */}
+          <View style={[styles.sidebar, { borderRightColor: theme.border }]}>
+            {tabs.map((tab) => (
+              <TouchableOpacity
+                key={tab.id}
+                onPress={() => setActiveTab(tab.id as TabType)}
+                style={[
+                  styles.tabItem,
+                  activeTab === tab.id && {
+                    backgroundColor: theme.primaryLight,
+                  },
+                ]}
+              >
+                <tab.icon
+                  size={20}
+                  color={
+                    activeTab === tab.id ? theme.primary : theme.textSecondary
+                  }
+                />
+                <ThemedText
+                  style={[
+                    styles.tabLabel,
+                    activeTab === tab.id && {
+                      color: theme.primary,
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
+                  {tab.label}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {/* Theme Section */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>
-              {t("themeEngine")}
-            </ThemedText>
-            <View style={styles.themeGrid}>
-              {themes.map((t) => {
-                const Icon = t.icon;
-                const isActive = themeName === t.id;
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    onPress={() => setThemeName(t.id)}
-                    style={[
-                      styles.themeCard,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: isActive ? theme.primary : theme.border,
-                      },
-                    ]}
-                  >
-                    <Icon
-                      size={24}
-                      color={isActive ? theme.primary : theme.textSecondary}
-                    />
-                    <ThemedText
-                      style={[
-                        styles.themeLabel,
-                        isActive && { color: theme.primary, fontWeight: "900" },
-                      ]}
-                    >
-                      {t.label}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Quick Access */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>
-              {t("quickAccess")}
-            </ThemedText>
-            <Card style={styles.listCard}>
-              <TouchableOpacity
-                style={styles.listItem}
-                onPress={() => router.push("/edit-profile")}
-              >
-                <View style={styles.listItemLeft}>
-                  <View
-                    style={[styles.iconBox, { backgroundColor: "#fef3c7" }]}
-                  >
-                    <Settings size={20} color="#f59e0b" />
-                  </View>
-                  <ThemedText style={styles.listItemText}>
-                    {t("editProfile")}
-                  </ThemedText>
-                </View>
-                <ChevronRight
-                  size={20}
-                  color={theme.textSecondary}
-                  opacity={0.3}
-                />
-              </TouchableOpacity>
-
-              <View
-                style={[styles.divider, { backgroundColor: theme.border }]}
-              />
-
-              <TouchableOpacity
-                style={styles.listItem}
-                onPress={() => router.push("/(tabs)/focus")}
-              >
-                <View style={styles.listItemLeft}>
-                  <View
-                    style={[styles.iconBox, { backgroundColor: "#dbeafe" }]}
-                  >
-                    <Clock size={20} color="#3b82f6" />
-                  </View>
-                  <ThemedText style={styles.listItemText}>
-                    {t("classicTimer")}
-                  </ThemedText>
-                </View>
-                <ChevronRight
-                  size={20}
-                  color={theme.textSecondary}
-                  opacity={0.3}
-                />
-              </TouchableOpacity>
-
-              <View
-                style={[styles.divider, { backgroundColor: theme.border }]}
-              />
-
-              <TouchableOpacity
-                style={styles.listItem}
-                onPress={() => router.push("/archive")}
-              >
-                <View style={styles.listItemLeft}>
-                  <View
-                    style={[styles.iconBox, { backgroundColor: "#dcfce7" }]}
-                  >
-                    <BookOpen size={20} color="#10b981" />
-                  </View>
-                  <ThemedText style={styles.listItemText}>
-                    {t("studyArchive")}
-                  </ThemedText>
-                </View>
-                <ChevronRight
-                  size={20}
-                  color={theme.textSecondary}
-                  opacity={0.3}
-                />
-              </TouchableOpacity>
-            </Card>
-          </View>
-
-          {/* Settings List */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>{t("general")}</ThemedText>
-            <Card style={styles.listCard}>
-              <TouchableOpacity
-                style={styles.listItem}
-                onPress={() => Linking.openURL("https://t.me/satrackerbot")}
-              >
-                <View style={styles.listItemLeft}>
-                  <View
-                    style={[
-                      styles.iconBox,
-                      { backgroundColor: theme.primaryLight },
-                    ]}
-                  >
-                    <MessageSquare size={20} color={theme.primary} />
-                  </View>
-                  <ThemedText style={styles.listItemText}>
-                    {t("shareFeedback")}
-                  </ThemedText>
-                </View>
-                <ChevronRight
-                  size={20}
-                  color={theme.textSecondary}
-                  opacity={0.3}
-                />
-              </TouchableOpacity>
-
-              <View
-                style={[styles.divider, { backgroundColor: theme.border }]}
-              />
-
-              <TouchableOpacity
-                style={styles.listItem}
-                onPress={() => router.push("/about")}
-              >
-                <View style={styles.listItemLeft}>
-                  <View
-                    style={[
-                      styles.iconBox,
-                      { backgroundColor: theme.primaryLight },
-                    ]}
-                  >
-                    <Info size={20} color={theme.primary} />
-                  </View>
-                  <ThemedText style={styles.listItemText}>
-                    {t("aboutApp")}
-                  </ThemedText>
-                </View>
-                <ChevronRight
-                  size={20}
-                  color={theme.textSecondary}
-                  opacity={0.3}
-                />
-              </TouchableOpacity>
-
-              <View
-                style={[styles.divider, { backgroundColor: theme.border }]}
-              />
-
-              <TouchableOpacity
-                style={styles.listItem}
-                onPress={() => router.push("/privacy")}
-              >
-                <View style={styles.listItemLeft}>
-                  <View
-                    style={[styles.iconBox, { backgroundColor: "#f3e8ff" }]}
-                  >
-                    <Shield size={20} color="#8b5cf6" />
-                  </View>
-                  <ThemedText style={styles.listItemText}>
-                    {t("privacyPolicy")}
-                  </ThemedText>
-                </View>
-                <ChevronRight
-                  size={20}
-                  color={theme.textSecondary}
-                  opacity={0.3}
-                />
-              </TouchableOpacity>
-            </Card>
-          </View>
-
-          <Button
-            title={t("signOut")}
-            variant="secondary"
-            onPress={handleSignOut}
-            style={styles.signOutButton}
-          />
-
-          <View style={styles.footer}>
-            <ThemedText style={styles.version}>
-              SAT Tracker v1.0.0 (Native)
-            </ThemedText>
-            <ThemedText style={styles.rights}>
-              © 2026 {t("allRightsReserved")}.
-            </ThemedText>
-            <View style={styles.contactRow}>
-              <ThemedText style={styles.contactText}>
-                ibrohimshaymardanov011@gmail.com
-              </ThemedText>
-              <ThemedText style={styles.contactText}>
-                t.me/@satrackerbot
-              </ThemedText>
-            </View>
-          </View>
-        </ScrollView>
+          {/* Tab Content */}
+          <View style={styles.content}>{renderContent()}</View>
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-    paddingBottom: 60,
-  },
-  title: {
-    fontSize: 28,
-  },
-  subtitle: {
-    opacity: 0.5,
-    fontWeight: "700",
-    marginBottom: 40,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: 2,
-    opacity: 0.4,
-    marginBottom: 16,
-    marginLeft: 4,
-  },
-  themeGrid: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  themeCard: {
+  layout: {
     flex: 1,
-    paddingVertical: 20,
-    alignItems: "center",
-    borderRadius: 20,
-    borderWidth: 2,
+    flexDirection: "row",
   },
-  themeLabel: {
+  sidebar: {
+    width: 120,
+    borderRightWidth: 1,
+    paddingVertical: 20,
+    gap: 10,
+  },
+  tabItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 12,
+    marginHorizontal: 10,
+  },
+  tabLabel: {
+    fontSize: 11,
+  },
+  content: {
+    flex: 1,
+  },
+  tabContent: {
+    padding: 24,
+  },
+  tabHeading: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  tabSubheading: {
+    fontSize: 14,
+    opacity: 0.5,
+    marginBottom: 32,
+    fontWeight: "600",
+  },
+  groupLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    opacity: 0.4,
+    letterSpacing: 1.5,
+    marginBottom: 16,
+    marginTop: 20,
+    textTransform: "uppercase",
+  },
+  settingItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  settingLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  optionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  optionCard: {
+    flex: 1,
+    minWidth: "45%",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: "center",
+    gap: 8,
+  },
+  optionLabel: {
     fontSize: 12,
     fontWeight: "700",
-    marginTop: 8,
   },
-  listCard: {
-    padding: 0,
-    overflow: "hidden",
-  },
-  listItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 20,
-  },
-  listItemLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  iconBox: {
-    width: 40,
-    height: 40,
+  signOutBtn: {
+    marginTop: 40,
     borderRadius: 12,
-    justifyContent: "center",
+  },
+  aboutFooter: {
+    marginTop: 60,
     alignItems: "center",
-  },
-  listItemText: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  divider: {
-    height: 1,
-    marginHorizontal: 0,
-    opacity: 0.1,
-  },
-  signOutButton: {
-    marginTop: 20,
-  },
-  footer: {
-    alignItems: "center",
-    marginTop: 48,
     gap: 4,
   },
-  version: {
+  versionText: {
     fontSize: 12,
     fontWeight: "800",
     opacity: 0.3,
   },
-  rights: {
+  copyrightText: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "600",
     opacity: 0.2,
-  },
-  contactRow: {
-    alignItems: "center",
-    marginTop: 8,
-    gap: 2,
-  },
-  contactText: {
-    fontSize: 10,
-    fontWeight: "700",
-    opacity: 0.15,
   },
 });

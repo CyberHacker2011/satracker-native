@@ -27,32 +27,6 @@ export function PremiumGate({
   const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
-  const [showPopup, setShowPopup] = useState(false);
-
-  // All hooks must be at the top - fix for hooks violation
-  React.useEffect(() => {
-    // Only show popup if loading is done and user is NOT premium
-    if (!loading && !isPremium) {
-      setShowPopup(true);
-    } else if (!loading && isPremium) {
-      // Close popup if it was open and user became premium
-      setShowPopup(false);
-    }
-  }, [loading, isPremium]);
-
-  const handleDismiss = () => {
-    setShowPopup(false);
-    // Safe navigation with fallback to dashboard
-    try {
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace("/(tabs)");
-      }
-    } catch (e) {
-      router.replace("/(tabs)");
-    }
-  };
 
   if (loading) {
     return (
@@ -69,24 +43,70 @@ export function PremiumGate({
 
   if (!isPremium) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <PremiumPopup visible={showPopup} onDismiss={handleDismiss} />
-        {!showPopup && (
-          <View style={{ alignItems: "center", opacity: 0.5 }}>
-            <ThemedText>🔒 Premium Feature</ThemedText>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 20,
+        }}
+      >
+        <View
+          style={{
+            alignItems: "center",
+            opacity: 0.8,
+            backgroundColor: theme.card,
+            padding: 30,
+            borderRadius: 20,
+            width: "100%",
+            maxWidth: 400,
+          }}
+        >
+          <ThemedText style={{ fontSize: 40, marginBottom: 20 }}>🔒</ThemedText>
+          <ThemedText
+            style={{
+              fontSize: 20,
+              fontWeight: "bold",
+              marginBottom: 10,
+              textAlign: "center",
+            }}
+          >
+            Premium Feature
+          </ThemedText>
+          <ThemedText
+            style={{
+              textAlign: "center",
+              color: theme.textSecondary,
+              marginBottom: 24,
+            }}
+          >
+            {feature ? `The ${feature} feature` : "This content"} is available
+            for premium members only.
+          </ThemedText>
+
+          {showUpgrade && (
             <TouchableOpacity
-              onPress={() => setShowPopup(true)}
+              onPress={() => router.push("/premium")}
               style={{
-                marginTop: 20,
-                padding: 10,
+                paddingVertical: 12,
+                paddingHorizontal: 24,
                 backgroundColor: theme.primary,
-                borderRadius: 8,
+                borderRadius: 12,
+                width: "100%",
               }}
             >
-              <ThemedText style={{ color: "white" }}>Unlock</ThemedText>
+              <ThemedText
+                style={{
+                  color: "white",
+                  fontWeight: "bold",
+                  textAlign: "center",
+                }}
+              >
+                Upgrade Now
+              </ThemedText>
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </View>
     );
   }

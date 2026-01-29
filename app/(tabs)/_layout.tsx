@@ -1,22 +1,17 @@
-import { Tabs } from "expo-router";
+import { Stack } from "expo-router";
+import { View } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
-import { LayoutDashboard, BookOpen, CheckSquare, Calendar, User } from "lucide-react-native";
+import { SidebarToggle } from "../../components/SidebarToggle";
 import { HeaderNotificationBtn } from "../../components/HeaderNotificationBtn";
 import { HeaderPremiumBtn } from "../../components/HeaderPremiumBtn";
-import { View } from "react-native";
 
-export default function TabLayout() {
+export default function Layout() {
   const { theme } = useTheme();
 
   return (
-    <Tabs
+    <Stack
       screenOptions={{
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textSecondary,
-        tabBarStyle: {
-          backgroundColor: theme.card,
-          borderTopColor: theme.border,
-        },
+        headerLeft: () => <SidebarToggle />,
         headerStyle: {
           backgroundColor: theme.card,
         },
@@ -25,56 +20,24 @@ export default function TabLayout() {
           fontWeight: "bold",
         },
         headerRight: () => (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginRight: 12 }}>
+          <View
+            style={{
+              marginRight: 8,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
             <HeaderPremiumBtn />
             <HeaderNotificationBtn />
           </View>
         ),
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color }) => <LayoutDashboard size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="study-room"
-        options={{
-          title: "Study",
-          tabBarIcon: ({ color }) => <BookOpen size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="check-in"
-        options={{
-          title: "Check-in",
-          tabBarIcon: ({ color }) => <CheckSquare size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="plan"
-        options={{
-          title: "Plan",
-          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ color }) => <User size={24} color={color} />,
-        }}
-      />
-      {/* Hidden routes - accessible but not in tab bar */}
-      <Tabs.Screen
-        name="focus"
-        options={{
-          href: null,
-        }}
-      />
-
-    </Tabs>
+      <Stack.Screen name="index" options={{ title: "Dashboard" }} />
+      <Stack.Screen name="study-room" options={{ title: "Focus Mode" }} />
+      <Stack.Screen name="check-in" options={{ title: "Check-in" }} />
+      <Stack.Screen name="plan" options={{ title: "Study Plan" }} />
+      <Stack.Screen name="profile" options={{ title: "My Profile" }} />
+    </Stack>
   );
 }

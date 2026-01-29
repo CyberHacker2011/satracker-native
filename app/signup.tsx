@@ -1,5 +1,13 @@
 import React, { useState, useRef } from "react";
-import { StyleSheet, View, TextInput, ScrollView, TouchableOpacity, Alert } from "react-native";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  ScrollView,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useRouter } from "expo-router";
@@ -8,688 +16,609 @@ import { ThemedText, Heading } from "../components/ThemedText";
 import { ThemedView } from "../components/ThemedView";
 import { Button } from "../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Eye, EyeOff, AlertCircle } from "lucide-react-native";
-import Slider from '@react-native-community/slider';
-import { FeedbackErrorModal } from "../components/FeedbackErrorModal";
+import {
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  GraduationCap,
+  Calendar,
+  Target,
+  CheckCircle2,
+} from "lucide-react-native";
+import Slider from "@react-native-community/slider";
 import { Toast } from "../components/Toast";
+import * as Linking from "expo-linking";
 
-type EducationLevel = '5th' | '6th' | '7th' | '8th' | '9th' | '10th' | '11th' | '12th' | 'undergraduate' | 'graduate';
+type EducationLevel =
+  | "5th"
+  | "6th"
+  | "7th"
+  | "8th"
+  | "9th"
+  | "10th"
+  | "11th"
+  | "12th"
+  | "undergraduate"
+  | "graduate";
 
 export default function SignupScreen() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
-  
-  // Toast state
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState<'error' | 'success' | 'info'>('error');
 
-  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
-    setToastMessage(message);
-    setToastType(type);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
     setToastVisible(true);
   };
-  
+
   const passwordRef = useRef<TextInput>(null);
   const confirmRef = useRef<TextInput>(null);
 
-  // Step 1: Credentials
+  // Form State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [step1Error, setStep1Error] = useState<string | null>(null);
-  const [emailExistsError, setEmailExistsError] = useState<boolean>(false);
-
-  // Step 2: Personal Info
   const [name, setName] = useState("");
   const [educationLevel, setEducationLevel] = useState<EducationLevel | "">("");
-
-  // Step 3: SAT Info
   const [examDate, setExamDate] = useState("");
-  const [targetMath, setTargetMath] = useState(400);
-  const [targetReadingWriting, setTargetReadingWriting] = useState(400);
-  const [previousMath, setPreviousMath] = useState(200);
-  const [previousReadingWriting, setPreviousReadingWriting] = useState(200);
-  const [hasPreviousScore, setHasPreviousScore] = useState(false);
-
-  const totalSteps = 3;
-  const progress = (currentStep / totalSteps) * 100;
+  const [targetMath, setTargetMath] = useState(600);
+  const [targetReadingWriting, setTargetReadingWriting] = useState(600);
 
   const educationOptions: EducationLevel[] = [
-    '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th', 'undergraduate', 'graduate'
+    "9th",
+    "10th",
+    "11th",
+    "12th",
+    "undergraduate",
+    "graduate",
   ];
 
-  const examDates = [
-    "March 2026", "May 2026", "June 2026", "August 2026", 
-    "October 2026", "November 2026", "December 2026", "Other"
-  ];
+  const examDates = ["Aug 2026", "Oct 2026", "Nov 2026", "Dec 2026", "Other"];
 
-  const validateEmail = (email: string) => {
-    return String(email)
-      .toLowerCase()
-      .match(
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-      );
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo:
+            "https://bjxroikxfcrrislsatwl.supabase.co/auth/v1/callback",
+        },
+      });
+      if (error) throw error;
+      if (data.url) Linking.openURL(data.url);
+    } catch (e: any) {
+      showToast(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const validatePassword = (pass: string): { valid: boolean; message?: string } => {
-    if (pass.length < 6) return { valid: false, message: t('passwordRequirements') };
-    if (!/[a-zA-Z]/.test(pass)) return { valid: false, message: t('passwordRequirements') };
-    if (!/[0-9]/.test(pass)) return { valid: false, message: t('passwordRequirements') };
-    return { valid: true };
-  };
-
-  const handleNext = async () => {
-    setStep1Error(null);
-    setEmailExistsError(false);
+  const handleNext = () => {
     if (currentStep === 1) {
-      if (!email) {
-        setStep1Error(t('enterEmail'));
+      if (!email || !password || password !== confirmPassword) {
+        showToast("Please check your email and passwords.");
         return;
       }
-      if (!validateEmail(email)) {
-        setStep1Error(t('invalidEmail'));
-        return;
-      }
-      if (!password) {
-        setStep1Error(t('createPassword'));
-        return;
-      }
-      const validation = validatePassword(password);
-      if (!validation.valid) {
-        setStep1Error(t('passwordRequirements'));
-        return;
-      }
-      if (password !== confirmPassword) {
-        setStep1Error(t('passwordsDoNotMatch'));
-        return;
-      }
-
-      // Move signUp to the final step to prevent early redirect
+      setCurrentStep(2);
     } else if (currentStep === 2) {
       if (!name || !educationLevel) {
-        showToast(t('completeRequiredFields'));
+        showToast("Please fill in your name and education level.");
         return;
       }
-    }
-    setCurrentStep(prev => prev + 1);
-  };
-
-  const handleSkip = () => {
-    if (currentStep === 2 || currentStep === 3) {
-      handleSignup();
+      setCurrentStep(3);
     }
   };
 
   const handleSignup = async () => {
     setLoading(true);
     try {
-      // Step 1: Create the auth account with metadata for redundancy
-      const { data: { user, session }, error: signupError } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: name,
             education_level: educationLevel,
-          }
-        }
+          },
+        },
       });
 
-      if (signupError) {
-        if (signupError.message.toLowerCase().includes("already registered") || signupError.message.toLowerCase().includes("taken")) {
-          setCurrentStep(1);
-          setEmailExistsError(true);
-          showToast(t('userAlreadyExists'));
-        } else {
-          showToast(signupError.message || t('unexpectedError'));
-        }
-        setLoading(false);
-        return;
+      if (error) throw error;
+
+      if (data.user) {
+        await supabase.from("user_profiles").insert({
+          user_id: data.user.id,
+          name,
+          education_level: educationLevel,
+          exam_date: examDate,
+          target_math: targetMath,
+          target_reading_writing: targetReadingWriting,
+        });
+        showToast("Account created successfully!");
+        router.replace("/(tabs)");
       }
-
-      const userId = user?.id;
-      if (!userId) throw new Error(t('unexpectedError'));
-
-      // Step 2: Create the user profile in separate table
-      // We do this concurrently but wait for it before showing success
-      const { error: profileError } = await supabase.from("user_profiles").insert({
-        user_id: userId,
-        name: name || null,
-        education_level: educationLevel || null,
-        exam_date: examDate || null,
-        target_math: targetMath,
-        target_reading_writing: targetReadingWriting,
-        previous_math: hasPreviousScore ? previousMath : null,
-        previous_reading_writing: hasPreviousScore ? previousReadingWriting : null,
-      });
-
-      if (profileError) {
-        console.error("Profile creation error:", profileError);
-        // We continue anyway since metadata is saved and account exists
-      }
-
-      showToast(t('accountCreatedSuccess'), "success");
-      
-      // If session exists, _layout.tsx will handle the redirect.
-      // If email verification is needed, session will be null.
-      if (!session) {
-        showToast(t('checkEmailVerify'), "info");
-      }
-      
     } catch (error: any) {
-      showToast(error.message || t('unexpectedError'));
+      showToast(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const totalTarget = targetMath + targetReadingWriting;
-  const totalPrevious = previousMath + previousReadingWriting;
+  const renderStep1 = () => (
+    <View style={styles.stepContainer}>
+      <Heading style={styles.stepTitle}>Create Account</Heading>
+      <ThemedText style={styles.stepSubtitle}>
+        Start your SAT journey today
+      </ThemedText>
+
+      <TouchableOpacity
+        style={[styles.googleBtn, { borderColor: theme.border }]}
+        onPress={handleGoogleLogin}
+        disabled={loading}
+      >
+        <ThemedText style={styles.googleText}>Sign up with Google</ThemedText>
+      </TouchableOpacity>
+
+      <View style={styles.divider}>
+        <View style={[styles.line, { backgroundColor: theme.border }]} />
+        <ThemedText style={styles.orText}>OR</ThemedText>
+        <View style={[styles.line, { backgroundColor: theme.border }]} />
+      </View>
+
+      <View style={styles.inputWrapper}>
+        <Mail size={18} color={theme.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, { color: theme.textPrimary }]}
+          placeholder="Email Address"
+          placeholderTextColor={theme.textSecondary}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+      </View>
+
+      <View style={styles.inputWrapper}>
+        <Lock size={18} color={theme.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, { color: theme.textPrimary }]}
+          placeholder="Password"
+          placeholderTextColor={theme.textSecondary}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+        />
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+          style={styles.eyeBtn}
+        >
+          {showPassword ? (
+            <EyeOff size={18} color={theme.textSecondary} />
+          ) : (
+            <Eye size={18} color={theme.textSecondary} />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.inputWrapper}>
+        <Lock size={18} color={theme.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, { color: theme.textPrimary }]}
+          placeholder="Confirm Password"
+          placeholderTextColor={theme.textSecondary}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry={!showPassword}
+        />
+      </View>
+
+      <Button title="Continue" onPress={handleNext} style={styles.mainBtn} />
+
+      <View style={styles.footerRow}>
+        <ThemedText style={{ color: theme.textSecondary }}>
+          Already have an account?
+        </ThemedText>
+        <TouchableOpacity onPress={() => router.push("/login")}>
+          <ThemedText style={{ color: theme.primary, fontWeight: "700" }}>
+            {" "}
+            Sign In
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderStep2 = () => (
+    <View style={styles.stepContainer}>
+      <Heading style={styles.stepTitle}>About You</Heading>
+      <ThemedText style={styles.stepSubtitle}>
+        Help us personalize your study plan
+      </ThemedText>
+
+      <View style={styles.inputWrapper}>
+        <User size={18} color={theme.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, { color: theme.textPrimary }]}
+          placeholder="Full Name"
+          placeholderTextColor={theme.textSecondary}
+          value={name}
+          onChangeText={setName}
+        />
+      </View>
+
+      <ThemedText style={styles.label}>Education Level</ThemedText>
+      <View style={styles.optionsGrid}>
+        {educationOptions.map((opt) => (
+          <TouchableOpacity
+            key={opt}
+            onPress={() => setEducationLevel(opt)}
+            style={[
+              styles.optionCard,
+              { borderColor: theme.border, backgroundColor: theme.card },
+              educationLevel === opt && {
+                borderColor: theme.primary,
+                backgroundColor: theme.primaryLight,
+              },
+            ]}
+          >
+            <GraduationCap
+              size={16}
+              color={
+                educationLevel === opt ? theme.primary : theme.textSecondary
+              }
+            />
+            <ThemedText
+              style={[
+                styles.optionText,
+                educationLevel === opt && { color: theme.primary },
+              ]}
+            >
+              {opt.charAt(0).toUpperCase() + opt.slice(1)}
+            </ThemedText>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Button title="Next" onPress={handleNext} style={styles.mainBtn} />
+    </View>
+  );
+
+  const renderStep3 = () => (
+    <View style={styles.stepContainer}>
+      <Heading style={styles.stepTitle}>SAT Goals</Heading>
+      <ThemedText style={styles.stepSubtitle}>
+        Set your targets and exam date
+      </ThemedText>
+
+      <ThemedText style={styles.label}>Target Exam Date</ThemedText>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.dateScroll}
+      >
+        {examDates.map((date) => (
+          <TouchableOpacity
+            key={date}
+            onPress={() => setExamDate(date)}
+            style={[
+              styles.dateCard,
+              { borderColor: theme.border, backgroundColor: theme.card },
+              examDate === date && {
+                borderColor: theme.primary,
+                backgroundColor: theme.primaryLight,
+              },
+            ]}
+          >
+            <Calendar
+              size={16}
+              color={examDate === date ? theme.primary : theme.textSecondary}
+            />
+            <ThemedText
+              style={[
+                styles.dateText,
+                examDate === date && { color: theme.primary },
+              ]}
+            >
+              {date}
+            </ThemedText>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={styles.scoreSection}>
+        <View style={styles.scoreRow}>
+          <Target size={20} color={theme.primary} />
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.scoreLabel}>
+              Math Target: {targetMath}
+            </ThemedText>
+            <Slider
+              style={styles.slider}
+              minimumValue={200}
+              maximumValue={800}
+              step={10}
+              value={targetMath}
+              onValueChange={setTargetMath}
+              minimumTrackTintColor={theme.primary}
+              maximumTrackTintColor={theme.border}
+              thumbTintColor={theme.primary}
+            />
+          </View>
+        </View>
+
+        <View style={styles.scoreRow}>
+          <Target size={20} color={theme.primary} />
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.scoreLabel}>
+              R&W Target: {targetReadingWriting}
+            </ThemedText>
+            <Slider
+              style={styles.slider}
+              minimumValue={200}
+              maximumValue={800}
+              step={10}
+              value={targetReadingWriting}
+              onValueChange={setTargetReadingWriting}
+              minimumTrackTintColor={theme.primary}
+              maximumTrackTintColor={theme.border}
+              thumbTintColor={theme.primary}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.totalBox,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
+        <CheckCircle2 size={24} color={theme.primary} />
+        <View>
+          <ThemedText style={styles.totalLabel}>Total Target Score</ThemedText>
+          <ThemedText style={styles.totalValue}>
+            {targetMath + targetReadingWriting}
+          </ThemedText>
+        </View>
+      </View>
+
+      <Button
+        title={loading ? "Creating Account..." : "Finish Sign Up"}
+        onPress={handleSignup}
+        loading={loading}
+        style={styles.mainBtn}
+      />
+    </View>
+  );
 
   return (
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
           <View style={styles.header}>
             <TouchableOpacity
-              onPress={() => currentStep > 1 ? setCurrentStep(prev => prev - 1) : router.back()}
-              style={[styles.backBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
+              onPress={() =>
+                currentStep > 1
+                  ? setCurrentStep(currentStep - 1)
+                  : router.back()
+              }
+              style={styles.backBtn}
             >
               <ChevronLeft size={24} color={theme.textPrimary} />
             </TouchableOpacity>
-            
-            {(currentStep === 2 || currentStep === 3) && (
-              <TouchableOpacity onPress={() => handleSkip()}>
-                <ThemedText style={[styles.skipText, { color: theme.primary }]}>{t('skip')}</ThemedText>
-              </TouchableOpacity>
-            )}
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    backgroundColor: theme.primary,
+                    width: `${(currentStep / 3) * 100}%`,
+                  },
+                ]}
+              />
+            </View>
           </View>
 
-          <View style={[styles.progressContainer, { backgroundColor: theme.border }]}>
-            <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
-          </View>
-
-          <View style={styles.content}>
-            <Heading style={styles.title}>
-              {currentStep === 1 && t('createAccount')}
-              {currentStep === 2 && t('tellUsAboutYou')}
-              {currentStep === 3 && t('satGoals')}
-            </Heading>
-            <ThemedText style={styles.subtitle}>
-              {currentStep === 1 && t('setUpCredentials')}
-              {currentStep === 2 && t('personalizeExperience')}
-              {currentStep === 3 && t('trackProgress')}
-            </ThemedText>
-
-            {/* Step 1: Email & Password */}
-            {currentStep === 1 && (
-              <View style={styles.form}>
-                <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>{t('emailAddress')}</ThemedText>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
-                    placeholder="your.email@example.com"
-                    placeholderTextColor={theme.textSecondary}
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    returnKeyType="next"
-                    onSubmitEditing={() => passwordRef.current?.focus()}
-                    blurOnSubmit={false}
-                  />
-                  {emailExistsError && (
-                    <ThemedText style={[styles.hint, { color: '#ef4444', marginTop: 4, fontWeight: '700' }]}>
-                      {t('userAlreadyExists')}
-                    </ThemedText>
-                  )}
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>{t('createPassword')}</ThemedText>
-                  <View style={styles.passwordContainer}>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary, flex: 1 }]}
-                      placeholder="••••••••"
-                      placeholderTextColor={theme.textSecondary}
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      ref={passwordRef}
-                      returnKeyType="next"
-                      onSubmitEditing={() => confirmRef.current?.focus()}
-                      blurOnSubmit={false}
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                      {showPassword ? <EyeOff size={20} color={theme.textSecondary} /> : <Eye size={20} color={theme.textSecondary} />}
-                    </TouchableOpacity>
-                  </View>
-                  <ThemedText style={styles.hint}>{t('hints')}</ThemedText>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>{t('confirmPassword')}</ThemedText>
-                  <View style={styles.passwordContainer}>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary, flex: 1 }]}
-                      placeholder="••••••••"
-                      placeholderTextColor={theme.textSecondary}
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      secureTextEntry={!showConfirmPassword}
-                      ref={confirmRef}
-                      returnKeyType="done"
-                      onSubmitEditing={handleNext}
-                    />
-                    <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeBtn}>
-                      {showConfirmPassword ? <EyeOff size={20} color={theme.textSecondary} /> : <Eye size={20} color={theme.textSecondary} />}
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {step1Error && (
-                  <View style={styles.errorContainer}>
-                    <AlertCircle size={14} color="#ef4444" />
-                    <ThemedText style={styles.errorText}>{step1Error}</ThemedText>
-                  </View>
-                )}
-
-                <Button title={loading && currentStep === 1 ? t('checking') : t('continue')} onPress={handleNext} style={styles.button} loading={loading && currentStep === 1} />
-                
-                <TouchableOpacity onPress={() => router.push("/login")} style={{ marginTop: 20 }}>
-                  <ThemedText style={[styles.linkText, { color: theme.primary }]}>
-                    {t('alreadyHaveAccount')}
-                  </ThemedText>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Step 2: Personal Info */}
-            {currentStep === 2 && (
-              <View style={styles.form}>
-                <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>{t('preferredName')}</ThemedText>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.textPrimary }]}
-                    placeholder={t('namePlaceholder')}
-                    placeholderTextColor={theme.textSecondary}
-                    value={name}
-                    onChangeText={setName}
-                    returnKeyType="done"
-                    onSubmitEditing={handleNext}
-                  />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>{t('educationLevel')}</ThemedText>
-                  <View style={styles.optionsGrid}>
-                    {educationOptions.map(option => (
-                      <TouchableOpacity
-                        key={option}
-                        style={[
-                          styles.optionBtn,
-                          { borderColor: theme.border, backgroundColor: theme.card },
-                          educationLevel === option && { backgroundColor: theme.primary, borderColor: theme.primary }
-                        ]}
-                        onPress={() => setEducationLevel(option)}
-                      >
-                        <ThemedText style={[styles.optionText, educationLevel === option && { color: '#fff', fontWeight: '700' }]}>
-                          {t(option)}
-                        </ThemedText>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <Button title={t('continue')} onPress={handleNext} style={styles.button} />
-              </View>
-            )}
-
-            {/* Step 3: SAT Goals */}
-            {currentStep === 3 && (
-              <View style={styles.form}>
-                <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>{t('examDate')}</ThemedText>
-                  <View style={styles.datesGrid}>
-                    {examDates.map(date => (
-                      <TouchableOpacity
-                        key={date}
-                        style={[
-                          styles.dateBtn,
-                          { borderColor: theme.border, backgroundColor: theme.card },
-                          examDate === date && { backgroundColor: theme.primary, borderColor: theme.primary }
-                        ]}
-                        onPress={() => setExamDate(date)}
-                      >
-                        <ThemedText style={[styles.dateText, examDate === date && { color: '#fff', fontWeight: '700' }]}>
-                          {date.split(' ')[0] === 'Other' ? t('other') : date.replace(date.split(' ')[0], t(date.split(' ')[0].toLowerCase()))}
-                        </ThemedText>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <ThemedText style={styles.label}>{t('targetScore')}</ThemedText>
-                  
-                  <View style={styles.scoreSection}>
-                    <ThemedText style={styles.scoreLabel}>{t('math')}</ThemedText>
-                    <View style={styles.sliderRow}>
-                      <Slider
-                        style={styles.slider}
-                        minimumValue={200}
-                        maximumValue={800}
-                        step={10}
-                        value={targetMath}
-                        onValueChange={setTargetMath}
-                        minimumTrackTintColor={theme.primary}
-                        maximumTrackTintColor={theme.border}
-                        thumbTintColor={theme.primary}
-                      />
-                      <ThemedText style={styles.scoreValue}>{targetMath}</ThemedText>
-                    </View>
-                  </View>
-
-                  <View style={styles.scoreSection}>
-                    <ThemedText style={styles.scoreLabel}>{t('readingWriting')}</ThemedText>
-                    <View style={styles.sliderRow}>
-                      <Slider
-                        style={styles.slider}
-                        minimumValue={200}
-                        maximumValue={800}
-                        step={10}
-                        value={targetReadingWriting}
-                        onValueChange={setTargetReadingWriting}
-                        minimumTrackTintColor={theme.primary}
-                        maximumTrackTintColor={theme.border}
-                        thumbTintColor={theme.primary}
-                      />
-                      <ThemedText style={styles.scoreValue}>{targetReadingWriting}</ThemedText>
-                    </View>
-                  </View>
-
-                  <View style={[styles.totalBox, { backgroundColor: theme.primaryLight, borderColor: theme.primary }]}>
-                    <ThemedText style={[styles.totalLabel, { color: theme.primary }]}>{t('totalTarget')}</ThemedText>
-                    <ThemedText style={[styles.totalValue, { color: theme.primary }]}>{totalTarget}</ThemedText>
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <View style={styles.checkboxRow}>
-                    <TouchableOpacity 
-                      style={[styles.checkbox, { borderColor: theme.border }, hasPreviousScore && { backgroundColor: theme.primary, borderColor: theme.primary }]}
-                      onPress={() => setHasPreviousScore(!hasPreviousScore)}
-                    >
-                      {hasPreviousScore && <ThemedText style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</ThemedText>}
-                    </TouchableOpacity>
-                    <ThemedText style={styles.label}>{t('havePreviousScore')}</ThemedText>
-                  </View>
-
-                  {hasPreviousScore && (
-                    <>
-                      <View style={styles.scoreSection}>
-                        <ThemedText style={styles.scoreLabel}>{t('math')}</ThemedText>
-                        <View style={styles.sliderRow}>
-                          <Slider
-                            style={styles.slider}
-                            minimumValue={200}
-                            maximumValue={800}
-                            step={10}
-                            value={previousMath}
-                            onValueChange={setPreviousMath}
-                            minimumTrackTintColor={theme.primary}
-                            maximumTrackTintColor={theme.border}
-                            thumbTintColor={theme.primary}
-                          />
-                          <ThemedText style={styles.scoreValue}>{previousMath}</ThemedText>
-                        </View>
-                      </View>
-
-                      <View style={styles.scoreSection}>
-                        <ThemedText style={styles.scoreLabel}>{t('readingWriting')}</ThemedText>
-                        <View style={styles.sliderRow}>
-                          <Slider
-                            style={styles.slider}
-                            minimumValue={200}
-                            maximumValue={800}
-                            step={10}
-                            value={previousReadingWriting}
-                            onValueChange={setPreviousReadingWriting}
-                            minimumTrackTintColor={theme.primary}
-                            maximumTrackTintColor={theme.border}
-                            thumbTintColor={theme.primary}
-                          />
-                          <ThemedText style={styles.scoreValue}>{previousReadingWriting}</ThemedText>
-                        </View>
-                      </View>
-
-                      <View style={[styles.totalBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <ThemedText style={styles.totalLabel}>{t('previousTotal')}</ThemedText>
-                        <ThemedText style={styles.totalValue}>{totalPrevious}</ThemedText>
-                      </View>
-                    </>
-                  )}
-                </View>
-
-                <Button 
-                  title={loading ? t('creatingAccount') : t('completeSignup')} 
-                  onPress={handleSignup} 
-                  loading={loading}
-                  style={styles.button} 
-                />
-              </View>
-            )}
-          </View>
-        </ScrollView>
-        <Toast 
-          visible={toastVisible} 
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+          </ScrollView>
+        </KeyboardAvoidingView>
+        <Toast
+          visible={toastVisible}
           onDismiss={() => setToastVisible(false)}
-          type={toastType}
+          type="error"
         >
           {toastMessage}
         </Toast>
-        <FeedbackErrorModal 
-          visible={modalVisible} 
-          error={modalError} 
-          onDismiss={() => setModalVisible(false)} 
-        />
       </SafeAreaView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-    paddingBottom: 60,
-  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
   },
   backBtn: {
     padding: 8,
-    borderRadius: 10,
-    borderWidth: 1,
   },
-  skipText: {
-    fontSize: 14,
-    fontWeight: '700',
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: "rgba(100,100,100,0.1)",
+    borderRadius: 3,
+    overflow: "hidden",
   },
-  progressContainer: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 28,
+  progressFill: {
+    height: "100%",
   },
-  progressBar: {
-    height: '100%',
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 40,
   },
-  content: {
+  stepContainer: {
     flex: 1,
   },
-  title: {
-    fontSize: 26,
+  stepTitle: {
+    fontSize: 28,
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 15,
+  stepSubtitle: {
+    fontSize: 16,
     opacity: 0.6,
-    marginBottom: 28,
-    fontWeight: '600',
+    marginBottom: 32,
   },
-  form: {
-    gap: 20,
+  googleBtn: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 24,
   },
-  inputGroup: {
-    gap: 8,
+  googleText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
+    marginBottom: 24,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    opacity: 0.5,
+  },
+  orText: {
+    fontSize: 12,
+    fontWeight: "700",
+    opacity: 0.4,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(100,100,100,0.05)",
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 52,
+    marginBottom: 12,
+  },
+  inputIcon: {
+    marginRight: 10,
   },
   input: {
-    height: 48,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 14,
+    flex: 1,
+    height: "100%",
     fontSize: 15,
-    fontWeight: '600',
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
   },
   eyeBtn: {
-    position: 'absolute',
-    right: 14,
-    padding: 8,
+    padding: 5,
   },
-  hint: {
-    fontSize: 11,
-    opacity: 0.5,
-    fontWeight: '600',
+  mainBtn: {
+    marginTop: 20,
+    height: 54,
+    borderRadius: 12,
   },
-  errorContainer: {
-    padding: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 24,
   },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-    flex: 1,
+  label: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 20,
+    marginBottom: 12,
   },
   optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 20,
   },
-  optionBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
+  optionCard: {
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    minWidth: '18%',
-    alignItems: 'center',
+    alignItems: "center",
+    gap: 6,
+    minWidth: "30%",
   },
   optionText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
-  datesGrid: {
-    gap: 8,
+  dateScroll: {
+    marginBottom: 24,
   },
-  dateBtn: {
-    paddingHorizontal: 14,
+  dateCard: {
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
+    marginRight: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   dateText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: "600",
   },
   scoreSection: {
-    gap: 8,
+    gap: 20,
+    marginBottom: 24,
+  },
+  scoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
   },
   scoreLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    opacity: 0.6,
-  },
-  sliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 5,
   },
   slider: {
-    flex: 1,
-    height: 40,
-  },
-  scoreValue: {
-    fontSize: 16,
-    fontWeight: '900',
-    minWidth: 50,
-    textAlign: 'right',
+    width: "100%",
+    height: 30,
   },
   totalBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 10,
-    borderWidth: 2,
-    marginTop: 8,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
+    marginBottom: 10,
   },
   totalLabel: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "600",
+    opacity: 0.6,
   },
   totalValue: {
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  button: {
-    height: 50,
-    borderRadius: 10,
-    marginTop: 8,
-  },
-  linkText: {
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: "800",
   },
 });

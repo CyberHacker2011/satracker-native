@@ -1,125 +1,120 @@
 import React from "react";
-import { StyleSheet, View, ScrollView, TouchableOpacity } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Share,
+  Platform,
+} from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { ThemedText, Heading } from "../components/ThemedText";
-import { ThemedView, Card } from "../components/ThemedView";
+import { ThemedView } from "../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
-  Clock,
-  Zap,
-  CheckCircle2,
-  BarChart3,
   Star,
-  Calendar,
+  ShieldCheck,
+  Zap,
+  Globe,
+  Github,
+  Twitter,
+  Share2,
 } from "lucide-react-native";
-import { useSafeBack } from "../hooks/useSafeBack";
 
 export default function AboutScreen() {
-  const { theme, themeName } = useTheme();
+  const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
-  const safeBack = useSafeBack();
 
-  const features = [
-    {
-      title: t("studyPlanner"),
-      desc: t("studyPlanningDesc"),
-      icon: Calendar,
-      color: "#f59e0b",
-      bg: "#fef3c7",
-    },
-    {
-      title: t("classicTimer"),
-      desc: t("focusTimerLongDesc"),
-      icon: Clock,
-      color: "#3b82f6",
-      bg: "#dbeafe",
-    },
-    {
-      title: t("dailyCheckIn"),
-      desc: t("dailyCheckInsLongDesc"),
-      icon: CheckCircle2,
-      color: "#10b981",
-      bg: "#dcfce7",
-    },
-    {
-      title: t("studyHistory"),
-      desc: t("progressTrackerDesc"),
-      icon: BarChart3,
-      color: "#8b5cf6",
-      bg: "#f3e8ff",
-    },
-  ];
+  const onShare = async () => {
+    try {
+      await Share.share({
+        message:
+          "Check out SAT Tracker - The ultimate SAT preparation companion!",
+        url: "https://satracker.uz",
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const FeatureCard = ({ icon: Icon, title, desc }: any) => (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: theme.card, borderColor: theme.border },
+      ]}
+    >
+      <View style={[styles.iconBox, { backgroundColor: theme.primary + "15" }]}>
+        <Icon size={24} color={theme.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <ThemedText style={styles.cardTitle}>{title}</ThemedText>
+        <ThemedText style={styles.cardDesc}>{desc}</ThemedText>
+      </View>
+    </View>
+  );
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <Stack.Screen
-        options={{
-          title: t("aboutApp"),
-          headerShown: true,
-          headerLeft: () => (
-            <TouchableOpacity onPress={safeBack} style={{ marginLeft: 16 }}>
-              <ChevronLeft color={theme.textPrimary} size={28} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ChevronLeft size={24} color={theme.textPrimary} />
+          </TouchableOpacity>
+          <Heading style={{ fontSize: 20 }}>About</Heading>
+          <TouchableOpacity onPress={onShare}>
+            <Share2 size={24} color={theme.primary} />
+          </TouchableOpacity>
+        </View>
+
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.hero}>
-            <View
-              style={[styles.badge, { backgroundColor: theme.primaryLight }]}
-            >
-              <ThemedText style={[styles.badgeText, { color: theme.primary }]}>
-                {t("premiumStudyCompanion")}
-              </ThemedText>
+            <View style={[styles.logo, { backgroundColor: theme.primary }]}>
+              <ThemedText style={styles.logoText}>S</ThemedText>
             </View>
-            <Heading style={styles.heroTitle}>
-              Plan. Track.{" "}
-              <ThemedText style={{ color: theme.primary }}>
-                {t("start").toUpperCase()}.
-              </ThemedText>
-            </Heading>
-            <ThemedText style={styles.heroSub}>{t("aboutHeroDesc")}</ThemedText>
+            <Heading style={styles.appName}>SAT Tracker</Heading>
+            <ThemedText style={styles.version}>
+              Version 2.0.0 (Premium)
+            </ThemedText>
           </View>
+
+          <ThemedText style={styles.intro}>
+            Empowering students worldwide to achieve their target SAT scores
+            through intelligent planning and data-driven insights.
+          </ThemedText>
 
           <View style={styles.section}>
-            <Heading style={styles.sectionTitle}>
-              {t("everythingYouNeed")}
-            </Heading>
-            <ThemedText style={styles.sectionSub}>
-              {t("smartToolsDesc")}
-            </ThemedText>
-
-            <View style={styles.featureGrid}>
-              {features.map((f, i) => (
-                <Card key={i} style={styles.featureCard}>
-                  <View style={[styles.iconBox, { backgroundColor: f.bg }]}>
-                    <f.icon size={24} color={f.color} />
-                  </View>
-                  <ThemedText style={styles.featureTitle}>{f.title}</ThemedText>
-                  <ThemedText style={styles.featureDesc}>{f.desc}</ThemedText>
-                </Card>
-              ))}
-            </View>
+            <ThemedText style={styles.sectionTitle}>WHY CHOOSE US</ThemedText>
+            <FeatureCard
+              icon={Zap}
+              title="Smart Planning"
+              desc="Personalized daily missions tailored to your specific goals and weaknesses."
+            />
+            <FeatureCard
+              icon={Star}
+              title="Premium Experience"
+              desc="Unlock exclusive tools, priority support, and advanced performance analytics."
+            />
+            <FeatureCard
+              icon={ShieldCheck}
+              title="Verified Content"
+              desc="Curated study materials aligned with the latest Digital SAT standards."
+            />
           </View>
 
-          <Card style={[styles.ctaCard, { backgroundColor: theme.primary }]}>
-            <Star color="#fff" size={32} style={{ marginBottom: 16 }} />
-            <Heading style={styles.ctaTitle}>{t("readyOptimizeSAT")}</Heading>
-            <ThemedText style={styles.ctaSub}>{t("aboutCTADesc")}</ThemedText>
-          </Card>
-
           <View style={styles.footer}>
-            <ThemedText style={styles.version}>
-              SAT Tracker Native Version 1.0.0
+            <ThemedText style={styles.footerText}>
+              © {new Date().getFullYear()} SAT Tracker Team
             </ThemedText>
-            <ThemedText style={styles.copyright}>
-              © 2026 SAT Tracker. All Rights Reserved.
-            </ThemedText>
+            <View style={styles.socials}>
+              <Globe size={20} color={theme.textSecondary} />
+              <Github size={20} color={theme.textSecondary} />
+              <Twitter size={20} color={theme.textSecondary} />
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -128,62 +123,51 @@ export default function AboutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-  },
-  hero: {
+  header: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 60,
-    marginTop: 20,
+    justifyContent: "space-between",
+    padding: 20,
   },
-  badge: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 20,
+  container: { padding: 24, gap: 32 },
+  hero: { alignItems: "center", gap: 12, marginBottom: 10 },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
-  badgeText: {
+  logoText: { color: "#fff", fontSize: 40, fontWeight: "bold" },
+  appName: { fontSize: 32, fontWeight: "900" },
+  version: { fontSize: 12, fontWeight: "800", opacity: 0.3, letterSpacing: 1 },
+  intro: {
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 26,
+    opacity: 0.6,
+    paddingHorizontal: 10,
+  },
+  section: { gap: 16 },
+  sectionTitle: {
     fontSize: 10,
     fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    opacity: 0.3,
+    letterSpacing: 2,
+    marginBottom: 8,
   },
-  heroTitle: {
-    fontSize: 36,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  heroSub: {
-    textAlign: "center",
-    fontSize: 16,
-    lineHeight: 24,
-    opacity: 0.6,
-    maxWidth: 600,
-  },
-  section: {
-    marginBottom: 60,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  sectionSub: {
-    textAlign: "center",
-    fontSize: 15,
-    opacity: 0.5,
-    marginBottom: 40,
-  },
-  featureGrid: {
+  card: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 20,
-  },
-  featureCard: {
-    flex: 1,
-    minWidth: 260,
-    padding: 24,
+    padding: 20,
     borderRadius: 24,
+    borderWidth: 1.5,
+    gap: 16,
+    alignItems: "center",
   },
   iconBox: {
     width: 48,
@@ -191,51 +175,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
   },
-  featureTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: 12,
-  },
-  featureDesc: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.6,
-  },
-  ctaCard: {
-    padding: 40,
-    borderRadius: 40,
-    alignItems: "center",
-    marginBottom: 60,
-  },
-  ctaTitle: {
-    color: "#fff",
-    fontSize: 24,
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  ctaSub: {
-    color: "#fff",
-    textAlign: "center",
-    opacity: 0.8,
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 22,
-  },
-  footer: {
-    alignItems: "center",
-    paddingBottom: 40,
-  },
-  version: {
-    fontSize: 12,
-    fontWeight: "800",
-    opacity: 0.4,
-  },
-  copyright: {
-    fontSize: 12,
-    fontWeight: "800",
-    opacity: 0.2,
-    marginTop: 4,
-  },
+  cardTitle: { fontSize: 16, fontWeight: "800" },
+  cardDesc: { fontSize: 13, opacity: 0.5, marginTop: 4, lineHeight: 18 },
+  footer: { alignItems: "center", marginTop: 20, gap: 16, paddingBottom: 40 },
+  footerText: { fontSize: 12, opacity: 0.3, fontWeight: "700" },
+  socials: { flexDirection: "row", gap: 24, opacity: 0.5 },
 });
