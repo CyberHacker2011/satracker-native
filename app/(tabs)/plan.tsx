@@ -33,7 +33,7 @@ import {
 import { Toast } from "../../components/Toast";
 import { PremiumGate } from "../../components/PremiumGate";
 
-type Section = "math" | "reading" | "writing";
+type Section = "Math" | "Reading and Writing";
 
 export default function PlanScreen() {
   const { theme } = useTheme();
@@ -43,7 +43,7 @@ export default function PlanScreen() {
 
   const now = new Date();
   const [date, setDate] = useState(getLocalDateString(now));
-  const [section, setSection] = useState<Section>("math");
+  const [section, setSection] = useState<Section>("Math");
   const [startTime, setStartTime] = useState(getLocalTimeString(now));
   const [endTime, setEndTime] = useState(
     getLocalTimeString(new Date(now.getTime() + 60 * 60 * 1000)),
@@ -78,7 +78,10 @@ export default function PlanScreen() {
           .single();
         if (data) {
           setDate(data.date);
-          setSection(data.section);
+          let s = data.section;
+          if (s === "reading" || s === "writing") s = "Reading and Writing";
+          if (s === "math") s = "Math";
+          setSection(s as Section);
           setStartTime(data.start_time);
           setEndTime(data.end_time);
           setTasks(data.tasks_text);
@@ -217,7 +220,7 @@ export default function PlanScreen() {
               <ThemedText style={styles.sectionLabel}>FOCUS AREA</ThemedText>
             </View>
             <View style={styles.tabRow}>
-              {(["math", "reading", "writing"] as Section[]).map((s) => (
+              {(["Math", "Reading and Writing"] as Section[]).map((s) => (
                 <TouchableOpacity
                   key={s}
                   style={[
@@ -233,7 +236,7 @@ export default function PlanScreen() {
                   <ThemedText
                     style={[styles.tabText, section === s && { color: "#fff" }]}
                   >
-                    {s.toUpperCase()}
+                    {s}
                   </ThemedText>
                 </TouchableOpacity>
               ))}

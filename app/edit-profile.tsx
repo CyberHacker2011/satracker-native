@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
+import Slider from "@react-native-community/slider";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useRouter } from "expo-router";
@@ -209,29 +211,33 @@ export default function EditProfileScreen() {
           </View>
           <View style={styles.scoreRow}>
             <View style={{ flex: 1 }}>
-              <ThemedText style={styles.smallLabel}>Math</ThemedText>
-              <TextInput
-                style={[
-                  styles.smallInput,
-                  { borderColor: theme.border, color: theme.textPrimary },
-                ]}
-                value={targetMath.toString()}
-                onChangeText={(v) => setTargetMath(parseInt(v) || 0)}
-                keyboardType="numeric"
-                maxLength={3}
+              <ThemedText style={styles.smallLabel}>
+                Math: {targetMath}
+              </ThemedText>
+              <Slider
+                style={styles.slider}
+                minimumValue={200}
+                maximumValue={800}
+                step={10}
+                value={targetMath}
+                onValueChange={setTargetMath}
+                minimumTrackTintColor={theme.primary}
+                maximumTrackTintColor={theme.border}
+                thumbTintColor={theme.primary}
               />
             </View>
             <View style={{ flex: 1 }}>
-              <ThemedText style={styles.smallLabel}>R&W</ThemedText>
-              <TextInput
-                style={[
-                  styles.smallInput,
-                  { borderColor: theme.border, color: theme.textPrimary },
-                ]}
-                value={targetRW.toString()}
-                onChangeText={(v) => setTargetRW(parseInt(v) || 0)}
-                keyboardType="numeric"
-                maxLength={3}
+              <ThemedText style={styles.smallLabel}>R&W: {targetRW}</ThemedText>
+              <Slider
+                style={styles.slider}
+                minimumValue={200}
+                maximumValue={800}
+                step={10}
+                value={targetRW}
+                onValueChange={setTargetRW}
+                minimumTrackTintColor={theme.primary}
+                maximumTrackTintColor={theme.border}
+                thumbTintColor={theme.primary}
               />
             </View>
           </View>
@@ -257,29 +263,33 @@ export default function EditProfileScreen() {
           {hasPrev && (
             <View style={styles.scoreRow}>
               <View style={{ flex: 1 }}>
-                <ThemedText style={styles.smallLabel}>Math</ThemedText>
-                <TextInput
-                  style={[
-                    styles.smallInput,
-                    { borderColor: theme.border, color: theme.textPrimary },
-                  ]}
-                  value={prevMath.toString()}
-                  onChangeText={(v) => setPrevMath(parseInt(v) || 0)}
-                  keyboardType="numeric"
-                  maxLength={3}
+                <ThemedText style={styles.smallLabel}>
+                  Math: {prevMath}
+                </ThemedText>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={200}
+                  maximumValue={800}
+                  step={10}
+                  value={prevMath}
+                  onValueChange={setPrevMath}
+                  minimumTrackTintColor={theme.primary}
+                  maximumTrackTintColor={theme.border}
+                  thumbTintColor={theme.primary}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <ThemedText style={styles.smallLabel}>R&W</ThemedText>
-                <TextInput
-                  style={[
-                    styles.smallInput,
-                    { borderColor: theme.border, color: theme.textPrimary },
-                  ]}
-                  value={prevRW.toString()}
-                  onChangeText={(v) => setPrevRW(parseInt(v) || 0)}
-                  keyboardType="numeric"
-                  maxLength={3}
+                <ThemedText style={styles.smallLabel}>R&W: {prevRW}</ThemedText>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={200}
+                  maximumValue={800}
+                  step={10}
+                  value={prevRW}
+                  onValueChange={setPrevRW}
+                  minimumTrackTintColor={theme.primary}
+                  maximumTrackTintColor={theme.border}
+                  thumbTintColor={theme.primary}
                 />
               </View>
             </View>
@@ -359,5 +369,6 @@ const styles = StyleSheet.create({
   },
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2 },
   checkText: { fontSize: 14, fontWeight: "700" },
+  slider: { width: "100%", height: 30 },
   saveBtn: { height: 56, borderRadius: 16, marginTop: 20 },
 });
