@@ -6,85 +6,180 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  LayoutAnimation,
   Platform,
-  UIManager,
-  Linking,
-  Alert,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { ThemedText, Heading } from "../../components/ThemedText";
-import { ThemedView, Card } from "../../components/ThemedView";
+import { ThemedView } from "../../components/ThemedView";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  runOnJS,
+} from "react-native-reanimated";
 import { supabase } from "../../lib/supabase";
 import { getLocalDateString, getLocalTimeString } from "../../lib/dateUtils";
 import {
-  Bell,
-  Flame,
   Target,
-  BookOpen,
-  Clock,
-  Calendar,
   ChevronRight,
-  Play,
-  ArrowRight,
   Zap,
-  X,
+  BookOpen,
+  Calendar,
+  CheckCircle2,
+  Circle,
+  ArrowRight,
 } from "lucide-react-native";
-import { FeedbackErrorModal } from "../../components/FeedbackErrorModal";
-import { checkConnection } from "../../lib/network";
 import { usePremium } from "../../hooks/usePremium";
-import { PremiumPopup, usePremiumPopup } from "../../components/PremiumPopup";
 
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+const CountdownSection = React.memo(
+  ({ examDateStr }: { examDateStr: string }) => {
+    const { theme } = useTheme();
+    const [timeLeft, setTimeLeft] = useState<{
+      days: number;
+      hours: number;
+      mins: number;
+      secs: number;
+    }>({ days: 0, hours: 0, mins: 0, secs: 0 });
 
-type DashboardPlan = {
-  id: string;
-  section: "math" | "reading" | "writing";
-  start_time: string;
-  end_time: string;
-  tasks_text: string;
-  isActive: boolean;
-  isPast: boolean;
-  isMarked?: boolean;
-};
+    useEffect(() => {
+      let timer: NodeJS.Timeout;
+
+      const calculate = () => {
+        if (!examDateStr) {
+          setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0 });
+          return;
+        }
+
+        try {
+          // Attempt native parsing first (handles "March 2026", "2024-01-01", etc.)
+          let targetDate = new Date(examDateStr);
+
+          // If invalid or just "Year-Month" defaulting to day 1, let's refine or fallback
+          if (isNaN(targetDate.getTime())) {
+            // Try manual parsing for YYYY-MM-DD or MM-DD-YYYY
+            const cleanDate = examDateStr.replace(/\//g, "-");
+            const parts = cleanDate.split("-").map(Number);
+
+            if (parts.length >= 3) {
+              if (parts[0] > 1000) {
+                targetDate = new Date(
+                  parts[0],
+                  parts[1] - 1,
+                  parts[2],
+                  10,
+                  0,
+                  0,
+                );
+              } else {
+                targetDate = new Date(
+                  parts[2],
+                  parts[0] - 1,
+                  parts[1],
+                  10,
+                  0,
+                  0,
+                );
+              }
+            }
+          } else {
+            // If valid, assume 10:00 AM on that date (or 1st of month if only month/year provided)
+            // Check if it's likely just a month/year (day is 1 and time is 00:00:00)
+            // But simpler: just set to 10 AM of whatever date it parsed to.
+            targetDate.setHours(10, 0, 0, 0);
+          }
+
+          if (!isNaN(targetDate.getTime())) {
+            const now = new Date();
+            const diff = targetDate.getTime() - now.getTime();
+
+            if (diff > 0) {
+              setTimeLeft({
+                days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+                hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+                mins: Math.floor((diff / 1000 / 60) % 60),
+                secs: Math.floor((diff / 1000) % 60),
+              });
+            } else {
+              setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0 });
+            }
+          } else {
+            setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0 });
+          }
+        } catch (e) {
+          console.log("Date parsing error", e);
+          setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0 });
+        }
+      };
+
+      calculate();
+      timer = setInterval(calculate, 1000);
+
+      return () => clearInterval(timer);
+    }, [examDateStr]);
+
+    const shadowUtils = Platform.select({
+      web: { boxShadow: "0px 2px 8px rgba(0,0,0,0.1)" },
+      default: {
+        elevation: 3,
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+      },
+    });
+
+    return (
+      <View style={styles.countdownContainer}>
+        <View style={[styles.countItem, shadowUtils as any]}>
+          <ThemedText style={styles.countVal}>{timeLeft?.days || 0}</ThemedText>
+          <ThemedText style={styles.countLabel}>DAYS</ThemedText>
+        </View>
+        <View style={[styles.countItem, shadowUtils as any]}>
+          <ThemedText style={styles.countVal}>
+            {(timeLeft?.hours || 0).toString().padStart(2, "0")}
+          </ThemedText>
+          <ThemedText style={styles.countLabel}>HRS</ThemedText>
+        </View>
+        <View style={[styles.countItem, shadowUtils as any]}>
+          <ThemedText style={styles.countVal}>
+            {(timeLeft?.mins || 0).toString().padStart(2, "0")}
+          </ThemedText>
+          <ThemedText style={styles.countLabel}>MIN</ThemedText>
+        </View>
+        <View
+          style={[
+            styles.countItem,
+            { backgroundColor: theme.primary + "15" },
+            shadowUtils as any,
+          ]}
+        >
+          <ThemedText style={[styles.countVal, { color: theme.primary }]}>
+            {(timeLeft?.secs || 0).toString().padStart(2, "0")}
+          </ThemedText>
+          <ThemedText style={[styles.countLabel, { color: theme.primary }]}>
+            SEC
+          </ThemedText>
+        </View>
+      </View>
+    );
+  },
+);
 
 export default function DashboardScreen() {
-  const { theme, themeName } = useTheme();
+  const { theme } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [examDate, setExamDate] = useState("");
-  const [targetScore, setTargetScore] = useState<number | null>(null);
-  const [daysUntilExam, setDaysUntilExam] = useState<number | null>(null);
-  const [todayPlans, setTodayPlans] = useState<DashboardPlan[]>([]);
-  const [errorVisible, setErrorVisible] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Premium check
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [todayPlans, setTodayPlans] = useState<any[]>([]);
+  const [streak, setStreak] = useState(0);
   const { isPremium } = usePremium();
-  const { showPopup, dismissPopup } = usePremiumPopup(isPremium);
-
-  const examDates: Record<string, string> = {
-    "March 2026": "2026-03-14",
-    "May 2026": "2026-05-02",
-    "June 2026": "2026-06-06",
-    "August 2026": "2026-08-15",
-    "October 2026": "2026-10-03",
-    "November 2026": "2026-11-07",
-    "December 2026": "2026-12-05",
-  };
 
   const fetchData = async () => {
     try {
@@ -92,85 +187,70 @@ export default function DashboardScreen() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        setUserEmail(user.email || "");
-
-        // Fetch user profile
         const { data: profile } = await supabase
           .from("user_profiles")
           .select("*")
           .eq("user_id", user.id)
           .single();
+        setUserProfile(profile);
 
-        if (profile) {
-          setUserName(profile.name || "");
-          setExamDate(profile.exam_date || "");
+        // Fetch streak from daily_log (consecutive days)
+        const { data: logHistory } = await supabase
+          .from("daily_log")
+          .select("date")
+          .eq("user_id", user.id)
+          .order("date", { ascending: false });
 
-          const totalTarget =
-            (profile.target_math || 0) + (profile.target_reading_writing || 0);
-          setTargetScore(totalTarget || null);
+        if (logHistory) {
+          const dates = Array.from(new Set(logHistory.map((l) => l.date)));
+          let currentStreak = 0;
+          let today = getLocalDateString();
+          let checkDate = new Date(today);
 
-          // Calculate days until exam
-          if (profile.exam_date && examDates[profile.exam_date]) {
-            const examDateObj = new Date(examDates[profile.exam_date]);
-            examDateObj.setHours(10, 0, 0, 0); // Set to 10:00 AM
+          // Check if today or yesterday was the last log to continue streak
+          const lastLog = dates[0];
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-            const now = new Date();
-            const diffTime = examDateObj.getTime() - now.getTime();
-            // Calculate fractional days
-            const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-            setDaysUntilExam(diffDays > 0 ? diffDays : null);
+          if (lastLog === today || lastLog === yesterdayStr) {
+            for (let i = 0; i < dates.length; i++) {
+              const dStr = checkDate.toISOString().split("T")[0];
+              if (dates.includes(dStr)) {
+                currentStreak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+              } else {
+                break;
+              }
+            }
           }
+          setStreak(currentStreak);
         }
 
-        const today = getLocalDateString();
-        const [plansRes, logsRes] = await Promise.all([
-          supabase
-            .from("study_plan")
-            .select("*")
-            .eq("user_id", user.id)
-            .eq("date", today),
-          supabase
-            .from("daily_log")
-            .select("plan_id, status")
-            .eq("user_id", user.id)
-            .eq("date", today),
-        ]);
+        const todayDate = getLocalDateString();
+        const { data: plans } = await supabase
+          .from("study_plan")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("date", todayDate);
 
-        if (plansRes.data) {
+        if (plans) {
           const now = new Date();
           const curTime = getLocalTimeString(now);
-          const logs = logsRes.data || [];
-
-          const processed = plansRes.data.map((p: any) => {
-            const log = logs.find((l: any) => l.plan_id === p.id);
-            return {
-              ...p,
-              isActive: curTime >= p.start_time && curTime <= p.end_time,
-              isPast: curTime > p.end_time,
-              isMarked: !!log,
-            };
-          });
-
-          processed.sort((a, b) => {
-            const aDone = a.isMarked || a.isPast;
-            const bDone = b.isMarked || b.isPast;
-            if (aDone && !bDone) return 1;
-            if (!aDone && bDone) return -1;
-            return a.start_time.localeCompare(b.start_time);
-          });
-
-          setTodayPlans(processed);
+          setTodayPlans(
+            plans
+              .map((p) => ({
+                ...p,
+                isActive: curTime >= p.start_time && curTime <= p.end_time,
+                isPast: curTime > p.end_time,
+              }))
+              // Show all plans for the day, sorted by time
+              .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+          );
         }
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      const isOnline = await checkConnection();
-      const msg = isOnline
-        ? e.message || t("failedFetchData")
-        : t("noInternetCheck");
-      setErrorMsg(msg);
-      setErrorVisible(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -188,723 +268,219 @@ export default function DashboardScreen() {
     fetchData();
   }, []);
 
-  const [feedbackVisible, setFeedbackVisible] = useState(true);
+  if (loading) {
+    return (
+      <ThemedView style={styles.center}>
+        <ActivityIndicator color={theme.primary} size="large" />
+      </ThemedView>
+    );
+  }
 
-  // Real-time timer update & fresh data ticker
-  useEffect(() => {
-    if (!examDate || !examDates[examDate]) {
-      // Still run ticker even if no exam date set
-      const interval = setInterval(() => fetchData(), 60000);
-      return () => clearInterval(interval);
-    }
-
-    const targetDate = new Date(examDates[examDate]);
-    targetDate.setHours(10, 0, 0, 0);
-
-    const countdownInterval = setInterval(() => {
-      const now = new Date();
-      const diff = targetDate.getTime() - now.getTime();
-      const diffInDays = diff / (1000 * 60 * 60 * 24);
-      setDaysUntilExam(diffInDays > 0 ? diffInDays : 0);
-    }, 1000);
-
-    const dataInterval = setInterval(() => {
-      fetchData();
-    }, 60000);
-
-    return () => {
-      clearInterval(countdownInterval);
-      clearInterval(dataInterval);
-    };
-  }, [examDate]);
+  const nextActivePlan =
+    todayPlans.find((p) => p.isActive) || todayPlans.find((p) => !p.isPast);
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <FeedbackErrorModal
-        visible={errorVisible}
-        error={errorMsg}
-        onDismiss={() => {
-          setErrorVisible(false);
-          setLoading(false);
-        }}
-        onRetry={fetchData}
-      />
-      {loading ? (
-        <ThemedView style={styles.center}>
-          <ActivityIndicator color={theme.primary} size="large" />
-          <ThemedText
-            style={{ marginTop: 10, opacity: 0.5, fontWeight: "700" }}
-          >
-            {t("loadingDashboard")}
-          </ThemedText>
-        </ThemedView>
-      ) : (
-        <SafeAreaView style={{ flex: 1 }}>
-          <ScrollView
-            contentContainerStyle={styles.container}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          >
-            {/* Welcome Header */}
-            <View style={styles.header}>
-              <View style={{ flex: 1 }}>
-                <ThemedText style={styles.title}>
-                  {t("hello")},{" "}
-                  <ThemedText
-                    style={{
-                      color: theme.primary,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {userName || t("friend")}
-                  </ThemedText>
-                  !
-                </ThemedText>
-                <ThemedText style={styles.subtitle}>
-                  {t("readyToCrush")}
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Main Hero & Stats Row */}
+          <View style={styles.heroRow}>
+            <View style={styles.heroMain}>
+              <Heading style={styles.greeting}>
+                {t("hello")}, {userProfile?.name?.split(" ")[0] || t("friend")}!
+              </Heading>
+
+              <CountdownSection examDateStr={userProfile?.exam_date} />
+
+              <View style={styles.streakBadge}>
+                <Zap size={14} color="#f59e0b" fill="#f59e0b" />
+                <ThemedText style={styles.streakText}>
+                  {streak} DAY STREAK
                 </ThemedText>
               </View>
             </View>
 
-            {/* Compact Stats Card */}
-            {(userName || examDate || targetScore) && (
-              <Card style={styles.profileCard}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  {/* Left: Target Score */}
-                  {targetScore ? (
-                    <View style={{ gap: 4 }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        <Target size={14} color={theme.primary} />
-                        <ThemedText
-                          style={{
-                            fontSize: 10,
-                            fontWeight: "800",
-                            opacity: 0.5,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {t("target")}
-                        </ThemedText>
-                      </View>
-                      <ThemedText
-                        style={{
-                          fontSize: 28,
-                          fontWeight: "900",
-                          color: theme.primary,
-                          lineHeight: 32,
-                        }}
-                      >
-                        {targetScore}
-                      </ThemedText>
-                      <TouchableOpacity
-                        onPress={() => router.push("/edit-profile")}
-                      >
-                        <ThemedText
-                          style={{
-                            fontSize: 10,
-                            fontWeight: "700",
-                            opacity: 0.4,
-                          }}
-                        >
-                          {t("editGoal")} ›
-                        </ThemedText>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <View />
-                  )}
+            <View style={styles.scoreHalf}>
+              <View
+                style={[
+                  styles.scoreCard,
+                  {
+                    backgroundColor: theme.primary + "10",
+                    borderColor: theme.primary,
+                  },
+                ]}
+              >
+                <Target size={18} color={theme.primary} />
+                <ThemedText style={styles.scoreVal}>
+                  {userProfile?.target_math +
+                    userProfile?.target_reading_writing || 1600}
+                </ThemedText>
+                <ThemedText style={styles.scoreLabel}>GOAL</ThemedText>
+              </View>
+            </View>
+          </View>
 
-                  {/* Right: Countdown */}
-                  {daysUntilExam !== null && (
-                    <View style={{ alignItems: "flex-end", gap: 4 }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <Calendar size={10} color={theme.textSecondary} />
-                        <ThemedText
-                          style={{
-                            fontSize: 9,
-                            fontWeight: "700",
-                            opacity: 0.5,
-                          }}
-                        >
-                          {examDate}
-                        </ThemedText>
-                      </View>
-                      <View style={[styles.timerGrid, { gap: 2 }]}>
-                        <View style={[styles.timerBox, { width: 28 }]}>
-                          <View
-                            style={[
-                              styles.timerCard,
-                              {
-                                backgroundColor: theme.card,
-                                borderColor: theme.border,
-                                padding: 2,
-                                minWidth: 24,
-                                borderRadius: 6,
-                              },
-                            ]}
-                          >
-                            <ThemedText
-                              style={[styles.timerValue, { fontSize: 12 }]}
-                            >
-                              {Math.floor(daysUntilExam)}
-                            </ThemedText>
-                          </View>
-                          <ThemedText
-                            style={[styles.timerLabel, { fontSize: 5 }]}
-                          >
-                            {t("daysShort")}
-                          </ThemedText>
-                        </View>
-                        <View style={[styles.timerBox, { width: 28 }]}>
-                          <View
-                            style={[
-                              styles.timerCard,
-                              {
-                                backgroundColor: theme.card,
-                                borderColor: theme.border,
-                                padding: 2,
-                                minWidth: 24,
-                                borderRadius: 6,
-                              },
-                            ]}
-                          >
-                            <ThemedText
-                              style={[styles.timerValue, { fontSize: 12 }]}
-                            >
-                              {Math.floor((daysUntilExam % 1) * 24)}
-                            </ThemedText>
-                          </View>
-                          <ThemedText
-                            style={[styles.timerLabel, { fontSize: 5 }]}
-                          >
-                            {t("hoursShort")}
-                          </ThemedText>
-                        </View>
-                        <View style={[styles.timerBox, { width: 28 }]}>
-                          <View
-                            style={[
-                              styles.timerCard,
-                              {
-                                backgroundColor: theme.card,
-                                borderColor: theme.border,
-                                padding: 2,
-                                minWidth: 24,
-                                borderRadius: 6,
-                              },
-                            ]}
-                          >
-                            <ThemedText
-                              style={[styles.timerValue, { fontSize: 12 }]}
-                            >
-                              {Math.floor((daysUntilExam * 24 * 60) % 60)}
-                            </ThemedText>
-                          </View>
-                          <ThemedText
-                            style={[styles.timerLabel, { fontSize: 5 }]}
-                          >
-                            {t("minutesShort")}
-                          </ThemedText>
-                        </View>
-                        <View style={[styles.timerBox, { width: 28 }]}>
-                          <View
-                            style={[
-                              styles.timerCard,
-                              {
-                                backgroundColor: theme.card,
-                                borderColor: theme.border,
-                                padding: 2,
-                                minWidth: 24,
-                                borderRadius: 6,
-                              },
-                            ]}
-                          >
-                            <ThemedText
-                              style={[styles.timerValue, { fontSize: 12 }]}
-                            >
-                              {Math.floor((daysUntilExam * 24 * 3600) % 60)}
-                            </ThemedText>
-                          </View>
-                          <ThemedText
-                            style={[styles.timerLabel, { fontSize: 5 }]}
-                          >
-                            {t("secondsShort")}
-                          </ThemedText>
-                        </View>
-                      </View>
-                    </View>
-                  )}
-                </View>
-              </Card>
-            )}
+          {/* Path Column Only */}
+          <View style={styles.mainGrid}>
+            <View style={styles.pathCol}>
+              <ThemedText style={styles.sectionTitle}>YOUR PROGRESS</ThemedText>
+              <PathStep
+                title="Profile"
+                subtitle="Personalized"
+                done={!!userProfile?.name && !!userProfile?.exam_date}
+                onPress={() => router.push("/profile")}
+              />
+              <PathStep
+                title="Daily Plan"
+                subtitle={todayPlans.length > 0 ? "Ready" : "Not Set"}
+                done={todayPlans.length > 0}
+                onPress={() => router.push("/plan")}
+              />
+              <PathStep
+                title="Check-in"
+                subtitle="Track Today"
+                onPress={() => router.push("/check-in")}
+              />
+            </View>
+          </View>
 
-            <View style={{ marginBottom: 20 }} />
+          {/* Today's Schedule Overview */}
+          {todayPlans.length > 0 && (
+            <View style={styles.scheduleSection}>
+              <View style={styles.sectionHeader}>
+                <ThemedText style={styles.sectionTitle}>
+                  TODAY'S SCHEDULE
+                </ThemedText>
+                <TouchableOpacity onPress={() => router.push("/plan")}>
+                  <ThemedText
+                    style={{ color: theme.primary, fontWeight: "700" }}
+                  >
+                    Edit Plan
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
 
-            {/* Prompt to Complete Profile */}
-            {!userName && (
-              <TouchableOpacity onPress={() => router.push("/edit-profile")}>
-                <Card
+              {todayPlans.map((plan, idx) => (
+                <TouchableOpacity
+                  key={plan.id}
                   style={[
-                    styles.profileCard,
+                    styles.planItem,
                     {
-                      backgroundColor: theme.primaryLight,
-                      borderColor: theme.primary,
+                      backgroundColor: theme.card,
+                      borderColor: plan.isActive ? theme.primary : theme.border,
                     },
                   ]}
+                  onPress={() =>
+                    router.push(`/(tabs)/study-room?planId=${plan.id}`)
+                  }
                 >
                   <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
+                    style={[
+                      styles.timeTag,
+                      {
+                        backgroundColor: plan.isActive
+                          ? theme.primary
+                          : theme.border,
+                      },
+                    ]}
                   >
-                    <View
+                    <ThemedText
                       style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        backgroundColor: theme.primary,
-                        alignItems: "center",
-                        justifyContent: "center",
+                        color: plan.isActive ? "#fff" : theme.textPrimary,
+                        fontSize: 10,
+                        fontWeight: "bold",
                       }}
                     >
-                      <ThemedText style={{ fontSize: 20 }}>👤</ThemedText>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={{ fontWeight: "800", fontSize: 16 }}>
-                        {t("completeProfile")}
-                      </ThemedText>
-                      <ThemedText style={{ fontSize: 12, opacity: 0.7 }}>
-                        {t("completeProfileSub")}
-                      </ThemedText>
-                    </View>
-                    <ChevronRight color={theme.primary} size={20} />
+                      {plan.start_time}
+                    </ThemedText>
                   </View>
-                </Card>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.layout}>
-              {/* Main Content */}
-              <View style={styles.mainCol}>
-                <Card style={styles.scheduleCard}>
-                  <View style={styles.scheduleHeader}>
-                    <View style={styles.scheduleTitleRow}>
-                      <View
-                        style={[
-                          styles.accentBar,
-                          { backgroundColor: theme.primary },
-                        ]}
-                      />
-                      <Heading style={styles.scheduleTitle}>
-                        {t("todaysPlans")}
-                      </Heading>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => router.push("/(tabs)/check-in")}
-                    >
-                      <ThemedText
-                        style={[styles.fullCheckLink, { color: theme.primary }]}
-                      >
-                        {t("fullCheckIn")} →
-                      </ThemedText>
-                    </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.planTasks}>
+                      {plan.tasks_text}
+                    </ThemedText>
+                    <ThemedText style={styles.planSub}>
+                      {plan.section} • {plan.duration} mins
+                    </ThemedText>
                   </View>
-
-                  <View style={styles.scheduleList}>
-                    {todayPlans.length === 0 ? (
-                      <View style={styles.emptyState}>
-                        <View
-                          style={[
-                            styles.emptyIcon,
-                            {
-                              backgroundColor:
-                                themeName === "dark"
-                                  ? "rgba(255,255,255,0.05)"
-                                  : "#f3f4f6",
-                            },
-                          ]}
-                        >
-                          <Target
-                            size={32}
-                            color={themeName === "dark" ? "#fff" : "#9ca3af"}
-                          />
-                        </View>
-                        <ThemedText style={styles.emptyTitle}>
-                          {t("noPlansToday")}
-                        </ThemedText>
-                        <ThemedText style={styles.emptySub}>
-                          {t("successQuote")}
-                        </ThemedText>
-                        <TouchableOpacity
-                          style={[
-                            styles.emptyBtn,
-                            { backgroundColor: theme.primary },
-                          ]}
-                          onPress={() => router.push("/(tabs)/plan")}
-                        >
-                          <ThemedText style={styles.emptyBtnText}>
-                            {t("createAPlan")}
-                          </ThemedText>
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      todayPlans.map((plan) => (
-                        <View
-                          key={plan.id}
-                          style={[
-                            styles.planRow,
-                            { borderColor: theme.border },
-                            plan.isActive && {
-                              borderColor: theme.primary,
-                              borderWidth: 2,
-                            },
-                          ]}
-                        >
-                          <View style={styles.planInfo}>
-                            <View
-                              style={[
-                                styles.sectionBar,
-                                {
-                                  backgroundColor:
-                                    plan.section === "math"
-                                      ? "#3b82f6"
-                                      : plan.section === "reading"
-                                        ? "#f59e0b"
-                                        : "#10b981",
-                                },
-                              ]}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <View style={styles.planTagRow}>
-                                <ThemedText
-                                  style={[
-                                    styles.planTag,
-                                    {
-                                      color:
-                                        plan.section === "math"
-                                          ? "#3b82f6"
-                                          : plan.section === "reading"
-                                            ? "#f59e0b"
-                                            : "#10b981",
-                                    },
-                                  ]}
-                                >
-                                  {t(plan.section)}
-                                </ThemedText>
-                                {plan.isActive && (
-                                  <View
-                                    style={[
-                                      styles.activeBadge,
-                                      { backgroundColor: theme.primary },
-                                    ]}
-                                  >
-                                    <ThemedText style={styles.activeBadgeText}>
-                                      {t("active")}
-                                    </ThemedText>
-                                  </View>
-                                )}
-                                {plan.isMarked && (
-                                  <View
-                                    style={[
-                                      styles.activeBadge,
-                                      { backgroundColor: "#10b981" },
-                                    ]}
-                                  >
-                                    <ThemedText style={styles.activeBadgeText}>
-                                      {t("done")}
-                                    </ThemedText>
-                                  </View>
-                                )}
-                              </View>
-                              <ThemedText
-                                style={styles.tasksText}
-                                numberOfLines={1}
-                              >
-                                {plan.tasks_text}
-                              </ThemedText>
-                              <ThemedText style={styles.timeText}>
-                                {plan.start_time} - {plan.end_time}
-                              </ThemedText>
-                            </View>
-                          </View>
-                          {!plan.isMarked && !plan.isPast && (
-                            <TouchableOpacity
-                              style={[
-                                styles.enterRoomBtn,
-                                {
-                                  backgroundColor: plan.isActive
-                                    ? theme.primary
-                                    : "transparent",
-                                  borderColor: plan.isActive
-                                    ? theme.primary
-                                    : theme.border,
-                                  borderWidth: 1,
-                                  opacity: plan.isActive ? 1 : 0.5,
-                                },
-                              ]}
-                              onPress={() => {
-                                if (plan.isMarked || plan.isPast) {
-                                  const msg = t("sessionUnavailableMsg");
-                                  if (Platform.OS === "web") window.alert(msg);
-                                  else Alert.alert(t("planClosed"), msg);
-                                  return;
-                                }
-                                if (!plan.isActive) {
-                                  const msg = t("planScheduledFor").replace(
-                                    "{time}",
-                                    plan.start_time,
-                                  );
-                                  if (Platform.OS === "web") window.alert(msg);
-                                  else Alert.alert(t("standBy"), msg);
-                                  return;
-                                }
-                                router.push(
-                                  `/(tabs)/study-room?planId=${plan.id}`,
-                                );
-                              }}
-                            >
-                              <ThemedText
-                                style={[
-                                  styles.enterRoomText,
-                                  {
-                                    color: plan.isActive
-                                      ? "#fff"
-                                      : theme.textSecondary,
-                                  },
-                                ]}
-                              >
-                                {t("enterStudyRoom")}
-                              </ThemedText>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      ))
-                    )}
-                  </View>
-                </Card>
-
-                {/* Quick Access Grid */}
-                <View style={styles.quickGrid}>
-                  <TouchableOpacity
-                    style={[
-                      styles.streakCard,
-                      { backgroundColor: theme.primary },
-                    ]}
-                    onPress={() => router.push("/(tabs)/check-in")}
-                  >
-                    <Heading style={styles.quickTitle}>
-                      {t("buildStreak")}
-                    </Heading>
-                    <ThemedText style={styles.quickSub}>
-                      {t("streakSub")}
-                    </ThemedText>
-                    <View style={styles.quickAction}>
-                      <ThemedText
-                        style={[
-                          styles.quickActionText,
-                          { color: theme.primary },
-                        ]}
-                      >
-                        {t("goToCheckIn")} →
-                      </ThemedText>
-                    </View>
-                  </TouchableOpacity>
-
-                  <Card style={styles.roomCard}>
-                    <TouchableOpacity
-                      onPress={() => router.push("/(tabs)/study-room")}
-                    >
-                      <Heading style={styles.quickTitleBlack}>
-                        {t("studyRoom")}
-                      </Heading>
-                      <ThemedText style={styles.quickSubBlack}>
-                        {t("studyRoomSub")}
-                      </ThemedText>
-                      <View
-                        style={[
-                          styles.quickActionBlack,
-                          { backgroundColor: theme.primary },
-                        ]}
-                      >
-                        <ThemedText style={styles.quickActionTextBlack}>
-                          {t("goToStudyRoom")} →
-                        </ThemedText>
-                      </View>
-                    </TouchableOpacity>
-                  </Card>
-                </View>
-              </View>
-
-              {/* Sidebar (Desktop view logic - column on side) */}
-              <View style={styles.sideCol}>
-                <Card style={styles.linksCard}>
-                  <ThemedText style={styles.linksLabel}>
-                    {t("quickLinks")}
-                  </ThemedText>
-                  <TouchableOpacity
-                    style={styles.linkItem}
-                    onPress={() => router.push("/(tabs)/plan")}
-                  >
-                    <View
-                      style={[
-                        styles.linkIcon,
-                        { backgroundColor: theme.primaryLight },
-                      ]}
-                    >
-                      <Calendar size={18} color={theme.primary} />
-                    </View>
-                    <ThemedText style={styles.linkText}>
-                      {t("studyPlanner")}
-                    </ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.linkItem}
-                    onPress={() => router.push("/(tabs)/check-in")}
-                  >
-                    <View
-                      style={[styles.linkIcon, { backgroundColor: "#f0fdf4" }]}
-                    >
-                      <Zap size={18} color="#10b981" />
-                    </View>
-                    <ThemedText style={styles.linkText}>
-                      {t("dailyCheckIn")}
-                    </ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.linkItem}
-                    onPress={() => router.push("/archive")}
-                  >
-                    <View
-                      style={[styles.linkIcon, { backgroundColor: "#eff6ff" }]}
-                    >
-                      <BookOpen size={18} color="#3b82f6" />
-                    </View>
-                    <ThemedText style={styles.linkText}>
-                      {t("studyHistory")}
-                    </ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.linkItem}
-                    onPress={() => router.push("/(tabs)/focus")}
-                  >
-                    <View
-                      style={[styles.linkIcon, { backgroundColor: "#fdf4ff" }]}
-                    >
-                      <Clock size={18} color="#c026d3" />
-                    </View>
-                    <ThemedText style={styles.linkText}>
-                      {t("classicTimer")}
-                    </ThemedText>
-                  </TouchableOpacity>
-                </Card>
-
-                <Card
-                  style={[
-                    styles.tipCard,
-                    {
-                      backgroundColor:
-                        themeName === "dark"
-                          ? "rgba(245, 158, 11, 0.05)"
-                          : "#fffbeb",
-                      borderColor: theme.primaryLight,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={[styles.tipTitle, { color: theme.primary }]}
-                  >
-                    {t("studyTip")}
-                  </ThemedText>
-                  <ThemedText style={styles.tipText}>
-                    {t("tipQuote")}
-                  </ThemedText>
-                </Card>
-              </View>
-            </View>
-
-            {/* Extra closing tags removed */}
-
-            {/* Footer Contact */}
-            <View style={styles.footer}>
-              <View style={styles.footerLine} />
-              <View style={styles.footerContent}>
-                <ThemedText style={styles.copyright}>
-                  © 2026 SAT Tracker. {t("allRightsReserved")}
-                </ThemedText>
-                <View style={styles.contactInfo}>
-                  <ThemedText style={styles.contactItem}>
-                    ibrohimshaymardanov011@gmail.com
-                  </ThemedText>
-                  <View style={styles.dot} />
-                  <ThemedText style={styles.contactItem}>
-                    t.me/@satrackerbot
-                  </ThemedText>
-                </View>
-              </View>
-            </View>
-          </ScrollView>
-
-          {/* Floating Feedback FAB */}
-          {feedbackVisible && (
-            <View
-              style={[
-                styles.fab,
-                { backgroundColor: theme.card, borderColor: theme.border },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => Linking.openURL("https://t.me/satrackerbot")}
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-              >
-                <View
-                  style={[
-                    styles.fabBadge,
-                    { backgroundColor: theme.primaryLight },
-                  ]}
-                >
-                  <ThemedText
-                    style={[styles.fabBadgeText, { color: theme.primary }]}
-                  >
-                    {t("feedback")}
-                  </ThemedText>
-                </View>
-                <ThemedText style={styles.fabText}>
-                  {t("haveSuggestions")}
-                </ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setFeedbackVisible(false)}
-                style={{ marginLeft: 8, padding: 4 }}
-              >
-                <X size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
+                  <ArrowRight size={18} color={theme.textSecondary} />
+                </TouchableOpacity>
+              ))}
             </View>
           )}
-        </SafeAreaView>
-      )}
 
-      <PremiumPopup visible={showPopup} onDismiss={dismissPopup} />
+          {/* Additional Guidance */}
+          {!isPremium && (
+            <TouchableOpacity
+              style={[
+                styles.premiumBanner,
+                {
+                  backgroundColor: theme.primaryLight,
+                  borderColor: theme.primary,
+                },
+              ]}
+              onPress={() => router.push("/profile")}
+            >
+              <Zap size={20} color={theme.primary} />
+              <View style={{ flex: 1 }}>
+                <ThemedText style={{ color: theme.primary, fontWeight: "800" }}>
+                  Upgrade to Premium
+                </ThemedText>
+                <ThemedText
+                  style={{ color: theme.primary, fontSize: 12, opacity: 0.8 }}
+                >
+                  Get personalized study plans and AI feedback.
+                </ThemedText>
+              </View>
+              <ChevronRight size={20} color={theme.primary} />
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </SafeAreaView>
     </ThemedView>
+  );
+}
+
+function PathStep({ title, subtitle, done, active, onPress }: any) {
+  const { theme } = useTheme();
+  return (
+    <TouchableOpacity
+      style={[
+        styles.pathStep,
+        active && {
+          borderColor: theme.primary,
+          backgroundColor: theme.primaryLight,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.stepIconContainer}>
+        {done ? (
+          <CheckCircle2 size={24} color={theme.primary} />
+        ) : active ? (
+          <BookOpen size={24} color={theme.primary} />
+        ) : (
+          <Circle size={24} color={theme.textSecondary} />
+        )}
+        <View style={[styles.stepLine, { backgroundColor: theme.border }]} />
+      </View>
+      <View style={styles.stepContent}>
+        <ThemedText
+          style={[
+            styles.stepTitle,
+            done && { opacity: 0.5, textDecorationLine: "line-through" },
+          ]}
+        >
+          {title}
+        </ThemedText>
+        <ThemedText style={styles.stepSubtitle}>{subtitle}</ThemedText>
+      </View>
+      <ChevronRight size={18} color={theme.textSecondary} />
+    </TouchableOpacity>
   );
 }
 
@@ -914,508 +490,223 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  container: {
-    padding: 24,
-    paddingTop: 40,
-    paddingBottom: 80, // Add padding for FAB
-  },
-  header: {
-    marginBottom: 48,
+  heroRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 16,
+    marginBottom: 40,
+    gap: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "900",
+  heroMain: {
+    flex: 1.2,
   },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    opacity: 0.5,
-    marginTop: 8,
-  },
-  headerActions: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-  },
-  mainBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 14,
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  mainBtnText: {
-    color: "#fff",
-    fontWeight: "900",
-    fontSize: 14,
-  },
-  secondBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  secondBtnText: {
-    fontWeight: "900",
-    fontSize: 14,
-  },
-  layout: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 32,
-  },
-  mainCol: {
-    flex: 2,
-    minWidth: 350,
-    gap: 32,
-  },
-  sideCol: {
-    flex: 1,
-    minWidth: 280,
-    gap: 24,
-  },
-  scheduleCard: {
-    padding: 0,
-    overflow: "hidden",
-  },
-  scheduleHeader: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    backgroundColor: "rgba(0,0,0,0.02)",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.05)",
-  },
-  scheduleTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  accentBar: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-  },
-  scheduleTitle: {
-    fontSize: 16,
-  },
-  fullCheckLink: {
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  scheduleList: {
-    padding: 24,
-    gap: 16,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+  scoreHalf: {
+    flex: 0.8,
     justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: 4,
-  },
-  emptySub: {
-    fontSize: 14,
-    opacity: 0.5,
-    fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  emptyBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  emptyBtnText: {
-    color: "#fff",
-    fontWeight: "900",
-    fontSize: 14,
-  },
-  planRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 20,
+  scoreCard: {
+    padding: 12,
     borderRadius: 20,
-    borderWidth: 1,
-    flexWrap: "wrap",
-    gap: 16,
-  },
-  planInfo: {
-    flexDirection: "row",
+    borderWidth: 2,
     alignItems: "center",
-    gap: 16,
-    flex: 1,
+    gap: 4,
+    minWidth: 100,
   },
-  sectionBar: {
-    width: 4,
-    height: 40,
-    borderRadius: 2,
-  },
-  planText: {
-    flex: 1,
-  },
-  planTagRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
-  },
-  planTag: {
-    fontSize: 10,
+  scoreVal: {
+    fontSize: 22,
     fontWeight: "900",
-    textTransform: "uppercase",
+  },
+  scoreLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    opacity: 0.4,
     letterSpacing: 1,
   },
-  activeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  activeBadgeText: {
-    color: "#fff",
-    fontSize: 8,
-    fontWeight: "900",
-  },
-  tasksText: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  timeText: {
-    fontSize: 12,
-    opacity: 0.4,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  enterRoomBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  enterRoomText: {
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  quickGrid: {
+  countdownContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 24,
+    gap: 8,
+    marginTop: 12,
   },
-  streakCard: {
-    flex: 1,
-    minWidth: 250,
-    padding: 32,
-    borderRadius: 32,
+  countItem: {
+    backgroundColor: "rgba(0,0,0,0.03)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignItems: "center",
+    minWidth: 40,
   },
-  quickTitle: {
-    color: "#fff",
-    fontSize: 20,
-  },
-  quickSub: {
-    color: "#fff",
-    opacity: 0.8,
+  countVal: {
     fontSize: 14,
-    fontWeight: "600",
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  quickAction: {
-    alignSelf: "flex-start",
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  quickActionText: {
-    fontSize: 12,
     fontWeight: "900",
   },
-  roomCard: {
-    flex: 1,
-    minWidth: 250,
-    padding: 32,
-    borderRadius: 32,
-  },
-  quickTitleBlack: {
-    fontSize: 20,
-  },
-  quickSubBlack: {
-    opacity: 0.5,
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  quickActionBlack: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  quickActionTextBlack: {
-    color: "#fff",
-    fontSize: 12,
+  countLabel: {
+    fontSize: 7,
     fontWeight: "900",
+    opacity: 0.4,
   },
-  linksCard: {
-    padding: 24,
-    gap: 16,
+  streakBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 16,
+    backgroundColor: "#fffbeb",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#fde68a",
   },
-  linksLabel: {
+  streakText: {
     fontSize: 10,
     fontWeight: "900",
-    opacity: 0.4,
-    letterSpacing: 2,
+    color: "#92400e",
+  },
+  mainGrid: {
+    flexDirection: "row",
+    gap: 20,
+    marginBottom: 32,
+  },
+  pathCol: {
+    flex: 1,
+  },
+  scheduleCol: {
+    flex: 1,
+  },
+  smallPlan: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
     marginBottom: 8,
   },
-  linkItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 16,
-  },
-  linkIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  linkText: {
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  tipCard: {
-    padding: 24,
-    borderWidth: 1,
-    borderStyle: "dashed",
-  },
-  tipTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    marginBottom: 10,
-  },
-  tipText: {
-    fontSize: 12,
-    fontWeight: "600",
-    fontStyle: "italic",
-    opacity: 0.7,
-    lineHeight: 18,
-  },
-  footer: {
-    marginTop: 64,
-    paddingBottom: 20,
-  },
-  footerLine: {
-    height: 1,
-    backgroundColor: "rgba(0,0,0,0.05)",
-    marginBottom: 24,
-  },
-  footerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  copyright: {
-    fontSize: 11,
-    fontWeight: "700",
-    opacity: 0.3,
-  },
-  contactInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  contactItem: {
-    fontSize: 10,
-    fontWeight: "700",
-    opacity: 0.25,
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: "rgba(0,0,0,0.1)",
-  },
-  fab: {
-    position: "absolute",
-    bottom: 24,
-    right: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  fabBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  fabBadgeText: {
+  smallPlanTime: {
     fontSize: 10,
     fontWeight: "900",
-    textTransform: "uppercase",
+    opacity: 0.4,
+    marginBottom: 2,
   },
-  fabText: {
-    fontSize: 12,
+  smallPlanTitle: {
+    fontSize: 13,
     fontWeight: "700",
   },
-  profileCard: {
+  emptyPrompt: {
     padding: 20,
-    marginBottom: 20,
-    gap: 24,
-  },
-  countdownSection: {
-    gap: 16,
-  },
-  countdownHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  countdownTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    flex: 1,
-  },
-  editIconBtn: {
-    width: 32,
-    height: 32,
+    backgroundColor: "rgba(0,0,0,0.02)",
     borderRadius: 16,
-    justifyContent: "center",
     alignItems: "center",
-  },
-  editIcon: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  timerGrid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  timerBox: {
-    alignItems: "center",
-    flex: 1,
     gap: 8,
   },
-  timerCard: {
-    width: "100%",
-    aspectRatio: 1,
-    borderRadius: 12,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
+  emptyText: {
+    fontSize: 12,
+    opacity: 0.3,
+    fontWeight: "600",
   },
-  timerValue: {
-    fontSize: 32,
+  container: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  greeting: {
+    fontSize: 28,
     fontWeight: "900",
   },
-  timerLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    opacity: 0.6,
+  sectionTitle: {
+    fontSize: 9,
+    fontWeight: "900",
+    opacity: 0.3,
+    letterSpacing: 1.5,
+    marginBottom: 16,
+    textTransform: "uppercase",
   },
-  examDateText: {
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-    opacity: 0.6,
-  },
-  scoreSection: {
-    gap: 12,
-  },
-  scoreHeader: {
+  pathStep: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    marginBottom: 4,
   },
-  scoreTitle: {
-    fontSize: 16,
-    fontWeight: "800",
+  stepIconContainer: {
+    alignItems: "center",
+    marginRight: 12,
+  },
+  stepLine: {
+    position: "absolute",
+    top: 24,
+    width: 2,
+    height: 30,
+    zIndex: -1,
+  },
+  stepContent: {
     flex: 1,
   },
-  totalScore: {
-    fontSize: 48,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  scoreBreakdown: {
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-    opacity: 0.6,
-  },
-  progressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  progressLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    width: 40,
-  },
-  progressTrack: {
-    height: 24,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: "100%",
-    borderRadius: 12,
-  },
-  progressLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 4,
-  },
-  progressTarget: {
-    fontSize: 11,
-    fontWeight: "600",
-    opacity: 0.7,
-  },
-  progressCurrent: {
-    fontSize: 11,
-    fontWeight: "600",
-    opacity: 0.5,
-  },
-  setupProfileBtn: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: "center",
-  },
-  setupText: {
+  stepTitle: {
     fontSize: 14,
     fontWeight: "700",
+  },
+  stepSubtitle: {
+    fontSize: 11,
+    opacity: 0.5,
+    marginTop: 1,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 32,
+  },
+  statCard: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    gap: 8,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    opacity: 0.5,
+  },
+  scheduleSection: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  planItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 16,
+  },
+  timeTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    minWidth: 50,
+    alignItems: "center",
+  },
+  planTasks: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  planSub: {
+    fontSize: 12,
+    opacity: 0.5,
+    marginTop: 2,
+  },
+  premiumBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 16,
   },
 });

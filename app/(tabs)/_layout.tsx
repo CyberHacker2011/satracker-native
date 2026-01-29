@@ -11,7 +11,11 @@ export default function Layout() {
   return (
     <Stack
       screenOptions={{
-        headerLeft: () => <SidebarToggle />,
+        headerLeft: () => (
+          <View style={{ marginRight: 12 }}>
+            <SidebarToggle />
+          </View>
+        ),
         headerStyle: {
           backgroundColor: theme.card,
         },
