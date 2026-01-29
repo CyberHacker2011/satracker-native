@@ -327,18 +327,12 @@ export default function CheckInScreen() {
                           styles.modalPlanItem,
                           {
                             borderColor: theme.border,
-                            flexDirection: isSmallScreen ? "column" : "row",
-                            alignItems: isSmallScreen ? "flex-start" : "center",
-                            gap: isSmallScreen ? 16 : 12,
+                            flexDirection: "column",
+                            gap: 12,
                           },
                         ]}
                       >
-                        <View
-                          style={{
-                            flex: 1,
-                            width: isSmallScreen ? "100%" : "auto",
-                          }}
-                        >
+                        <View style={{ width: "100%" }}>
                           <ThemedText style={styles.planTime}>
                             {p.start_time} - {p.end_time}
                           </ThemedText>
@@ -349,81 +343,78 @@ export default function CheckInScreen() {
                         <View
                           style={[
                             styles.planActions,
-                            isSmallScreen && {
-                              paddingTop: 8,
-                              justifyContent: "flex-end",
+                            {
                               width: "100%",
+                              justifyContent: "space-between",
                             },
                           ]}
                         >
-                          {/* Status Buttons - Circles */}
-                          <TouchableOpacity
-                            onPress={() =>
-                              handleUpdateStatus(p.id, p.date, "done")
-                            }
-                            style={[
-                              styles.actionBtn,
-                              {
-                                opacity:
-                                  p.date === getLocalDateString() ? 1 : 0.3,
-                              },
-                              p.status === "done" && {
-                                backgroundColor: "#10b981",
-                              },
-                            ]}
-                          >
-                            <Check
-                              size={16}
-                              color={p.status === "done" ? "#fff" : "#10b981"}
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() =>
-                              handleUpdateStatus(p.id, p.date, "missed")
-                            }
-                            style={[
-                              styles.actionBtn,
-                              {
-                                opacity:
-                                  p.date === getLocalDateString() ? 1 : 0.3,
-                              },
-                              p.status === "missed" && {
-                                backgroundColor: "#ef4444",
-                              },
-                            ]}
-                          >
-                            <X
-                              size={16}
-                              color={p.status === "missed" ? "#fff" : "#ef4444"}
-                            />
-                          </TouchableOpacity>
-
-                          {/* Edit / Delete / Repeat - Rectangles/Different Style */}
-                          <TouchableOpacity
-                            onPress={() => {
-                              setIsModalVisible(false);
-                              router.push({
-                                pathname: "/(tabs)/plan",
-                                params: { editId: p.id },
-                              });
-                            }}
-                            style={[
-                              styles.squareBtn,
-                              { backgroundColor: theme.primary + "20" },
-                            ]}
-                          >
-                            <Edit2 size={16} color={theme.primary} />
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            onPress={() => {
-                              Alert.alert("Delete Plan", "Are you sure?", [
-                                { text: "Cancel", style: "cancel" },
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity
+                              onPress={() =>
+                                handleUpdateStatus(p.id, p.date, "done")
+                              }
+                              style={[
+                                styles.actionBtn,
                                 {
-                                  text: "Delete",
-                                  style: "destructive",
-                                  onPress: async () => {
-                                    // First delete from daily_log to satisfy constraints
+                                  opacity:
+                                    p.date === getLocalDateString() ? 1 : 0.3,
+                                },
+                                p.status === "done" && {
+                                  backgroundColor: "#10b981",
+                                },
+                              ]}
+                            >
+                              <Check
+                                size={16}
+                                color={p.status === "done" ? "#fff" : "#10b981"}
+                              />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() =>
+                                handleUpdateStatus(p.id, p.date, "missed")
+                              }
+                              style={[
+                                styles.actionBtn,
+                                {
+                                  opacity:
+                                    p.date === getLocalDateString() ? 1 : 0.3,
+                                },
+                                p.status === "missed" && {
+                                  backgroundColor: "#ef4444",
+                                },
+                              ]}
+                            >
+                              <X
+                                size={16}
+                                color={
+                                  p.status === "missed" ? "#fff" : "#ef4444"
+                                }
+                              />
+                            </TouchableOpacity>
+                          </View>
+
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setIsModalVisible(false);
+                                router.push({
+                                  pathname: "/(tabs)/plan",
+                                  params: { editId: p.id },
+                                });
+                              }}
+                              style={[
+                                styles.squareBtn,
+                                { backgroundColor: theme.primary + "20" },
+                              ]}
+                            >
+                              <Edit2 size={16} color={theme.primary} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              onPress={() => {
+                                const performDelete = async () => {
+                                  try {
                                     const { error: logError } = await supabase
                                       .from("daily_log")
                                       .delete()
@@ -434,49 +425,108 @@ export default function CheckInScreen() {
                                         "Log delete error:",
                                         logError,
                                       );
-                                      // Proceed anyway? No, might fail FK.
-                                      // But if logError is "Row not found", it's fine?
-                                      // supabase delete doesn't error if not found.
-                                      // It errors on permission or connection.
-                                      Alert.alert(
-                                        "Error deleting logs",
-                                        logError.message,
-                                      );
+                                      if (Platform.OS === "web") {
+                                        window.alert(
+                                          "Error deleting logs: " +
+                                            logError.message,
+                                        );
+                                      } else {
+                                        Alert.alert(
+                                          "Error deleting logs",
+                                          logError.message,
+                                        );
+                                      }
                                       return;
                                     }
 
-                                    const { error } = await supabase
+                                    const { error: planError } = await supabase
                                       .from("study_plan")
                                       .delete()
                                       .eq("id", p.id);
-                                    if (error)
-                                      Alert.alert("Error", error.message);
-                                    else loadData();
-                                  },
-                                },
-                              ]);
-                            }}
-                            style={[
-                              styles.squareBtn,
-                              { backgroundColor: "#ef444420" },
-                            ]}
-                          >
-                            <Trash2 size={16} color="#ef4444" />
-                          </TouchableOpacity>
 
-                          <TouchableOpacity
-                            onPress={() =>
-                              setRepeatingPlanId(
-                                repeatingPlanId === p.id ? null : p.id,
-                              )
-                            }
-                            style={[
-                              styles.squareBtn,
-                              { backgroundColor: theme.primary + "20" },
-                            ]}
-                          >
-                            <CalendarIcon size={16} color={theme.primary} />
-                          </TouchableOpacity>
+                                    if (planError) {
+                                      console.error(
+                                        "Plan delete error:",
+                                        planError,
+                                      );
+                                      if (Platform.OS === "web") {
+                                        window.alert(
+                                          "Error deleting plan: " +
+                                            planError.message,
+                                        );
+                                      } else {
+                                        Alert.alert(
+                                          "Error deleting plan",
+                                          planError.message,
+                                        );
+                                      }
+                                    } else {
+                                      if (Platform.OS !== "web") {
+                                        Alert.alert("Success", "Plan deleted.");
+                                      }
+                                      loadData();
+                                    }
+                                  } catch (err: any) {
+                                    console.error("Delete exception:", err);
+                                    if (Platform.OS === "web") {
+                                      window.alert(
+                                        "Error: " +
+                                          (err.message || "Unknown error"),
+                                      );
+                                    } else {
+                                      Alert.alert(
+                                        "Error",
+                                        err.message || "Unknown error",
+                                      );
+                                    }
+                                  }
+                                };
+
+                                if (Platform.OS === "web") {
+                                  if (
+                                    window.confirm(
+                                      "Are you sure you want to delete this plan? This action cannot be undone.",
+                                    )
+                                  ) {
+                                    performDelete();
+                                  }
+                                } else {
+                                  Alert.alert(
+                                    "Delete Plan",
+                                    "Are you sure you want to delete this plan?",
+                                    [
+                                      { text: "Cancel", style: "cancel" },
+                                      {
+                                        text: "Delete",
+                                        style: "destructive",
+                                        onPress: performDelete,
+                                      },
+                                    ],
+                                  );
+                                }
+                              }}
+                              style={[
+                                styles.squareBtn,
+                                { backgroundColor: "#ef444420" },
+                              ]}
+                            >
+                              <Trash2 size={16} color="#ef4444" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              onPress={() =>
+                                setRepeatingPlanId(
+                                  repeatingPlanId === p.id ? null : p.id,
+                                )
+                              }
+                              style={[
+                                styles.squareBtn,
+                                { backgroundColor: theme.primary + "20" },
+                              ]}
+                            >
+                              <CalendarIcon size={16} color={theme.primary} />
+                            </TouchableOpacity>
+                          </View>
                         </View>
                         {repeatingPlanId === p.id && (
                           <View style={styles.repeatContainer}>
@@ -641,8 +691,8 @@ const styles = StyleSheet.create({
   repeatContainer: {
     width: "100%",
     padding: 12,
-    marginTop: -8,
-    marginBottom: 12,
+    marginTop: 8,
+    marginBottom: 0,
     borderRadius: 12,
     backgroundColor: "rgba(0,0,0,0.03)",
   },
@@ -655,7 +705,9 @@ const styles = StyleSheet.create({
   },
   weekdayRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "center",
   },
   dayCircle: {
     width: 32,
