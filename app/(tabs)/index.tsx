@@ -416,6 +416,7 @@ export default function DashboardScreen() {
                       opacity: plan.isCompleted || plan.isPast ? 0.5 : 1,
                     },
                   ]}
+                  disabled={plan.isCompleted || plan.isPast}
                   onPress={() =>
                     router.push(`/(tabs)/study-room?planId=${plan.id}`)
                   }

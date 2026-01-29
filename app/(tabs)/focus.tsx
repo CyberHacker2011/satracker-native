@@ -34,6 +34,7 @@ import {
   Settings2,
   Clock,
   Coffee,
+  ArrowRight,
 } from "lucide-react-native";
 import { ConfirmModal } from "../../components/ConfirmModal";
 
@@ -68,6 +69,8 @@ export default function FocusScreen() {
   });
 
   const [loading, setLoading] = useState(true);
+
+  // Code removed: Widget Sync & Float Handler
 
   useEffect(() => {
     storage.getItem("classic_focus_state").then((saved) => {
@@ -151,7 +154,17 @@ export default function FocusScreen() {
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              {
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 12,
+                marginBottom: 40,
+              },
+            ]}
+          >
             <Heading style={{ fontSize: 24 }}>Focus Timer</Heading>
           </View>
 

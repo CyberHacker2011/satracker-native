@@ -57,7 +57,16 @@ export default function LoginScreen() {
     try {
       // Use the configured production URL if available, otherwise fallback to linking
       const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
-      const redirectTo = siteUrl ? siteUrl : Linking.createURL("/");
+
+      // @ts-ignore
+      const isElectron = typeof window !== "undefined" && !!window.require;
+
+      let redirectTo = siteUrl ? siteUrl : Linking.createURL("/");
+
+      if (isElectron) {
+        // Force deep link for Electron to open system browser then redirect back to app
+        redirectTo = "satracker://google-auth";
+      }
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",

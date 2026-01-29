@@ -33,6 +33,23 @@ import { SidebarToggle } from "../components/SidebarToggle";
 function RootLayoutNav() {
   useUserActivity();
   const { theme, themeName } = useTheme();
+  // Handle Electron Deep Linking
+  useEffect(() => {
+    // @ts-ignore
+    if (typeof window !== "undefined" && window.require) {
+      // @ts-ignore
+      const { ipcRenderer } = window.require("electron");
+      const onDeepLink = (_: any, url: string) => {
+        console.log("Deep link received in renderer:", url);
+        Linking.openURL(url);
+      };
+      ipcRenderer.on("deep-link", onDeepLink);
+      return () => {
+        ipcRenderer.removeListener("deep-link", onDeepLink);
+      };
+    }
+  }, []);
+
   const segments = useSegments();
   const router = useRouter();
   const [session, setSession] = useState<any>(null);

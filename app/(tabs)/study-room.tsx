@@ -90,6 +90,8 @@ export default function StudyRoomScreen() {
     },
   });
 
+  // Code removed: Widget Sync & Float Handler
+
   const pulse = useSharedValue(1);
   useEffect(() => {
     if (isRunning) {
@@ -289,7 +291,7 @@ export default function StudyRoomScreen() {
                     styles.planCard,
                     {
                       borderColor: theme.border,
-                      opacity: p.isMarked ? 0.5 : 1,
+                      opacity: p.isMarked || p.isPast ? 0.5 : 1,
                     },
                   ]}
                   onPress={() =>
@@ -456,24 +458,72 @@ export default function StudyRoomScreen() {
                 QUIT
               </ThemedText>
             </TouchableOpacity>
-            <View style={styles.statusBadge}>
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor:
-                      mode === "focus" ? theme.primary : "#10b981",
-                  },
-                ]}
-              />
-              <ThemedText style={styles.statusText}>
-                {mode.toUpperCase()}
-              </ThemedText>
+
+            <View
+              style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
+            >
+              <View style={styles.statusBadge}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor:
+                        mode === "focus" ? theme.primary : "#10b981",
+                    },
+                  ]}
+                />
+                <ThemedText style={styles.statusText}>
+                  {mode.toUpperCase()}
+                </ThemedText>
+              </View>
             </View>
-            <View style={{ width: 40 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.container}>
+            {/* Session Tracker */}
+            <View style={styles.sessionTracker}>
+              <View style={styles.sessionDots}>
+                {Array.from({ length: settings.sessions }).map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.sessionDot,
+                      {
+                        backgroundColor:
+                          i < currentSession
+                            ? theme.primary
+                            : "rgba(0,0,0,0.1)",
+                        opacity: i < currentSession ? 1 : 0.5,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+              <View style={styles.progressBarBg}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      backgroundColor: theme.primary,
+                      width: `${Math.min(
+                        100,
+                        Math.max(
+                          0,
+                          ((currentSession -
+                            1 +
+                            (mode === "focus"
+                              ? 1 - timeLeft / (settings.focus * 60)
+                              : 0)) /
+                            settings.sessions) *
+                            100,
+                        ),
+                      )}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+
             <View style={styles.timerContainer}>
               <Animated.View style={[styles.timerRing, animatedRingStyle]}>
                 <ThemedText style={styles.timerVal}>
@@ -683,4 +733,15 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     opacity: 0.7,
   },
+  sessionTracker: { width: "100%", marginBottom: 40, gap: 12 },
+  sessionDots: { flexDirection: "row", justifyContent: "center", gap: 8 },
+  sessionDot: { width: 12, height: 12, borderRadius: 6 },
+  progressBarBg: {
+    height: 6,
+    width: "100%",
+    backgroundColor: "rgba(0,0,0,0.05)",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressBarFill: { height: "100%", borderRadius: 3 },
 });

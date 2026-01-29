@@ -50,8 +50,32 @@ export default function CheckInScreen() {
   // Optimize: Avoid unmounting/remounting spinner on every focus
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const calendarStart = useMemo(() => {
+    const start = new Date(
+      currentMonth.getFullYear(),
+      currentMonth.getMonth(),
+      1,
+    );
+    // Adjust to start on Sunday (0)
+    start.setDate(1 - start.getDay());
+    return start;
+  }, [currentMonth]);
+
+  const calendarDays = useMemo(() => {
+    const days = [];
+    const start = new Date(calendarStart);
+    // 6 weeks * 7 days = 42 cells to ensure full month coverage
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      days.push(getLocalDateString(d));
+    }
+    return days;
+  }, [calendarStart]);
+
   const loadData = async () => {
-    // Only show spinner on first load
     if (isInitialLoad) setLoading(true);
 
     try {
@@ -60,27 +84,22 @@ export default function CheckInScreen() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const startDate = getLocalDateString(new Date());
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 30);
-      const endDateStr = getLocalDateString(endDate);
+      const startDate = calendarDays[0];
+      const endDate = calendarDays[calendarDays.length - 1];
 
-      // Only fetch plans for relevant window
       const { data: plans } = await supabase
         .from("study_plan")
         .select("*")
         .eq("user_id", user.id)
         .gte("date", startDate)
-        .lte("date", endDateStr);
+        .lte("date", endDate);
 
-      // Only fetch logs for relevant window (if needed) or matching plans
-      // Optimally, fetch logs for the plan IDs we found, but date range is simpler for batch
       const { data: logs } = await supabase
         .from("daily_log")
         .select("*")
         .eq("user_id", user.id)
         .gte("date", startDate)
-        .lte("date", endDateStr);
+        .lte("date", endDate);
 
       const grouped: Record<string, any[]> = {};
       plans?.forEach((p) => {
@@ -100,21 +119,22 @@ export default function CheckInScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, []),
+    }, [currentMonth, calendarDays]), // Reload when month changes
   );
 
-  const calendarDays = useMemo(() => {
-    const days = [];
-    const now = new Date();
-    // Start from today and show 24 days (4 rows of 6)
-    for (let i = 0; i < 24; i++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + i);
-      days.push(getLocalDateString(d));
-    }
-    return days;
-  }, []);
+  const prevMonth = () => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1),
+    );
+  };
 
+  const nextMonth = () => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1),
+    );
+  };
+
+  // ... (keep handleUpdateStatus, handleRepeatPlan from original if needed) ...
   const handleUpdateStatus = async (
     planId: string,
     date: string,
@@ -198,12 +218,40 @@ export default function CheckInScreen() {
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <PremiumGate feature="Check-in">
+          {/* Top Bar with Edit Plan */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.push("/(tabs)")}>
-              <ChevronLeft size={24} color={theme.textPrimary} />
+            {/* Use basic navigation or title if needed, or keeping it clean as per layout */}
+            {/* Originally it had a back button, keeping it for mobile logic */}
+            <TouchableOpacity
+              style={styles.navBtn}
+              onPress={() => router.push("/(tabs)")}
+            >
+              <ChevronLeft size={20} color={theme.textPrimary} />
             </TouchableOpacity>
-            <Heading style={{ fontSize: 20 }}>Check-in</Heading>
-            <View style={{ width: 24 }} />
+
+            <View style={styles.monthSelector}>
+              <TouchableOpacity onPress={prevMonth} style={styles.arrowBtn}>
+                <ChevronLeft size={20} color={theme.textPrimary} />
+              </TouchableOpacity>
+              <ThemedText style={styles.monthTitle}>
+                {currentMonth.toLocaleString("default", { month: "long" })}
+              </ThemedText>
+              <TouchableOpacity onPress={nextMonth} style={styles.arrowBtn}>
+                <ChevronLeft
+                  size={20}
+                  color={theme.textPrimary}
+                  style={{ transform: [{ rotate: "180deg" }] }}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.editPlanBtn}
+              onPress={() => router.push("/(tabs)/plan")}
+            >
+              <Edit2 size={16} color={theme.textPrimary} />
+              <ThemedText style={styles.editPlanText}>Edit plan</ThemedText>
+            </TouchableOpacity>
           </View>
 
           {loading ? (
@@ -211,102 +259,94 @@ export default function CheckInScreen() {
               <ActivityIndicator size="large" color={theme.primary} />
             </View>
           ) : (
-            <ScrollView contentContainerStyle={styles.container}>
-              <View style={styles.calHeaderRow}>
-                <ThemedText style={styles.calTitle}>
-                  SUCCESS TIMELINE
-                </ThemedText>
-                <ThemedText style={styles.monthLabel}>
-                  {getMonthYearString(getLocalDateString(), t)}
-                </ThemedText>
+            <View style={styles.calendarContainer}>
+              {/* Weekday Headers */}
+              <View style={styles.gridHeader}>
+                {WEEKDAYS.map((day) => (
+                  <ThemedText key={day} style={styles.weekdayLabel}>
+                    {day.toUpperCase()}
+                  </ThemedText>
+                ))}
               </View>
 
-              <View style={styles.calGrid}>
-                {calendarDays.map((d: string) => {
-                  const dayPlans = plansByDate[d] || [];
-                  const isToday = d === getLocalDateString();
-                  const dObj = new Date(d + "T00:00:00");
-                  const hasDone = dayPlans.some((p) => p.status === "done");
-                  const hasMissed = dayPlans.some((p) => p.status === "missed");
-                  const hasPending = dayPlans.some((p) => !p.status);
+              {/* Days Grid */}
+              <ScrollView contentContainerStyle={styles.gridContent}>
+                <View style={styles.grid}>
+                  {calendarDays.map((d, index) => {
+                    const dateObj = new Date(d);
+                    const isSameMonth =
+                      dateObj.getMonth() === currentMonth.getMonth();
+                    const isToday = d === getLocalDateString();
+                    const dayPlans = plansByDate[d] || [];
 
-                  return (
-                    <TouchableOpacity
-                      key={d}
-                      style={[
-                        styles.calCell,
-                        {
-                          borderColor: theme.border,
-                          width: isSmallScreen ? "13%" : "15%",
-                        },
-                        isToday && {
-                          borderColor: theme.primary,
-                          borderWidth: 2,
-                        },
-                      ]}
-                      onPress={() => {
-                        setSelectedDate(d);
-                        setIsModalVisible(true);
-                      }}
-                    >
-                      <ThemedText
+                    return (
+                      <TouchableOpacity
+                        key={d}
                         style={[
-                          styles.dateNum,
-                          isToday && { color: theme.primary },
+                          styles.dayCell,
+                          {
+                            borderColor: theme.border,
+                            backgroundColor: theme.card,
+                          },
+                          !isSameMonth && { opacity: 0.5 },
                         ]}
+                        onPress={() => {
+                          setSelectedDate(d);
+                          setIsModalVisible(true);
+                        }}
                       >
-                        {dObj.getDate()}
-                      </ThemedText>
-                      <View style={styles.dots}>
-                        {hasDone && (
-                          <View
-                            style={[styles.dot, { backgroundColor: "#10b981" }]}
-                          />
-                        )}
-                        {hasMissed && (
-                          <View
-                            style={[styles.dot, { backgroundColor: "#ef4444" }]}
-                          />
-                        )}
-                        {hasPending && (
-                          <View
+                        <View style={styles.dayNumRow}>
+                          <ThemedText
                             style={[
-                              styles.dot,
-                              { backgroundColor: theme.primary },
+                              styles.dayNum,
+                              isToday && {
+                                color: theme.primary,
+                                fontWeight: "900",
+                              },
                             ]}
-                          />
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                          >
+                            {dateObj.getDate()}
+                          </ThemedText>
+                        </View>
 
-              <View style={styles.legend}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.dot, { backgroundColor: "#10b981" }]} />
-                  <ThemedText style={styles.legendText}>DONE</ThemedText>
+                        <View style={styles.planList}>
+                          {dayPlans.slice(0, 3).map((p, i) => (
+                            <View
+                              key={i}
+                              style={[
+                                styles.miniPlan,
+                                {
+                                  backgroundColor: theme.primary + "15",
+                                  borderLeftColor: theme.primary,
+                                },
+                              ]}
+                            >
+                              <ThemedText
+                                style={[
+                                  styles.miniPlanText,
+                                  { color: theme.primary },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {p.section}
+                              </ThemedText>
+                            </View>
+                          ))}
+                          {dayPlans.length > 3 && (
+                            <ThemedText style={styles.moreText}>
+                              + {dayPlans.length - 3} more
+                            </ThemedText>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-                <View style={styles.legendItem}>
-                  <View
-                    style={[styles.dot, { backgroundColor: theme.primary }]}
-                  />
-                  <ThemedText style={styles.legendText}>PLANNED</ThemedText>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
-                  <ThemedText style={styles.legendText}>MISSED</ThemedText>
-                </View>
-              </View>
-
-              <Button
-                title="Plan New Session"
-                style={{ marginTop: 32 }}
-                onPress={() => router.push("/(tabs)/plan")}
-              />
-            </ScrollView>
+              </ScrollView>
+            </View>
           )}
 
+          {/* Keep Modal Logic Identical */}
           <Modal visible={isModalVisible} transparent animationType="fade">
             <View style={styles.modalBackdrop}>
               <View
@@ -396,6 +436,9 @@ export default function CheckInScreen() {
 
                           <View style={{ flexDirection: "row", gap: 8 }}>
                             <TouchableOpacity
+                              disabled={
+                                !!p.status || p.date !== getLocalDateString()
+                              }
                               onPress={() => {
                                 setIsModalVisible(false);
                                 router.push({
@@ -405,13 +448,21 @@ export default function CheckInScreen() {
                               }}
                               style={[
                                 styles.squareBtn,
-                                { backgroundColor: theme.primary + "20" },
+                                {
+                                  backgroundColor: theme.primary + "20",
+                                  opacity:
+                                    !!p.status ||
+                                    p.date !== getLocalDateString()
+                                      ? 0.3
+                                      : 1,
+                                },
                               ]}
                             >
                               <Edit2 size={16} color={theme.primary} />
                             </TouchableOpacity>
 
                             <TouchableOpacity
+                              disabled={p.status === "done"}
                               onPress={() => {
                                 const performDelete = async () => {
                                   try {
@@ -507,7 +558,10 @@ export default function CheckInScreen() {
                               }}
                               style={[
                                 styles.squareBtn,
-                                { backgroundColor: "#ef444420" },
+                                {
+                                  backgroundColor: "#ef444420",
+                                  opacity: p.status === "done" ? 0.3 : 1,
+                                },
                               ]}
                             >
                               <Trash2 size={16} color="#ef4444" />
@@ -606,48 +660,76 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
   },
-  container: { padding: 24, paddingBottom: 60 },
-  calHeaderRow: {
+  navBtn: { padding: 4 },
+  monthSelector: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
-  },
-  calTitle: {
-    fontSize: 10,
-    fontWeight: "900",
-    opacity: 0.4,
-    letterSpacing: 1.5,
-  },
-  monthLabel: { fontSize: 12, fontWeight: "800", opacity: 0.6 },
-  calGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    justifyContent: "center",
-  },
-  calCell: {
-    width: "15%", // Adjust for 6 per row
-    aspectRatio: 1,
+    gap: 16,
+    backgroundColor: "rgba(0,0,0,0.04)",
+    padding: 6,
     borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.02)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
   },
-  dateNum: { fontSize: 13, fontWeight: "900" },
-  dots: { flexDirection: "row", gap: 2, marginTop: 2 },
-  dot: { width: 4, height: 4, borderRadius: 2 },
-  legend: {
+  arrowBtn: { padding: 4 },
+  monthTitle: { fontSize: 15, fontWeight: "700" },
+  editPlanBtn: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
-    marginTop: 32,
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(0,0,0,0.04)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
   },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  legendText: { fontSize: 10, fontWeight: "900", opacity: 0.4 },
+  editPlanText: { fontSize: 13, fontWeight: "600" },
+
+  calendarContainer: { flex: 1 },
+  gridHeader: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  weekdayLabel: {
+    flex: 1,
+    textAlign: "center",
+    paddingVertical: 12,
+    fontSize: 11,
+    fontWeight: "700",
+    opacity: 0.5,
+  },
+
+  gridContent: { flexGrow: 1 },
+  grid: { flexDirection: "row", flexWrap: "wrap" },
+  dayCell: {
+    width: "14.28%", // 100/7
+    aspectRatio: 0.8, // Taller cells for plans
+    borderRightWidth: 0.5,
+    borderBottomWidth: 0.5,
+    padding: 4,
+    justifyContent: "flex-start",
+  },
+  dayNumRow: { flexDirection: "row", marginBottom: 4 },
+  dayNum: { fontSize: 13, fontWeight: "600", marginLeft: 4, marginTop: 4 },
+  planList: { gap: 4 },
+  miniPlan: {
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    marginHorizontal: 2,
+  },
+  miniPlanText: { fontSize: 9, fontWeight: "700" },
+  moreText: { fontSize: 9, opacity: 0.5, marginLeft: 4, fontStyle: "italic" },
+
+  // ... (keep modal styles) ...
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

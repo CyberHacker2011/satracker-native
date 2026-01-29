@@ -91,7 +91,60 @@ function createWindow() {
   // win.webContents.openDevTools();
 }
 
-app.whenReady().then(createWindow);
+// Widget code removed
+
+// Deep linking handling
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient("satracker", process.execPath, [
+      path.resolve(process.argv[1]),
+    ]);
+  }
+} else {
+  app.setAsDefaultProtocolClient("satracker");
+}
+
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+    // Protocol handler for Windows
+    // commandLine looks like: [ 'path/to/exe', 'satracker://...' ]
+    const url = commandLine.pop();
+    if (url && url.startsWith("satracker://")) {
+      win.webContents.send("deep-link", url);
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+
+    // Check if started with deep link (Windows)
+    if (process.platform === "win32" && process.argv.length > 1) {
+      const url = process.argv.find((arg) => arg.startsWith("satracker://"));
+      if (url && win) {
+        // Wait a bit for window to load
+        setTimeout(() => win.webContents.send("deep-link", url), 3000);
+      }
+    }
+  });
+
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+      win.webContents.send("deep-link", url);
+    }
+  });
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
