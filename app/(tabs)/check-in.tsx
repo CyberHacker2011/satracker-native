@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from "react";
 import {
   StyleSheet,
   View,
@@ -14,13 +20,18 @@ import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "../../lib/supabase";
-import { getLocalDateString, getMonthYearString } from "../../lib/dateUtils";
+import {
+  getLocalDateString,
+  getMonthYearString,
+  getLocalTimeString,
+} from "../../lib/dateUtils";
 import { ThemedText, Heading } from "../../components/ThemedText";
 import { ThemedView } from "../../components/ThemedView";
 import { Button } from "../../components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
+  ChevronRight,
   Check,
   X,
   Calendar as CalendarIcon,
@@ -50,30 +61,80 @@ export default function CheckInScreen() {
   // Optimize: Avoid unmounting/remounting spinner on every focus
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const today = useMemo(() => new Date(), []);
+  const todayStr = useMemo(() => getLocalDateString(today), [today]);
+
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+
+  const isCurrentMonthView = useMemo(() => {
+    return (
+      currentMonth.getMonth() === today.getMonth() &&
+      currentMonth.getFullYear() === today.getFullYear()
+    );
+  }, [currentMonth, today]);
+
+  const scrollRef = useRef<ScrollView>(null);
 
   const calendarStart = useMemo(() => {
+    // Always start from the standard beginning of the month's grid (the Sunday on or before the 1st)
     const start = new Date(
       currentMonth.getFullYear(),
       currentMonth.getMonth(),
       1,
     );
-    // Adjust to start on Sunday (0)
     start.setDate(1 - start.getDay());
     return start;
   }, [currentMonth]);
 
   const calendarDays = useMemo(() => {
-    const days = [];
-    const start = new Date(calendarStart);
-    // 6 weeks * 7 days = 42 cells to ensure full month coverage
-    for (let i = 0; i < 42; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      days.push(getLocalDateString(d));
+    const days: (string | null)[] = [];
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const startPadding = firstDay.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 0; i < startPadding; i++) {
+      days.push(null);
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(getLocalDateString(new Date(year, month, i)));
     }
     return days;
-  }, [calendarStart]);
+  }, [currentMonth]);
+
+  const scrollToToday = useCallback(() => {
+    if (!isCurrentMonthView) return;
+
+    const index = calendarDays.indexOf(todayStr);
+    if (index !== -1) {
+      const row = Math.floor(index / 7);
+      // Approximate height calculation:
+      // cellWidth = width / 7
+      // cellHeight = cellWidth / aspectRatio
+      // We use a simplified calculation or a fixed offset if needed.
+      // Since width is dynamic, we can estimate.
+      const cellWidth = width / 7;
+      const cellHeight = cellWidth / 1.15; // Updated aspectRatio
+      const scrollY = Math.max(0, (row - 1) * cellHeight); // Scroll to show row above too for context
+
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: scrollY, animated: true });
+      }, 100);
+    }
+  }, [calendarDays, isCurrentMonthView, todayStr, width]);
+
+  useEffect(() => {
+    if (isCurrentMonthView) {
+      scrollToToday();
+    }
+  }, [currentMonth, isCurrentMonthView]);
+
+  const canGoPrev = !isCurrentMonthView;
+  const canGoNext = isCurrentMonthView;
 
   const loadData = async () => {
     if (isInitialLoad) setLoading(true);
@@ -123,12 +184,14 @@ export default function CheckInScreen() {
   );
 
   const prevMonth = () => {
+    if (!canGoPrev) return;
     setCurrentMonth(
       new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1),
     );
   };
 
   const nextMonth = () => {
+    if (!canGoNext) return;
     setCurrentMonth(
       new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1),
     );
@@ -139,9 +202,16 @@ export default function CheckInScreen() {
     planId: string,
     date: string,
     status: "done" | "missed",
+    p?: any,
   ) => {
-    if (date !== getLocalDateString()) {
+    const today = getLocalDateString();
+    if (date !== today) {
       Alert.alert("Info", "You can only check-in for today's sessions.");
+      return;
+    }
+
+    if (p && p.start_time > getLocalTimeString(new Date(Date.now() + 60000))) {
+      Alert.alert("Info", "This session has not started yet.");
       return;
     }
     try {
@@ -218,40 +288,46 @@ export default function CheckInScreen() {
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <PremiumGate feature="Check-in">
-          {/* Top Bar with Edit Plan */}
+          {/* Top Bar with navigation and Edit Plan */}
           <View style={styles.header}>
-            {/* Use basic navigation or title if needed, or keeping it clean as per layout */}
-            {/* Originally it had a back button, keeping it for mobile logic */}
-            <TouchableOpacity
-              style={styles.navBtn}
-              onPress={() => router.push("/(tabs)")}
-            >
-              <ChevronLeft size={20} color={theme.textPrimary} />
-            </TouchableOpacity>
-
             <View style={styles.monthSelector}>
-              <TouchableOpacity onPress={prevMonth} style={styles.arrowBtn}>
+              <TouchableOpacity
+                onPress={prevMonth}
+                disabled={!canGoPrev}
+                style={[styles.arrowBtn, !canGoPrev && { opacity: 0.2 }]}
+              >
                 <ChevronLeft size={20} color={theme.textPrimary} />
               </TouchableOpacity>
               <ThemedText style={styles.monthTitle}>
                 {currentMonth.toLocaleString("default", { month: "long" })}
               </ThemedText>
-              <TouchableOpacity onPress={nextMonth} style={styles.arrowBtn}>
-                <ChevronLeft
-                  size={20}
-                  color={theme.textPrimary}
-                  style={{ transform: [{ rotate: "180deg" }] }}
-                />
+              <TouchableOpacity
+                onPress={nextMonth}
+                disabled={!canGoNext}
+                style={[styles.arrowBtn, !canGoNext && { opacity: 0.2 }]}
+              >
+                <ChevronRight size={20} color={theme.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              style={styles.editPlanBtn}
-              onPress={() => router.push("/(tabs)/plan")}
-            >
-              <Edit2 size={16} color={theme.textPrimary} />
-              <ThemedText style={styles.editPlanText}>Edit plan</ThemedText>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {isCurrentMonthView && (
+                <TouchableOpacity
+                  style={styles.todayBtn}
+                  onPress={scrollToToday}
+                >
+                  <ThemedText style={styles.todayBtnText}>Today</ThemedText>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.editPlanBtn}
+                onPress={() => router.push("/(tabs)/plan")}
+              >
+                <Edit2 size={16} color={theme.textPrimary} />
+                <ThemedText style={styles.editPlanText}>Edit plan</ThemedText>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {loading ? (
@@ -270,25 +346,62 @@ export default function CheckInScreen() {
               </View>
 
               {/* Days Grid */}
-              <ScrollView contentContainerStyle={styles.gridContent}>
+              <ScrollView
+                ref={scrollRef}
+                contentContainerStyle={styles.gridContent}
+                showsVerticalScrollIndicator={false}
+              >
                 <View style={styles.grid}>
                   {calendarDays.map((d, index) => {
+                    if (!d) {
+                      return (
+                        <View
+                          key={`pad-${index}`}
+                          style={[
+                            styles.dayCell,
+                            {
+                              borderColor: theme.border,
+                              backgroundColor: "rgba(0,0,0,0.01)",
+                            },
+                          ]}
+                        />
+                      );
+                    }
                     const dateObj = new Date(d);
-                    const isSameMonth =
-                      dateObj.getMonth() === currentMonth.getMonth();
-                    const isToday = d === getLocalDateString();
+                    const isToday = d === todayStr;
+                    const isPast = d < todayStr;
                     const dayPlans = plansByDate[d] || [];
+
+                    const getPlanChipStyles = (section: string) => {
+                      const s = section?.toLowerCase() || "";
+                      if (s.includes("mock") || s.includes("test"))
+                        return { bg: "#bbf7d0", color: "#065f46" };
+                      if (s.includes("qbank") || s.includes("practice"))
+                        return { bg: "#bfdbfe", color: "#1e40af" };
+                      if (s.includes("vocab"))
+                        return { bg: "#ffedd5", color: "#9a3412" };
+                      if (s.includes("drill"))
+                        return { bg: "#e0e7ff", color: "#3730a3" };
+                      return { bg: theme.primary + "25", color: theme.primary };
+                    };
 
                     return (
                       <TouchableOpacity
                         key={d}
+                        disabled={isPast}
                         style={[
                           styles.dayCell,
                           {
                             borderColor: theme.border,
                             backgroundColor: theme.card,
                           },
-                          !isSameMonth && { opacity: 0.5 },
+                          isPast && styles.disabledCell,
+                          isToday && {
+                            backgroundColor: theme.primary + "15",
+                            borderWidth: 2,
+                            borderColor: theme.primary,
+                            zIndex: 1,
+                          },
                         ]}
                         onPress={() => {
                           setSelectedDate(d);
@@ -302,6 +415,11 @@ export default function CheckInScreen() {
                               isToday && {
                                 color: theme.primary,
                                 fontWeight: "900",
+                                fontSize: 14,
+                              },
+                              isPast && {
+                                color: theme.textSecondary,
+                                opacity: 0.2,
                               },
                             ]}
                           >
@@ -310,30 +428,50 @@ export default function CheckInScreen() {
                         </View>
 
                         <View style={styles.planList}>
-                          {dayPlans.slice(0, 3).map((p, i) => (
-                            <View
-                              key={i}
+                          {dayPlans.slice(0, 3).map((p, i) => {
+                            const chipStyles = getPlanChipStyles(p.section);
+                            return (
+                              <View
+                                key={i}
+                                style={[
+                                  styles.miniPlan,
+                                  {
+                                    backgroundColor: isPast
+                                      ? "rgba(0,0,0,0.03)"
+                                      : chipStyles.bg,
+                                    borderLeftColor: isPast
+                                      ? "rgba(0,0,0,0.15)"
+                                      : chipStyles.color,
+                                    borderWidth: isPast ? 0 : 0.5,
+                                    borderColor: chipStyles.color + "40",
+                                  },
+                                  isPast && { elevation: 0, shadowOpacity: 0 },
+                                ]}
+                              >
+                                <ThemedText
+                                  style={[
+                                    styles.miniPlanText,
+                                    {
+                                      color: isPast
+                                        ? "rgba(0,0,0,0.25)"
+                                        : chipStyles.color,
+                                      fontWeight: "900",
+                                    },
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {p.section}
+                                </ThemedText>
+                              </View>
+                            );
+                          })}
+                          {dayPlans.length > 3 && (
+                            <ThemedText
                               style={[
-                                styles.miniPlan,
-                                {
-                                  backgroundColor: theme.primary + "15",
-                                  borderLeftColor: theme.primary,
-                                },
+                                styles.moreText,
+                                isPast && { opacity: 0.15 },
                               ]}
                             >
-                              <ThemedText
-                                style={[
-                                  styles.miniPlanText,
-                                  { color: theme.primary },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {p.section}
-                              </ThemedText>
-                            </View>
-                          ))}
-                          {dayPlans.length > 3 && (
-                            <ThemedText style={styles.moreText}>
                               + {dayPlans.length - 3} more
                             </ThemedText>
                           )}
@@ -390,48 +528,77 @@ export default function CheckInScreen() {
                           ]}
                         >
                           <View style={{ flexDirection: "row", gap: 8 }}>
-                            <TouchableOpacity
-                              onPress={() =>
-                                handleUpdateStatus(p.id, p.date, "done")
-                              }
-                              style={[
-                                styles.actionBtn,
-                                {
-                                  opacity:
-                                    p.date === getLocalDateString() ? 1 : 0.3,
-                                },
-                                p.status === "done" && {
-                                  backgroundColor: "#10b981",
-                                },
-                              ]}
-                            >
-                              <Check
-                                size={16}
-                                color={p.status === "done" ? "#fff" : "#10b981"}
-                              />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() =>
-                                handleUpdateStatus(p.id, p.date, "missed")
-                              }
-                              style={[
-                                styles.actionBtn,
-                                {
-                                  opacity:
-                                    p.date === getLocalDateString() ? 1 : 0.3,
-                                },
-                                p.status === "missed" && {
-                                  backgroundColor: "#ef4444",
-                                },
-                              ]}
-                            >
-                              <X
-                                size={16}
-                                color={
-                                  p.status === "missed" ? "#fff" : "#ef4444"
-                                }
-                              />
-                            </TouchableOpacity>
+                            {(() => {
+                              const isToday = p.date === getLocalDateString();
+                              const isNotStarted =
+                                isToday &&
+                                p.start_time >
+                                  getLocalTimeString(
+                                    new Date(Date.now() + 60000),
+                                  );
+                              const canCheckIn = isToday && !isNotStarted;
+
+                              return (
+                                <>
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      handleUpdateStatus(
+                                        p.id,
+                                        p.date,
+                                        "done",
+                                        p,
+                                      )
+                                    }
+                                    disabled={!canCheckIn}
+                                    style={[
+                                      styles.actionBtn,
+                                      {
+                                        opacity: canCheckIn ? 1 : 0.3,
+                                      },
+                                      p.status === "done" && {
+                                        backgroundColor: "#10b981",
+                                      },
+                                    ]}
+                                  >
+                                    <Check
+                                      size={16}
+                                      color={
+                                        p.status === "done" ? "#fff" : "#10b981"
+                                      }
+                                    />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      handleUpdateStatus(
+                                        p.id,
+                                        p.date,
+                                        "missed",
+                                        p,
+                                      )
+                                    }
+                                    disabled={!canCheckIn}
+                                    style={[
+                                      styles.actionBtn,
+                                      {
+                                        opacity: canCheckIn ? 1 : 0.3,
+                                      },
+                                      p.status === "missed" && {
+                                        backgroundColor: "#ef4444",
+                                      },
+                                    ]}
+                                  >
+                                    <X
+                                      size={16}
+                                      color={
+                                        p.status === "missed"
+                                          ? "#fff"
+                                          : "#ef4444"
+                                      }
+                                    />
+                                  </TouchableOpacity>
+                                </>
+                              );
+                            })()}
                           </View>
 
                           <View style={{ flexDirection: "row", gap: 8 }}>
@@ -656,6 +823,7 @@ export default function CheckInScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  calendarContainer: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -677,7 +845,17 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0,0,0,0.05)",
   },
   arrowBtn: { padding: 4 },
-  monthTitle: { fontSize: 15, fontWeight: "700" },
+  monthTitle: { fontSize: 15, fontWeight: "800" },
+  todayBtn: {
+    backgroundColor: "rgba(0,0,0,0.04)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
+    justifyContent: "center",
+  },
+  todayBtnText: { fontSize: 13, fontWeight: "700" },
   editPlanBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -691,43 +869,64 @@ const styles = StyleSheet.create({
   },
   editPlanText: { fontSize: 13, fontWeight: "600" },
 
-  calendarContainer: { flex: 1 },
   gridHeader: {
     flexDirection: "row",
+    backgroundColor: "rgba(0,0,0,0.02)",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.05)",
+    borderBottomColor: "rgba(0,0,0,0.1)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.05)",
   },
   weekdayLabel: {
     flex: 1,
     textAlign: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 11,
-    fontWeight: "700",
-    opacity: 0.5,
+    fontWeight: "800",
+    color: "rgba(0,0,0,0.5)",
+    letterSpacing: 0.5,
   },
 
   gridContent: { flexGrow: 1 },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    backgroundColor: "rgba(0,0,0,0.02)",
+  },
   dayCell: {
     width: "14.28%", // 100/7
-    aspectRatio: 0.8, // Taller cells for plans
+    aspectRatio: 1.15, // Shorter cells to fit more on screen
     borderRightWidth: 0.5,
     borderBottomWidth: 0.5,
-    padding: 4,
+    padding: 6,
     justifyContent: "flex-start",
   },
-  dayNumRow: { flexDirection: "row", marginBottom: 4 },
-  dayNum: { fontSize: 13, fontWeight: "600", marginLeft: 4, marginTop: 4 },
+  disabledCell: {
+    backgroundColor: "rgba(0,0,0,0.02)",
+  },
+  dayNumRow: { flexDirection: "row", marginBottom: 6 },
+  dayNum: { fontSize: 13, fontWeight: "700", marginLeft: 4, marginTop: 4 },
   planList: { gap: 4 },
   miniPlan: {
-    borderRadius: 4,
+    borderRadius: 6,
     borderLeftWidth: 3,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    marginHorizontal: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    marginHorizontal: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
-  miniPlanText: { fontSize: 9, fontWeight: "700" },
-  moreText: { fontSize: 9, opacity: 0.5, marginLeft: 4, fontStyle: "italic" },
+  miniPlanText: { fontSize: 9, fontWeight: "800" },
+  moreText: {
+    fontSize: 8,
+    opacity: 0.4,
+    marginLeft: 4,
+    fontStyle: "italic",
+    fontWeight: "700",
+  },
 
   // ... (keep modal styles) ...
   modalBackdrop: {

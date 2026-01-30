@@ -21,7 +21,7 @@ export function useStudyTimer({
   const [isRunning, setIsRunning] = useState(false);
   const [mode, setMode] = useState<TimerMode>("idle");
   const [currentSession, setCurrentSession] = useState(1);
-  
+
   // Dynamic settings that can be updated from parent
   const [settings, setSettings] = useState({ focus, breakMin, sessions });
 
@@ -42,8 +42,15 @@ export function useStudyTimer({
       setMode("focus");
       setCurrentSession((prev) => prev + 1);
       setTimeLeft(settings.focus * 60);
+      onSessionComplete?.(); // Notification for break -> focus
     }
-  }, [mode, currentSession, settings, onSessionComplete, onAllSessionsComplete]);
+  }, [
+    mode,
+    currentSession,
+    settings,
+    onSessionComplete,
+    onAllSessionsComplete,
+  ]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -53,7 +60,7 @@ export function useStudyTimer({
       interval = setInterval(() => {
         const now = Date.now();
         const delta = Math.floor((now - (lastTimeRef.current || now)) / 1000);
-        
+
         if (delta >= 1) {
           setTimeLeft((prev) => Math.max(0, prev - delta));
           lastTimeRef.current = now;
@@ -66,17 +73,22 @@ export function useStudyTimer({
     return () => clearInterval(interval);
   }, [isRunning, timeLeft, handleTransition]);
 
-  const start = (newSettings?: { focus: number; breakMin: number; sessions: number }) => {
+  const start = (newSettings?: {
+    focus: number;
+    breakMin: number;
+    sessions: number;
+  }) => {
     const s = newSettings || settings;
     if (newSettings) setSettings(newSettings);
     setMode("focus");
     setTimeLeft(s.focus * 60);
     setIsRunning(true);
     setCurrentSession(1);
+    onSessionComplete?.(); // Initial start notification
   };
 
   const toggle = () => setIsRunning(!isRunning);
-  
+
   const reset = (toMode: TimerMode = "idle") => {
     setIsRunning(false);
     setTimeLeft(settings.focus * 60);
@@ -108,6 +120,6 @@ export function useStudyTimer({
     setCurrentSession,
     setMode,
     setIsRunning,
-    formatTime
+    formatTime,
   };
 }

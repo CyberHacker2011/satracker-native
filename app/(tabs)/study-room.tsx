@@ -141,14 +141,23 @@ export default function StudyRoomScreen() {
           plans.map(async (p) => {
             const isMarked = logs?.some((l) => l.plan_id === p.id);
             const isPast = p.end_time < now;
+            // Allow starting 1 minute before the official start time
+            const isNotStarted =
+              p.start_time > getLocalTimeString(new Date(Date.now() + 60000));
             const saved = await storage.getItem(`study_room_state_${p.id}`);
-            return { ...p, isMarked, isPast, hasSavedState: !!saved };
+            return {
+              ...p,
+              isMarked,
+              isPast,
+              isNotStarted,
+              hasSavedState: !!saved,
+            };
           }),
         );
         setAvailablePlans(
           processed.sort((a, b) => {
-            const aActive = !a.isMarked && !a.isPast;
-            const bActive = !b.isMarked && !b.isPast;
+            const aActive = !a.isMarked && !a.isPast && !a.isNotStarted;
+            const bActive = !b.isMarked && !b.isPast && !b.isNotStarted;
 
             // Prioritize active plans
             if (aActive && !bActive) return -1;
@@ -162,11 +171,13 @@ export default function StudyRoomScreen() {
         if (planIdParam) {
           const selected = processed.find((p) => p.id === planIdParam);
           if (selected) {
-            if (selected.isMarked || selected.isPast) {
-              Alert.alert(
-                t("missionUnavailable"),
-                selected.isMarked ? t("alreadyCompleted") : t("alreadyExpired"),
-              );
+            if (selected.isMarked || selected.isPast || selected.isNotStarted) {
+              let msg = "";
+              if (selected.isMarked) msg = t("alreadyCompleted");
+              else if (selected.isPast) msg = t("alreadyExpired");
+              else msg = "This session has not started yet.";
+
+              Alert.alert(t("missionUnavailable"), msg);
               router.replace("/(tabs)");
               return;
             }
@@ -291,13 +302,14 @@ export default function StudyRoomScreen() {
                     styles.planCard,
                     {
                       borderColor: theme.border,
-                      opacity: p.isMarked || p.isPast ? 0.5 : 1,
+                      opacity:
+                        p.isMarked || p.isPast || p.isNotStarted ? 0.5 : 1,
                     },
                   ]}
                   onPress={() =>
                     router.push(`/(tabs)/study-room?planId=${p.id}`)
                   }
-                  disabled={p.isMarked || p.isPast}
+                  disabled={p.isMarked || p.isPast || p.isNotStarted}
                 >
                   <View style={{ flex: 1 }}>
                     <ThemedText style={styles.planTag}>
