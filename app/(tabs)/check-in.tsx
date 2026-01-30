@@ -145,8 +145,9 @@ export default function CheckInScreen() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const startDate = calendarDays[0];
-      const endDate = calendarDays[calendarDays.length - 1];
+      const validDays = calendarDays.filter((d) => d !== null);
+      const startDate = validDays[0];
+      const endDate = validDays[validDays.length - 1];
 
       const { data: plans } = await supabase
         .from("study_plan")
