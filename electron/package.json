@@ -23,7 +23,6 @@
     ],
     "win": {
       "icon": "../assets/favicon.png",
-      "sign": null,
       "target": [
         {
           "target": "nsis",
