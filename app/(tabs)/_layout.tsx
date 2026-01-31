@@ -3,7 +3,6 @@ import { View } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { SidebarToggle } from "../../components/SidebarToggle";
 import { HeaderNotificationBtn } from "../../components/HeaderNotificationBtn";
-import { HeaderPremiumBtn } from "../../components/HeaderPremiumBtn";
 
 export default function Layout() {
   const { theme } = useTheme();
@@ -31,7 +30,6 @@ export default function Layout() {
               alignItems: "center",
             }}
           >
-            <HeaderPremiumBtn />
             <HeaderNotificationBtn />
           </View>
         ),
@@ -42,6 +40,8 @@ export default function Layout() {
       <Stack.Screen name="check-in" options={{ title: "Check-in" }} />
       <Stack.Screen name="plan" options={{ title: "Study Plan" }} />
       <Stack.Screen name="profile" options={{ title: "My Profile" }} />
+      <Stack.Screen name="ai" options={{ title: "AI Assistant" }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
     </Stack>
   );
 }

@@ -348,7 +348,7 @@ export default function SignupScreen() {
               maximumValue={800}
               step={10}
               value={targetMath}
-              onValueChange={setTargetMath}
+              onSlidingComplete={setTargetMath}
               minimumTrackTintColor={theme.primary}
               maximumTrackTintColor={theme.border}
               thumbTintColor={theme.primary}
@@ -368,7 +368,7 @@ export default function SignupScreen() {
               maximumValue={800}
               step={10}
               value={targetReadingWriting}
-              onValueChange={setTargetReadingWriting}
+              onSlidingComplete={setTargetReadingWriting}
               minimumTrackTintColor={theme.primary}
               maximumTrackTintColor={theme.border}
               thumbTintColor={theme.primary}

@@ -1,9 +1,3 @@
-packages:
-  - .
-  - electron
-
-nodeLinker: hoisted
-
 onlyBuiltDependencies:
-  - electron
+  - '@openrouter/sdk'
   - esbuild

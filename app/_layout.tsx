@@ -54,7 +54,7 @@ function RootLayoutNav() {
   const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [initialLoading, setInitialLoading] = useState(true);
-  const { sidebarVisible, toggleSidebar } = useSidebar();
+  const { sidebarVisible, toggleSidebar, setSidebarVisible } = useSidebar();
 
   useEffect(() => {
     let mounted = true;
@@ -66,8 +66,10 @@ function RootLayoutNav() {
         if (mounted) {
           setSession(data?.session ?? null);
         }
-      } catch (e) {
-        console.error("Supabase init error:", e);
+      } catch (e: any) {
+        if (e.name !== "AbortError" && !e.message?.includes("AbortError")) {
+          console.error("Supabase init error:", e);
+        }
       } finally {
         if (mounted) {
           setInitialLoading(false);
@@ -192,6 +194,14 @@ function RootLayoutNav() {
 
   const { width: windowWidth } = useWindowDimensions();
   const isSmallScreen = windowWidth < 768;
+
+  // Auto close sidebar on mobile when navigating
+  useEffect(() => {
+    if (isSmallScreen && sidebarVisible) {
+      setSidebarVisible(false);
+    }
+  }, [segments, isSmallScreen]);
+
   const sidebarWidthVal = isSmallScreen ? 280 : 240;
   const sidebarWidth = useSharedValue(sidebarVisible ? sidebarWidthVal : 0);
 

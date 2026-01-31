@@ -38,8 +38,10 @@ import {
   Play,
   Edit2,
   Trash2,
+  Trash,
+  Zap,
 } from "lucide-react-native";
-import { PremiumGate } from "../../components/PremiumGate";
+// import { PremiumGate } from "../../components/PremiumGate"; // Commented out premium
 
 export default function CheckInScreen() {
   const { theme } = useTheme();
@@ -57,6 +59,12 @@ export default function CheckInScreen() {
   const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 380;
+
+  // Cache for calendar data: { "YYYY-MM": { data: {...}, timestamp: 12345 } }
+  const monthCache = useRef<
+    Record<string, { data: Record<string, any[]>; timestamp: number }>
+  >({});
+  const CACHE_DURATION = 60 * 1000; // 1 minute
 
   // Optimize: Avoid unmounting/remounting spinner on every focus
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -133,11 +141,26 @@ export default function CheckInScreen() {
     }
   }, [currentMonth, isCurrentMonthView]);
 
-  const canGoPrev = !isCurrentMonthView;
-  const canGoNext = isCurrentMonthView;
+  const canGoPrev = true; // Unlimited past (within reasonable range)
+  const canGoNext = true; // Unlimited future (within reasonable range)
 
-  const loadData = async () => {
-    if (isInitialLoad) setLoading(true);
+  const loadData = async (force = false) => {
+    // Generate cache key based on current month view
+    const cacheKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
+    const now = Date.now();
+
+    if (
+      !force &&
+      !isInitialLoad &&
+      monthCache.current[cacheKey] &&
+      now - monthCache.current[cacheKey].timestamp < CACHE_DURATION
+    ) {
+      setPlansByDate(monthCache.current[cacheKey].data);
+      setLoading(false);
+      return;
+    }
+
+    if (isInitialLoad || force) setLoading(true);
 
     try {
       const {
@@ -149,19 +172,25 @@ export default function CheckInScreen() {
       const startDate = validDays[0];
       const endDate = validDays[validDays.length - 1];
 
-      const { data: plans } = await supabase
-        .from("study_plan")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("date", startDate)
-        .lte("date", endDate);
+      // Parallel fetch with optimized column selection
+      const [plansRes, logsRes] = await Promise.all([
+        supabase
+          .from("study_plan")
+          .select("*")
+          .eq("user_id", user.id)
+          .gte("date", startDate)
+          .lte("date", endDate),
 
-      const { data: logs } = await supabase
-        .from("daily_log")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("date", startDate)
-        .lte("date", endDate);
+        supabase
+          .from("daily_log")
+          .select("plan_id, status")
+          .eq("user_id", user.id)
+          .gte("date", startDate)
+          .lte("date", endDate),
+      ]);
+
+      const plans = plansRes.data;
+      const logs = logsRes.data;
 
       const grouped: Record<string, any[]> = {};
       plans?.forEach((p) => {
@@ -170,6 +199,8 @@ export default function CheckInScreen() {
         grouped[p.date].push({ ...p, status: log?.status });
       });
       setPlansByDate(grouped);
+      // Update cache
+      monthCache.current[cacheKey] = { data: grouped, timestamp: Date.now() };
     } catch (e) {
       console.error(e);
     } finally {
@@ -180,7 +211,7 @@ export default function CheckInScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
+      loadData(false);
     }, [currentMonth, calendarDays]), // Reload when month changes
   );
 
@@ -198,7 +229,6 @@ export default function CheckInScreen() {
     );
   };
 
-  // ... (keep handleUpdateStatus, handleRepeatPlan from original if needed) ...
   const handleUpdateStatus = async (
     planId: string,
     date: string,
@@ -234,7 +264,10 @@ export default function CheckInScreen() {
           .from("daily_log")
           .insert({ user_id: user?.id, plan_id: planId, date, status });
       }
-      loadData();
+
+      // Mutation happened, clear cache
+      monthCache.current = {};
+      loadData(true);
     } catch (e) {
       console.error(e);
     }
@@ -276,7 +309,9 @@ export default function CheckInScreen() {
       }
       setRepeatingPlanId(null);
       setSelectedWeekdays([]);
-      loadData();
+      // Mutation happened, clear cache
+      monthCache.current = {};
+      loadData(true);
     } catch (e) {
       console.error(e);
       Alert.alert("Error", "Failed to repeat plan.");
@@ -285,236 +320,513 @@ export default function CheckInScreen() {
     }
   };
 
+  const handleDeletePlan = async (planId: string, silent = false) => {
+    try {
+      await supabase.from("daily_log").delete().eq("plan_id", planId);
+      const { error } = await supabase
+        .from("study_plan")
+        .delete()
+        .eq("id", planId);
+      if (error) throw error;
+      if (!silent) {
+        if (Platform.OS === "web") window.alert("Plan deleted.");
+        else Alert.alert("Success", "Plan deleted.");
+      }
+      return true;
+    } catch (e: any) {
+      console.error("Delete error:", e);
+      if (!silent) Alert.alert("Error", e.message || "Failed to delete.");
+      return false;
+    }
+  };
+
+  const handleClearDay = async (date: string) => {
+    const performClear = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: plans } = await supabase
+          .from("study_plan")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("date", date);
+
+        if (plans && plans.length > 0) {
+          const ids = plans.map((p: any) => p.id);
+          await supabase.from("daily_log").delete().in("plan_id", ids);
+          const { error } = await supabase
+            .from("study_plan")
+            .delete()
+            .in("id", ids);
+          if (error) throw error;
+        }
+
+        if (Platform.OS === "web") window.alert("Day cleared.");
+        else Alert.alert("Success", "Day cleared.");
+
+        // Mutation happened, clear cache
+        monthCache.current = {};
+        loadData(true);
+        setIsModalVisible(false);
+      } catch (e: any) {
+        console.error(e);
+        const msg = e.message || "Failed to clear day";
+        if (Platform.OS === "web") window.alert(msg);
+        else Alert.alert("Error", msg);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (
+        window.confirm(
+          "Are you sure you want to delete all plans for this day?",
+        )
+      ) {
+        performClear();
+      }
+    } else {
+      Alert.alert(
+        "Clear Day",
+        "Are you sure you want to delete all plans for this day?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete All",
+            style: "destructive",
+            onPress: performClear,
+          },
+        ],
+      );
+    }
+  };
+
+  const handleDeleteAIPlans = async () => {
+    const performDelete = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: aiPlans } = await supabase
+          .from("study_plan")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("ai_generated", true);
+
+        if (aiPlans && aiPlans.length > 0) {
+          const ids = aiPlans.map((p: any) => p.id);
+          await supabase.from("daily_log").delete().in("plan_id", ids);
+          const { error } = await supabase
+            .from("study_plan")
+            .delete()
+            .in("id", ids);
+          if (error) throw error;
+        }
+        if (Platform.OS === "web") window.alert("All AI plans cleared.");
+        else Alert.alert("Success", "All AI plans cleared.");
+
+        // Mutation happened, clear cache
+        monthCache.current = {};
+        loadData(true);
+        setIsModalVisible(false);
+      } catch (e: any) {
+        console.error("AI Clear Error:", e);
+        const msg = e.message || "Failed to clear AI plans";
+        if (Platform.OS === "web") window.alert(msg);
+        else Alert.alert("Error", msg);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (
+        window.confirm(
+          "Are you sure you want to delete all AI-generated plans?",
+        )
+      ) {
+        performDelete();
+      }
+    } else {
+      Alert.alert(
+        "Delete AI Plans",
+        "Are you sure you want to delete all AI-generated plans?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete All",
+            style: "destructive",
+            onPress: performDelete,
+          },
+        ],
+      );
+    }
+  };
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <PremiumGate feature="Check-in">
-          {/* Top Bar with navigation and Edit Plan */}
-          <View style={styles.header}>
-            <View style={styles.monthSelector}>
-              <TouchableOpacity
-                onPress={prevMonth}
-                disabled={!canGoPrev}
-                style={[styles.arrowBtn, !canGoPrev && { opacity: 0.2 }]}
-              >
-                <ChevronLeft size={20} color={theme.textPrimary} />
-              </TouchableOpacity>
-              <ThemedText style={styles.monthTitle}>
-                {currentMonth.toLocaleString("default", { month: "long" })}
-              </ThemedText>
-              <TouchableOpacity
-                onPress={nextMonth}
-                disabled={!canGoNext}
-                style={[styles.arrowBtn, !canGoNext && { opacity: 0.2 }]}
-              >
-                <ChevronRight size={20} color={theme.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {isCurrentMonthView && (
-                <TouchableOpacity
-                  style={styles.todayBtn}
-                  onPress={scrollToToday}
-                >
-                  <ThemedText style={styles.todayBtnText}>Today</ThemedText>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.editPlanBtn}
-                onPress={() => router.push("/(tabs)/plan")}
-              >
-                <Edit2 size={16} color={theme.textPrimary} />
-                <ThemedText style={styles.editPlanText}>Edit plan</ThemedText>
-              </TouchableOpacity>
-            </View>
+        {/* Legend */}
+        <View style={styles.legendContainer}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#9a3412" }]} />
+            <ThemedText style={styles.legendText}>Learning</ThemedText>
           </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#1e40af" }]} />
+            <ThemedText style={styles.legendText}>Practice</ThemedText>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#065f46" }]} />
+            <ThemedText style={styles.legendText}>Mock</ThemedText>
+          </View>
+          <TouchableOpacity
+            onPress={handleDeleteAIPlans}
+            style={[
+              styles.clearBtnAlt,
+              {
+                backgroundColor: "#ef444410",
+              },
+            ]}
+          >
+            <Zap size={14} color="#ef4444" fill="#ef4444" />
+            <ThemedText
+              style={{ color: "#ef4444", fontSize: 13, fontWeight: "700" }}
+            >
+              Clear AI
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+        {/* Top Bar with navigation and Edit Plan */}
+        <View style={styles.header}>
+          <View style={styles.monthSelector}>
+            <TouchableOpacity
+              onPress={prevMonth}
+              disabled={!canGoPrev}
+              style={[styles.arrowBtn, !canGoPrev && { opacity: 0.2 }]}
+            >
+              <ChevronLeft size={20} color={theme.textPrimary} />
+            </TouchableOpacity>
+            <ThemedText style={styles.monthTitle}>
+              {currentMonth.toLocaleString("default", { month: "long" })}
+            </ThemedText>
+            <TouchableOpacity
+              onPress={nextMonth}
+              disabled={!canGoNext}
+              style={[styles.arrowBtn, !canGoNext && { opacity: 0.2 }]}
+            >
+              <ChevronRight size={20} color={theme.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={styles.editPlanBtn}
+            onPress={() => router.push("/(tabs)/plan")}
+          >
+            <Edit2 size={16} color={theme.primary} />
+            <ThemedText style={[styles.editPlanText, { color: theme.primary }]}>
+              Plan
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
 
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color={theme.primary} />
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={theme.primary} />
+          </View>
+        ) : (
+          <View style={styles.calendarContainer}>
+            {/* Weekday Headers */}
+            <View style={styles.gridHeader}>
+              {WEEKDAYS.map((day) => (
+                <ThemedText key={day} style={styles.weekdayLabel}>
+                  {day.toUpperCase()}
+                </ThemedText>
+              ))}
             </View>
-          ) : (
-            <View style={styles.calendarContainer}>
-              {/* Weekday Headers */}
-              <View style={styles.gridHeader}>
-                {WEEKDAYS.map((day) => (
-                  <ThemedText key={day} style={styles.weekdayLabel}>
-                    {day.toUpperCase()}
-                  </ThemedText>
-                ))}
-              </View>
 
-              {/* Days Grid */}
-              <ScrollView
-                ref={scrollRef}
-                contentContainerStyle={styles.gridContent}
-                showsVerticalScrollIndicator={false}
-              >
-                <View style={styles.grid}>
-                  {calendarDays.map((d, index) => {
-                    if (!d) {
-                      return (
-                        <View
-                          key={`pad-${index}`}
-                          style={[
-                            styles.dayCell,
-                            {
-                              borderColor: theme.border,
-                              backgroundColor: "rgba(0,0,0,0.01)",
-                            },
-                          ]}
-                        />
-                      );
-                    }
-                    const dateObj = new Date(d);
-                    const isToday = d === todayStr;
-                    const isPast = d < todayStr;
-                    const dayPlans = plansByDate[d] || [];
-
-                    const getPlanChipStyles = (section: string) => {
-                      const s = section?.toLowerCase() || "";
-                      if (s.includes("mock") || s.includes("test"))
-                        return { bg: "#bbf7d0", color: "#065f46" };
-                      if (s.includes("qbank") || s.includes("practice"))
-                        return { bg: "#bfdbfe", color: "#1e40af" };
-                      if (s.includes("vocab"))
-                        return { bg: "#ffedd5", color: "#9a3412" };
-                      if (s.includes("drill"))
-                        return { bg: "#e0e7ff", color: "#3730a3" };
-                      return { bg: theme.primary + "25", color: theme.primary };
-                    };
-
+            {/* Days Grid */}
+            <ScrollView
+              ref={scrollRef}
+              contentContainerStyle={styles.gridContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.grid}>
+                {calendarDays.map((d, index) => {
+                  if (!d) {
                     return (
-                      <TouchableOpacity
-                        key={d}
-                        disabled={isPast}
+                      <View
+                        key={`pad-${index}`}
                         style={[
                           styles.dayCell,
                           {
                             borderColor: theme.border,
-                            backgroundColor: theme.card,
-                          },
-                          isPast && styles.disabledCell,
-                          isToday && {
-                            backgroundColor: theme.primary + "15",
-                            borderWidth: 2,
-                            borderColor: theme.primary,
-                            zIndex: 1,
+                            backgroundColor: "rgba(0,0,0,0.01)",
                           },
                         ]}
-                        onPress={() => {
-                          setSelectedDate(d);
-                          setIsModalVisible(true);
-                        }}
-                      >
-                        <View style={styles.dayNumRow}>
-                          <ThemedText
-                            style={[
-                              styles.dayNum,
-                              isToday && {
-                                color: theme.primary,
-                                fontWeight: "900",
-                                fontSize: 14,
-                              },
-                              isPast && {
-                                color: theme.textSecondary,
-                                opacity: 0.2,
-                              },
-                            ]}
-                          >
-                            {dateObj.getDate()}
-                          </ThemedText>
-                        </View>
+                      />
+                    );
+                  }
+                  const dateObj = new Date(d);
+                  const isToday = d === todayStr;
+                  const isPast = d < todayStr;
+                  const dayPlans = plansByDate[d] || [];
 
-                        <View style={styles.planList}>
-                          {dayPlans.slice(0, 3).map((p, i) => {
-                            const chipStyles = getPlanChipStyles(p.section);
-                            return (
-                              <View
-                                key={i}
-                                style={[
-                                  styles.miniPlan,
-                                  {
-                                    backgroundColor: isPast
-                                      ? "rgba(0,0,0,0.03)"
-                                      : chipStyles.bg,
-                                    borderLeftColor: isPast
-                                      ? "rgba(0,0,0,0.15)"
-                                      : chipStyles.color,
-                                    borderWidth: isPast ? 0 : 0.5,
-                                    borderColor: chipStyles.color + "40",
-                                  },
-                                  isPast && { elevation: 0, shadowOpacity: 0 },
-                                ]}
-                              >
-                                <ThemedText
-                                  style={[
-                                    styles.miniPlanText,
-                                    {
-                                      color: isPast
-                                        ? "rgba(0,0,0,0.25)"
-                                        : chipStyles.color,
-                                      fontWeight: "900",
-                                    },
-                                  ]}
-                                  numberOfLines={1}
-                                >
-                                  {p.section}
-                                </ThemedText>
-                              </View>
-                            );
-                          })}
-                          {dayPlans.length > 3 && (
-                            <ThemedText
+                  const getPlanChipStyles = (p: any) => {
+                    const type = (p.study_type || "").toLowerCase();
+                    if (type === "mock")
+                      return { bg: "#065f4615", color: "#065f46" };
+                    if (type === "practice")
+                      return { bg: "#1e40af15", color: "#1e40af" };
+                    if (type === "learning")
+                      return { bg: "#9a341215", color: "#9a3412" };
+                    return { bg: theme.primary + "10", color: theme.primary };
+                  };
+
+                  return (
+                    <TouchableOpacity
+                      key={d}
+                      disabled={isPast}
+                      style={[
+                        styles.dayCell,
+                        {
+                          borderColor: theme.border,
+                          backgroundColor: theme.card,
+                        },
+                        isPast && styles.disabledCell,
+                        isToday && {
+                          backgroundColor: theme.primary + "15",
+                          borderWidth: 2,
+                          borderColor: theme.primary,
+                          zIndex: 1,
+                        },
+                      ]}
+                      onPress={() => {
+                        setSelectedDate(d);
+                        setIsModalVisible(true);
+                      }}
+                    >
+                      <View style={styles.dayNumRow}>
+                        <ThemedText
+                          style={[
+                            styles.dayNum,
+                            isToday && {
+                              color: theme.primary,
+                              fontWeight: "900",
+                              fontSize: 14,
+                            },
+                            isPast && {
+                              color: theme.textSecondary,
+                              opacity: 0.2,
+                            },
+                          ]}
+                        >
+                          {dateObj.getDate()}
+                        </ThemedText>
+                      </View>
+                      <View style={styles.dotsRow}>
+                        {dayPlans.slice(0, 3).map((p, i) => (
+                          <View
+                            key={i}
+                            style={[
+                              styles.dot,
+                              { backgroundColor: getPlanChipStyles(p).color },
+                            ]}
+                          />
+                        ))}
+                      </View>
+
+                      <View style={styles.planList}>
+                        {dayPlans.slice(0, 3).map((p, i) => {
+                          const chipStyles = getPlanChipStyles(p);
+                          return (
+                            <View
+                              key={i}
                               style={[
-                                styles.moreText,
-                                isPast && { opacity: 0.15 },
+                                styles.miniPlan,
+                                {
+                                  backgroundColor: isPast
+                                    ? "rgba(0,0,0,0.03)"
+                                    : chipStyles.bg,
+                                  borderLeftColor: isPast
+                                    ? "rgba(0,0,0,0.15)"
+                                    : chipStyles.color,
+                                  borderWidth: isPast ? 0 : 0.5,
+                                  borderColor: chipStyles.color + "40",
+                                },
+                                isPast && { elevation: 0, shadowOpacity: 0 },
                               ]}
                             >
-                              + {dayPlans.length - 3} more
-                            </ThemedText>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </ScrollView>
-            </View>
-          )}
+                              <ThemedText
+                                style={[
+                                  styles.miniPlanText,
+                                  {
+                                    color: isPast
+                                      ? "rgba(0,0,0,0.25)"
+                                      : chipStyles.color,
+                                    fontWeight: "900",
+                                  },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {(
+                                  p.tasks_text?.split(":")[0] ||
+                                  p.study_type ||
+                                  "Learning"
+                                ).toUpperCase()}
+                              </ThemedText>
+                            </View>
+                          );
+                        })}
+                        {dayPlans.length > 3 && (
+                          <ThemedText
+                            style={[
+                              styles.moreText,
+                              isPast && { opacity: 0.15 },
+                            ]}
+                          >
+                            + {dayPlans.length - 3} more
+                          </ThemedText>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
+        )}
 
-          {/* Keep Modal Logic Identical */}
-          <Modal visible={isModalVisible} transparent animationType="fade">
-            <View style={styles.modalBackdrop}>
-              <View
-                style={[styles.modalContent, { backgroundColor: theme.card }]}
-              >
-                <View style={styles.modalHeader}>
-                  <Heading style={{ fontSize: 18 }}>{selectedDate}</Heading>
+        {/* Keep Modal Logic Identical */}
+        <Modal visible={isModalVisible} transparent animationType="fade">
+          <View style={styles.modalBackdrop}>
+            <View
+              style={[styles.modalContent, { backgroundColor: theme.card }]}
+            >
+              <View style={styles.modalHeader}>
+                <View>
+                  <Heading style={{ fontSize: 18, fontWeight: "800" }}>
+                    {selectedDate &&
+                      new Date(selectedDate).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        weekday: "short",
+                      })}
+                  </Heading>
+                  <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
+                    {selectedDate ? plansByDate[selectedDate]?.length || 0 : 0}{" "}
+                    sessions scheduled
+                  </ThemedText>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    gap: 12,
+                    alignItems: "center",
+                  }}
+                >
+                  {selectedDate && plansByDate[selectedDate]?.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => handleClearDay(selectedDate)}
+                      style={[
+                        styles.clearBtn,
+                        { borderColor: theme.error + "40" },
+                      ]}
+                    >
+                      <Trash size={18} color={theme.error} />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                    <X size={20} color={theme.textPrimary} />
+                    <X size={24} color={theme.textPrimary} />
                   </TouchableOpacity>
                 </View>
-                <ScrollView style={styles.modalScroll}>
-                  {selectedDate && plansByDate[selectedDate]?.length > 0 ? (
-                    plansByDate[selectedDate].map((p) => (
+              </View>
+              <ScrollView style={styles.modalScroll}>
+                {selectedDate && plansByDate[selectedDate]?.length > 0 ? (
+                  plansByDate[selectedDate].map((p) => {
+                    const type = (p.study_type || "Learning").toLowerCase();
+                    const typeColors = {
+                      mock: { bg: "#065f4615", text: "#065f46" },
+                      practice: { bg: "#1e40af15", text: "#1e40af" },
+                      learning: { bg: "#9a341215", text: "#9a3412" },
+                    };
+                    const colors = (typeColors as any)[type] || {
+                      bg: theme.primary + "15",
+                      text: theme.primary,
+                    };
+
+                    return (
                       <View
                         key={p.id}
                         style={[
                           styles.modalPlanItem,
                           {
-                            borderColor: theme.border,
+                            backgroundColor: colors.bg,
+                            borderColor: colors.text + "40",
+                            borderLeftColor: colors.text,
+                            borderLeftWidth: 4,
+                            padding: 16,
+                            borderRadius: 16,
+                            borderWidth: 1,
                             flexDirection: "column",
                             gap: 12,
                           },
                         ]}
                       >
                         <View style={{ width: "100%" }}>
-                          <ThemedText style={styles.planTime}>
-                            {p.start_time} - {p.end_time}
-                          </ThemedText>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 8,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <View
+                              style={{
+                                backgroundColor: colors.text + "20",
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 8,
+                              }}
+                            >
+                              <ThemedText
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: "900",
+                                  color: colors.text,
+                                }}
+                              >
+                                {(
+                                  p.tasks_text?.split(":")[0] || type
+                                ).toUpperCase()}
+                              </ThemedText>
+                            </View>
+                            <ThemedText style={styles.planTime}>
+                              {p.start_time} - {p.end_time}
+                            </ThemedText>
+                          </View>
+                          {p.ai_generated && (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 4,
+                                marginBottom: 4,
+                              }}
+                            >
+                              <Zap size={10} color="#a855f7" fill="#a855f7" />
+                              <ThemedText
+                                style={{
+                                  color: "#a855f7",
+                                  fontSize: 10,
+                                  fontWeight: "900",
+                                }}
+                              >
+                                AI SUGGESTED
+                              </ThemedText>
+                            </View>
+                          )}
                           <ThemedText style={styles.planTasks}>
                             {p.tasks_text}
                           </ThemedText>
@@ -597,6 +909,24 @@ export default function CheckInScreen() {
                                       }
                                     />
                                   </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      setIsModalVisible(false);
+                                      router.push({
+                                        pathname: "/(tabs)/study-room",
+                                        params: { planId: p.id },
+                                      });
+                                    }}
+                                    style={[
+                                      styles.actionBtn,
+                                      {
+                                        borderColor: theme.primary,
+                                        backgroundColor: theme.primary + "10",
+                                      },
+                                    ]}
+                                  >
+                                    <Play size={16} color={theme.primary} />
+                                  </TouchableOpacity>
                                 </>
                               );
                             })()}
@@ -632,93 +962,29 @@ export default function CheckInScreen() {
                             <TouchableOpacity
                               disabled={p.status === "done"}
                               onPress={() => {
-                                const performDelete = async () => {
-                                  try {
-                                    const { error: logError } = await supabase
-                                      .from("daily_log")
-                                      .delete()
-                                      .eq("plan_id", p.id);
-
-                                    if (logError) {
-                                      console.error(
-                                        "Log delete error:",
-                                        logError,
-                                      );
-                                      if (Platform.OS === "web") {
-                                        window.alert(
-                                          "Error deleting logs: " +
-                                            logError.message,
-                                        );
-                                      } else {
-                                        Alert.alert(
-                                          "Error deleting logs",
-                                          logError.message,
-                                        );
-                                      }
-                                      return;
-                                    }
-
-                                    const { error: planError } = await supabase
-                                      .from("study_plan")
-                                      .delete()
-                                      .eq("id", p.id);
-
-                                    if (planError) {
-                                      console.error(
-                                        "Plan delete error:",
-                                        planError,
-                                      );
-                                      if (Platform.OS === "web") {
-                                        window.alert(
-                                          "Error deleting plan: " +
-                                            planError.message,
-                                        );
-                                      } else {
-                                        Alert.alert(
-                                          "Error deleting plan",
-                                          planError.message,
-                                        );
-                                      }
-                                    } else {
-                                      if (Platform.OS !== "web") {
-                                        Alert.alert("Success", "Plan deleted.");
-                                      }
-                                      loadData();
-                                    }
-                                  } catch (err: any) {
-                                    console.error("Delete exception:", err);
-                                    if (Platform.OS === "web") {
-                                      window.alert(
-                                        "Error: " +
-                                          (err.message || "Unknown error"),
-                                      );
-                                    } else {
-                                      Alert.alert(
-                                        "Error",
-                                        err.message || "Unknown error",
-                                      );
-                                    }
-                                  }
-                                };
-
                                 if (Platform.OS === "web") {
                                   if (
                                     window.confirm(
-                                      "Are you sure you want to delete this plan? This action cannot be undone.",
+                                      "Are you sure you want to delete this plan?",
                                     )
                                   ) {
-                                    performDelete();
+                                    handleDeletePlan(p.id).then(() =>
+                                      loadData(),
+                                    );
                                   }
                                 } else {
                                   Alert.alert(
                                     "Delete Plan",
-                                    "Are you sure you want to delete this plan?",
+                                    "Confirm deletion?",
                                     [
                                       { text: "Cancel", style: "cancel" },
                                       {
                                         text: "Delete",
                                         style: "destructive",
-                                        onPress: performDelete,
+                                        onPress: () =>
+                                          handleDeletePlan(p.id).then(() =>
+                                            loadData(),
+                                          ),
                                       },
                                     ],
                                   );
@@ -806,17 +1072,18 @@ export default function CheckInScreen() {
                           </View>
                         )}
                       </View>
-                    ))
-                  ) : (
-                    <ThemedText style={styles.emptyText}>
-                      No sessions planned for this day.
-                    </ThemedText>
-                  )}
-                </ScrollView>
-              </View>
+                    );
+                  })
+                ) : (
+                  <ThemedText style={styles.emptyText}>
+                    No sessions planned for this day.
+                  </ThemedText>
+                )}
+              </ScrollView>
             </View>
-          </Modal>
-        </PremiumGate>
+          </View>
+        </Modal>
+        {/* </PremiumGate> */}
       </SafeAreaView>
     </ThemedView>
   );
@@ -861,14 +1128,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(0,0,0,0.04)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    backgroundColor: "rgba(0,102,255,0.08)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.05)",
+    borderColor: "rgba(0,102,255,0.1)",
   },
-  editPlanText: { fontSize: 13, fontWeight: "600" },
+  editPlanText: { fontSize: 14, fontWeight: "700" },
+  clearBtnAlt: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    marginLeft: "auto",
+  },
 
   gridHeader: {
     flexDirection: "row",
@@ -896,11 +1172,12 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: "14.28%", // 100/7
-    aspectRatio: 1.15, // Shorter cells to fit more on screen
-    borderRightWidth: 0.5,
-    borderBottomWidth: 0.5,
-    padding: 6,
+    aspectRatio: 1,
+    borderRightWidth: 0.8,
+    borderBottomWidth: 0.8,
+    padding: 4,
     justifyContent: "flex-start",
+    backgroundColor: "#fff",
   },
   disabledCell: {
     backgroundColor: "rgba(0,0,0,0.02)",
@@ -936,7 +1213,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
-  modalContent: { borderRadius: 24, padding: 24, maxHeight: "80%" },
+  modalContent: {
+    borderRadius: 32,
+    padding: 24,
+    maxHeight: "85%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1006,5 +1292,57 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+  },
+  legendContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    backgroundColor: "rgba(0,0,0,0.01)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.03)",
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.03)",
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 10,
+    fontWeight: "800",
+    opacity: 0.7,
+    letterSpacing: 0.3,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    gap: 2,
+    marginTop: 4,
+    justifyContent: "center",
+    position: "absolute",
+    bottom: 4,
+    width: "100%",
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  clearBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

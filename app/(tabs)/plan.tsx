@@ -32,7 +32,6 @@ import {
   Zap,
 } from "lucide-react-native";
 import { Toast } from "../../components/Toast";
-import { PremiumGate } from "../../components/PremiumGate";
 
 type Section = "Math" | "Reading and Writing";
 
@@ -47,6 +46,9 @@ export default function PlanScreen() {
   const now = new Date();
   const [date, setDate] = useState(getLocalDateString(now));
   const [section, setSection] = useState<Section>("Math");
+  const [studyType, setStudyType] = useState<"Learning" | "Practice" | "Mock">(
+    "Learning",
+  );
   const [startTime, setStartTime] = useState(getLocalTimeString(now));
   const [endTime, setEndTime] = useState(
     getLocalTimeString(new Date(now.getTime() + 60 * 60 * 1000)),
@@ -85,6 +87,7 @@ export default function PlanScreen() {
           if (s === "reading" || s === "writing") s = "Reading and Writing";
           if (s === "math") s = "Math";
           setSection(s as Section);
+          setStudyType(data.study_type || "Learning");
           setStartTime(data.start_time);
           setEndTime(data.end_time);
           setTasks(data.tasks_text);
@@ -118,15 +121,13 @@ export default function PlanScreen() {
         return;
       }
 
-      // Map UI section to DB enum/value
-      // Assuming DB expects lowercase "math", "reading", or "writing"
-      // We map "Reading and Writing" -> "reading" as a safe fallback that works with the read logic
       const dbSection = section === "Math" ? "math" : "reading";
 
       const basePlan = {
         user_id: user.id,
         date,
         section: dbSection,
+        study_type: studyType,
         start_time: startTime,
         end_time: endTime,
         tasks_text: tasks,
@@ -173,224 +174,249 @@ export default function PlanScreen() {
         {toastMessage}
       </Toast>
       <SafeAreaView style={{ flex: 1 }}>
-        <PremiumGate feature="Plan">
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.push("/(tabs)")}>
-              <ChevronLeft size={24} color={theme.textPrimary} />
-            </TouchableOpacity>
-            <Heading style={{ fontSize: 20 }}>
-              {editId ? "Edit Plan" : "Create Plan"}
-            </Heading>
-            <View style={{ width: 24 }} />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.push("/(tabs)")}>
+            <ChevronLeft size={24} color={theme.textPrimary} />
+          </TouchableOpacity>
+          <Heading style={{ fontSize: 20 }}>
+            {editId ? "Edit Plan" : "Create Plan"}
+          </Heading>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.sectionHeader}>
+            <CalendarIcon size={16} color={theme.primary} />
+            <ThemedText style={styles.sectionLabel}>SELECT DATE</ThemedText>
           </View>
-
           <ScrollView
-            contentContainerStyle={styles.container}
-            keyboardShouldPersistTaps="handled"
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dateList}
           >
-            <View style={styles.sectionHeader}>
-              <CalendarIcon size={16} color={theme.primary} />
-              <ThemedText style={styles.sectionLabel}>SELECT DATE</ThemedText>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.dateList}
-            >
-              {calendarDays.map((d) => {
-                const isSelected = date === d;
-                const dObj = new Date(d + "T00:00:00");
-                return (
-                  <TouchableOpacity
-                    key={d}
-                    style={[
-                      styles.dateCard,
-                      { borderColor: theme.border },
-                      isSelected && {
-                        backgroundColor: theme.primary,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                    onPress={() => setDate(d)}
-                  >
-                    <ThemedText
-                      style={[styles.dateDay, isSelected && { color: "#fff" }]}
-                    >
-                      {dObj.toLocaleDateString("en-US", { weekday: "short" })}
-                    </ThemedText>
-                    <ThemedText
-                      style={[styles.dateNum, isSelected && { color: "#fff" }]}
-                    >
-                      {dObj.getDate()}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            <View style={styles.sectionHeader}>
-              <BookOpen size={16} color={theme.primary} />
-              <ThemedText style={styles.sectionLabel}>FOCUS AREA</ThemedText>
-            </View>
-            <View
-              style={[
-                styles.tabRow,
-                isSmallScreen && { flexDirection: "column" },
-              ]}
-            >
-              {(["Math", "Reading and Writing"] as Section[]).map((s) => (
+            {calendarDays.map((d) => {
+              const isSelected = date === d;
+              const dObj = new Date(d + "T00:00:00");
+              return (
                 <TouchableOpacity
-                  key={s}
+                  key={d}
                   style={[
-                    styles.tab,
+                    styles.dateCard,
                     { borderColor: theme.border },
-                    section === s && {
+                    isSelected && {
                       backgroundColor: theme.primary,
                       borderColor: theme.primary,
                     },
                   ]}
-                  onPress={() => setSection(s)}
+                  onPress={() => setDate(d)}
                 >
                   <ThemedText
-                    style={[styles.tabText, section === s && { color: "#fff" }]}
+                    style={[styles.dateDay, isSelected && { color: "#fff" }]}
                   >
-                    {s}
+                    {dObj.toLocaleDateString("en-US", { weekday: "short" })}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.dateNum, isSelected && { color: "#fff" }]}
+                  >
+                    {dObj.getDate()}
                   </ThemedText>
                 </TouchableOpacity>
-              ))}
-            </View>
+              );
+            })}
+          </ScrollView>
 
-            <View
-              style={[
-                styles.timeRow,
-                isSmallScreen && { flexDirection: "column", gap: 8 },
-              ]}
-            >
-              <View style={isSmallScreen ? { width: "100%" } : { flex: 1 }}>
-                <ThemedText style={styles.sectionLabel}>START</ThemedText>
-                <TextInput
-                  style={[
-                    styles.timeInput,
-                    { borderColor: theme.border, color: theme.textPrimary },
-                  ]}
-                  value={startTime}
-                  onChangeText={setStartTime}
-                  placeholder="09:00"
-                />
-              </View>
-              <View style={isSmallScreen ? { width: "100%" } : { flex: 1 }}>
-                <ThemedText style={styles.sectionLabel}>END</ThemedText>
-                <TextInput
-                  style={[
-                    styles.timeInput,
-                    { borderColor: theme.border, color: theme.textPrimary },
-                  ]}
-                  value={endTime}
-                  onChangeText={setEndTime}
-                  placeholder="10:00"
-                />
-              </View>
-            </View>
-
-            <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionLabel}>
-                SESSION OBJECTIVES
-              </ThemedText>
-            </View>
-            <TextInput
-              style={[
-                styles.textArea,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                  color: theme.textPrimary,
-                },
-              ]}
-              placeholder="What will you accomplish?"
-              multiline
-              value={tasks}
-              onChangeText={setTasks}
-            />
-
-            <View style={styles.sectionHeader}>
-              <Zap size={16} color={theme.primary} />
-              <ThemedText style={styles.sectionLabel}>AUTOMATE</ThemedText>
-            </View>
-            <View
-              style={[
-                styles.automateCard,
-                { backgroundColor: theme.card, borderColor: theme.border },
-              ]}
-            >
-              <View style={styles.autoHeader}>
-                <ThemedText style={{ fontWeight: "700" }}>
-                  Repeat Plan
-                </ThemedText>
-                <TouchableOpacity
-                  onPress={() => setAutomate(!automate)}
-                  style={[
-                    styles.toggle,
-                    {
-                      backgroundColor: automate ? theme.primary : theme.border,
-                    },
-                  ]}
+          <View style={styles.sectionHeader}>
+            <BookOpen size={16} color={theme.primary} />
+            <ThemedText style={styles.sectionLabel}>FOCUS AREA</ThemedText>
+          </View>
+          <View
+            style={[
+              styles.tabRow,
+              isSmallScreen && { flexDirection: "column" },
+            ]}
+          >
+            {(["Math", "Reading and Writing"] as Section[]).map((s) => (
+              <TouchableOpacity
+                key={s}
+                style={[
+                  styles.tab,
+                  { borderColor: theme.border },
+                  section === s && {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.primary,
+                  },
+                ]}
+                onPress={() => setSection(s)}
+              >
+                <ThemedText
+                  style={[styles.tabText, section === s && { color: "#fff" }]}
                 >
-                  <View
-                    style={[
-                      styles.toggleDot,
-                      { marginLeft: automate ? 22 : 2 },
-                    ]}
-                  />
-                </TouchableOpacity>
-              </View>
+                  {s}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-              {automate && (
-                <View style={styles.weekdayRow}>
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                    (day, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        onPress={() => {
-                          if (selectedWeekdays.includes(idx)) {
-                            setSelectedWeekdays(
-                              selectedWeekdays.filter((d) => d !== idx),
-                            );
-                          } else {
-                            setSelectedWeekdays([...selectedWeekdays, idx]);
-                          }
-                        }}
+          <View style={styles.sectionHeader}>
+            <Zap size={16} color={theme.primary} />
+            <ThemedText style={styles.sectionLabel}>STUDY TYPE</ThemedText>
+          </View>
+          <View
+            style={[
+              styles.tabRow,
+              isSmallScreen && { flexDirection: "column" },
+            ]}
+          >
+            {(["Learning", "Practice", "Mock"] as const).map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={[
+                  styles.tab,
+                  { borderColor: theme.border },
+                  studyType === t && {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.primary,
+                  },
+                ]}
+                onPress={() => setStudyType(t)}
+              >
+                <ThemedText
+                  style={[styles.tabText, studyType === t && { color: "#fff" }]}
+                >
+                  {t}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View
+            style={[
+              styles.timeRow,
+              isSmallScreen && { flexDirection: "column", gap: 8 },
+            ]}
+          >
+            <View style={isSmallScreen ? { width: "100%" } : { flex: 1 }}>
+              <ThemedText style={styles.sectionLabel}>START</ThemedText>
+              <TextInput
+                style={[
+                  styles.timeInput,
+                  { borderColor: theme.border, color: theme.textPrimary },
+                ]}
+                value={startTime}
+                onChangeText={setStartTime}
+                placeholder="09:00"
+              />
+            </View>
+            <View style={isSmallScreen ? { width: "100%" } : { flex: 1 }}>
+              <ThemedText style={styles.sectionLabel}>END</ThemedText>
+              <TextInput
+                style={[
+                  styles.timeInput,
+                  { borderColor: theme.border, color: theme.textPrimary },
+                ]}
+                value={endTime}
+                onChangeText={setEndTime}
+                placeholder="10:00"
+              />
+            </View>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionLabel}>
+              SESSION OBJECTIVES
+            </ThemedText>
+          </View>
+          <TextInput
+            style={[
+              styles.textArea,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+                color: theme.textPrimary,
+              },
+            ]}
+            placeholder="What will you accomplish?"
+            multiline
+            value={tasks}
+            onChangeText={setTasks}
+          />
+
+          <View style={styles.sectionHeader}>
+            <Zap size={16} color={theme.primary} />
+            <ThemedText style={styles.sectionLabel}>AUTOMATE</ThemedText>
+          </View>
+          <View
+            style={[
+              styles.automateCard,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <View style={styles.autoHeader}>
+              <ThemedText style={{ fontWeight: "700" }}>Repeat Plan</ThemedText>
+              <TouchableOpacity
+                onPress={() => setAutomate(!automate)}
+                style={[
+                  styles.toggle,
+                  {
+                    backgroundColor: automate ? theme.primary : theme.border,
+                  },
+                ]}
+              >
+                <View
+                  style={[styles.toggleDot, { marginLeft: automate ? 22 : 2 }]}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {automate && (
+              <View style={styles.weekdayRow}>
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                  (day, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => {
+                        if (selectedWeekdays.includes(idx)) {
+                          setSelectedWeekdays(
+                            selectedWeekdays.filter((d) => d !== idx),
+                          );
+                        } else {
+                          setSelectedWeekdays([...selectedWeekdays, idx]);
+                        }
+                      }}
+                      style={[
+                        styles.dayCircle,
+                        { borderColor: theme.border },
+                        selectedWeekdays.includes(idx) && {
+                          backgroundColor: theme.primary,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <ThemedText
                         style={[
-                          styles.dayCircle,
-                          { borderColor: theme.border },
-                          selectedWeekdays.includes(idx) && {
-                            backgroundColor: theme.primary,
-                            borderColor: theme.primary,
-                          },
+                          styles.dayText,
+                          selectedWeekdays.includes(idx) && { color: "#fff" },
                         ]}
                       >
-                        <ThemedText
-                          style={[
-                            styles.dayText,
-                            selectedWeekdays.includes(idx) && { color: "#fff" },
-                          ]}
-                        >
-                          {day}
-                        </ThemedText>
-                      </TouchableOpacity>
-                    ),
-                  )}
-                </View>
-              )}
-            </View>
+                        {day}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ),
+                )}
+              </View>
+            )}
+          </View>
 
-            <Button
-              title={loading ? "Saving..." : "Lock in Mission"}
-              onPress={handleSave}
-              loading={loading}
-              style={styles.saveBtn}
-            />
-          </ScrollView>
-        </PremiumGate>
+          <Button
+            title={loading ? "Saving..." : "Lock in Mission"}
+            onPress={handleSave}
+            loading={loading}
+            style={styles.saveBtn}
+          />
+        </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );

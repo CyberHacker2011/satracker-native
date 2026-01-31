@@ -20,10 +20,10 @@ import { getLocalDateString } from "../lib/dateUtils";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
+    shouldShowAlert: false, // Prevent system banner while app is open (we show custom toast)
+    shouldPlaySound: false, // Prevent duplication (we might play custom sound or just rely on tray)
     shouldSetBadge: false,
-    shouldShowBanner: true,
+    shouldShowBanner: false,
     shouldShowList: true,
   }),
 });
@@ -86,7 +86,18 @@ export function NotificationSystem() {
         useNativeDriver: true,
       }),
     ]).start();
-    playSound();
+
+    // Only play custom sound on Web or if desired.
+    // On mobile, scheduleNotificationAsync usually handles sound if in background,
+    // but here we are in foreground.
+    if (Platform.OS === "web") {
+      playSound();
+    } else {
+      // On mobile, we prefer the system sound from the notification if possible,
+      // but since we suppressed it in handleNotification, we should play it here manually
+      // OR rely on the custom toast sound.
+      playSound();
+    }
 
     // Clean message for system notification
     const cleanMsg = notif.message
@@ -117,7 +128,7 @@ export function NotificationSystem() {
           title: "SAT Tracker",
           body: cleanMsg,
           data: { notifId: notif.id },
-          sound: true,
+          sound: true, // This plays sound when notification is delivered to tray
           priority: Notifications.AndroidNotificationPriority.HIGH,
         },
         trigger: null,

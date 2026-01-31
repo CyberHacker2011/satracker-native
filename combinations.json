@@ -1,0 +1,103 @@
+{
+  "planner_metadata": {
+    "logic_type": "Static Combinations",
+    "total_combinations": 48,
+    "framework": "Foundation vs. Mastery Tiering"
+  },
+  "foundation_tier": {
+    "score_range": "< 700",
+    "strategy": "Building the base: Heavy focus on content learning and untimed accuracy.",
+    "ebrw_categories": {
+      "craft_and_structure": [
+        {"id": "E1_F_1", "type": "Learning", "mode": "Concept", "title": "Vocabulary & Context Basics"},
+        {"id": "E1_F_2", "type": "Practice", "mode": "Drill", "title": "Textual Structure Application"},
+        {"id": "E1_F_3", "type": "Review", "mode": "Analysis", "title": "Cross-Text Reasoning Review"}
+      ],
+      "information_and_ideas": [
+        {"id": "E2_F_1", "type": "Learning", "mode": "Concept", "title": "Main Idea & Supporting Detail Basics"},
+        {"id": "E2_F_2", "type": "Practice", "mode": "Drill", "title": "Evidence-Based Reading Drills"},
+        {"id": "E2_F_3", "type": "Review", "mode": "Analysis", "title": "Data Interpretation Fundamentals"}
+      ],
+      "standard_english_conventions": [
+        {"id": "E3_F_1", "type": "Learning", "mode": "Concept", "title": "Grammar & Punctuation Rules"},
+        {"id": "E3_F_2", "type": "Practice", "mode": "Drill", "title": "Sentence Structure Drills"},
+        {"id": "E3_F_3", "type": "Review", "mode": "Analysis", "title": "Common Error Pattern Identification"}
+      ],
+      "expression_of_ideas": [
+        {"id": "E4_F_1", "type": "Learning", "mode": "Concept", "title": "Rhetorical Synthesis & Note Strategy"},
+        {"id": "E4_F_2", "type": "Practice", "mode": "Drill", "title": "Transition Logic Practice"},
+        {"id": "E4_F_3", "type": "Review", "mode": "Analysis", "title": "Writing Style & Clarity Refinement"}
+      ]
+    },
+    "math_categories": {
+      "algebra": [
+        {"id": "M1_F_1", "type": "Learning", "mode": "Concept", "title": "Linear Relationships & Equations"},
+        {"id": "M1_F_2", "type": "Practice", "mode": "Drill", "title": "Algebraic Manipulation Practice"},
+        {"id": "M1_F_3", "type": "Review", "mode": "Analysis", "title": "System of Equations Logic"}
+      ],
+      "advanced_math": [
+        {"id": "M2_F_1", "type": "Learning", "mode": "Concept", "title": "Non-Linear Functions & Graphs"},
+        {"id": "M2_F_2", "type": "Practice", "mode": "Drill", "title": "Polynomial & Quadratic Drills"},
+        {"id": "M2_F_3", "type": "Review", "mode": "Analysis", "title": "Function Notation & Analysis"}
+      ],
+      "problem_solving_data": [
+        {"id": "M3_F_1", "type": "Learning", "mode": "Concept", "title": "Ratio, Rate, and Proportion Basics"},
+        {"id": "M3_F_2", "type": "Practice", "mode": "Drill", "title": "Statistical Data & Probability Practice"},
+        {"id": "M3_F_3", "type": "Review", "mode": "Analysis", "title": "Table & Graph Interpretation"}
+      ],
+      "geometry_trig": [
+        {"id": "M4_F_1", "type": "Learning", "mode": "Concept", "title": "Area, Volume, & Angle Properties"},
+        {"id": "M4_F_2", "type": "Practice", "mode": "Drill", "title": "Triangle & Circle Geometry Drills"},
+        {"id": "M4_F_3", "type": "Review", "mode": "Analysis", "title": "Basic Trigonometric Foundations"}
+      ]
+    }
+  },
+  "mastery_tier": {
+    "score_range": "1400+ / 700+",
+    "strategy": "Polishing for 1600: High-speed timed sets and elite-level trap detection.",
+    "ebrw_categories": {
+      "craft_and_structure": [
+        {"id": "E1_M_1", "type": "Practice", "mode": "Timed", "title": "Advanced Vocabulary & Nuance"},
+        {"id": "E1_M_2", "type": "Practice", "mode": "Timed", "title": "Complex Passage Structure Speed Drills"},
+        {"id": "E1_M_3", "type": "Review", "mode": "Elite", "title": "Error Analysis: Tone & Inference Traps"}
+      ],
+      "information_and_ideas": [
+        {"id": "E2_M_1", "type": "Practice", "mode": "Timed", "title": "High-Level Data-Text Integration"},
+        {"id": "E2_M_2", "type": "Practice", "mode": "Timed", "title": "Scientific Argument Evaluation Sets"},
+        {"id": "E2_M_3", "type": "Review", "mode": "Elite", "title": "Mastering Implicit Information"}
+      ],
+      "standard_english_conventions": [
+        {"id": "E3_M_1", "type": "Practice", "mode": "Timed", "title": "Elite Grammar Speed Sets"},
+        {"id": "E3_M_2", "type": "Practice", "mode": "Timed", "title": "Complex Punctuation & Style Drills"},
+        {"id": "E3_M_3", "type": "Review", "mode": "Elite", "title": "Zero-Error Grammar Maintenance"}
+      ],
+      "expression_of_ideas": [
+        {"id": "E4_M_1", "type": "Practice", "mode": "Timed", "title": "Advanced Rhetorical Synthesis Drills"},
+        {"id": "E4_M_2", "type": "Practice", "mode": "Timed", "title": "High-Complexity Transition Sets"},
+        {"id": "E4_M_3", "type": "Review", "mode": "Elite", "title": "Editing for Conciseness & Impact"}
+      ]
+    },
+    "math_categories": {
+      "algebra": [
+        {"id": "M1_M_1", "type": "Practice", "mode": "Timed", "title": "Advanced Linear Modeling Speed Sets"},
+        {"id": "M1_M_2", "type": "Practice", "mode": "Timed", "title": "Abstract Algebra & Variable Isolation"},
+        {"id": "M1_M_3", "type": "Review", "mode": "Elite", "title": "Time-Saving Desmos Shortcuts (Algebra)"}
+      ],
+      "advanced_math": [
+        {"id": "M2_M_1", "type": "Practice", "mode": "Timed", "title": "Level 4 Polynomial & Function Drills"},
+        {"id": "M2_M_2", "type": "Practice", "mode": "Timed", "title": "Complex Quadratic & System Modeling"},
+        {"id": "M2_M_3", "type": "Review", "mode": "Elite", "title": "Analysis of High-Difficulty Graphs"}
+      ],
+      "problem_solving_data": [
+        {"id": "M3_M_1", "type": "Practice", "mode": "Timed", "title": "Advanced Statistics & Inference Drills"},
+        {"id": "M3_M_2", "type": "Practice", "mode": "Timed", "title": "Complex Percent & Proportion Sets"},
+        {"id": "M3_M_3", "type": "Review", "mode": "Elite", "title": "Mastering Margin of Error & Sampling"}
+      ],
+      "geometry_trig": [
+        {"id": "M4_M_1", "type": "Practice", "mode": "Timed", "title": "Advanced Coordinate Geometry Drills"},
+        {"id": "M4_M_2", "type": "Practice", "mode": "Timed", "title": "Circle Theorems & Arc/Sector Sets"},
+        {"id": "M4_M_3", "type": "Review", "mode": "Elite", "title": "Mastering Advanced Trig Identities"}
+      ]
+    }
+  }
+}

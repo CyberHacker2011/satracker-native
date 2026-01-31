@@ -6,6 +6,7 @@ import {
   ScrollView,
   Alert,
   Linking,
+  Platform,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -27,6 +28,7 @@ import {
   Globe,
   Shield,
   Palette,
+  Trash2,
 } from "lucide-react-native";
 
 type TabType = "account" | "preferences" | "appearance" | "about";
@@ -87,6 +89,76 @@ export default function ProfileScreen() {
               onPress={handleSignOut}
               style={styles.signOutBtn}
             />
+
+            <ThemedText
+              style={[styles.groupLabel, { color: theme.error, marginTop: 40 }]}
+            >
+              Danger Zone
+            </ThemedText>
+            <TouchableOpacity
+              style={[
+                styles.settingItem,
+                { borderColor: theme.error + "40", borderBottomWidth: 0 },
+              ]}
+              onPress={() => {
+                if (Platform.OS === "web") {
+                  if (
+                    confirm(
+                      "Are you sure? This will delete EVERY plan ever created.",
+                    )
+                  ) {
+                    const clear = async () => {
+                      const {
+                        data: { user },
+                      } = await supabase.auth.getUser();
+                      if (!user) return;
+                      await supabase
+                        .from("daily_log")
+                        .delete()
+                        .eq("user_id", user.id);
+                      await supabase
+                        .from("study_plan")
+                        .delete()
+                        .eq("user_id", user.id);
+                      window.alert("All plans cleared.");
+                    };
+                    clear();
+                  }
+                } else {
+                  Alert.alert(
+                    "Delete All Plans",
+                    "Are you sure? This will delete EVERY plan ever created. This action cannot be undone.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete Everything",
+                        style: "destructive",
+                        onPress: async () => {
+                          const {
+                            data: { user },
+                          } = await supabase.auth.getUser();
+                          if (!user) return;
+                          await supabase
+                            .from("daily_log")
+                            .delete()
+                            .eq("user_id", user.id);
+                          await supabase
+                            .from("study_plan")
+                            .delete()
+                            .eq("user_id", user.id);
+                          Alert.alert("Success", "All plans cleared.");
+                        },
+                      },
+                    ],
+                  );
+                }
+              }}
+            >
+              <ThemedText style={{ color: theme.error, fontWeight: "700" }}>
+                Clear All Plans
+              </ThemedText>
+              <Trash2 size={18} color={theme.error} />
+            </TouchableOpacity>
           </ScrollView>
         );
       case "preferences":

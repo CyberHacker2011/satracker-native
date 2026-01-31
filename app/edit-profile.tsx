@@ -220,7 +220,7 @@ export default function EditProfileScreen() {
                 maximumValue={800}
                 step={10}
                 value={targetMath}
-                onValueChange={setTargetMath}
+                onSlidingComplete={setTargetMath}
                 minimumTrackTintColor={theme.primary}
                 maximumTrackTintColor={theme.border}
                 thumbTintColor={theme.primary}
@@ -234,7 +234,7 @@ export default function EditProfileScreen() {
                 maximumValue={800}
                 step={10}
                 value={targetRW}
-                onValueChange={setTargetRW}
+                onSlidingComplete={setTargetRW}
                 minimumTrackTintColor={theme.primary}
                 maximumTrackTintColor={theme.border}
                 thumbTintColor={theme.primary}
@@ -272,7 +272,7 @@ export default function EditProfileScreen() {
                   maximumValue={800}
                   step={10}
                   value={prevMath}
-                  onValueChange={setPrevMath}
+                  onSlidingComplete={setPrevMath}
                   minimumTrackTintColor={theme.primary}
                   maximumTrackTintColor={theme.border}
                   thumbTintColor={theme.primary}
@@ -286,7 +286,7 @@ export default function EditProfileScreen() {
                   maximumValue={800}
                   step={10}
                   value={prevRW}
-                  onValueChange={setPrevRW}
+                  onSlidingComplete={setPrevRW}
                   minimumTrackTintColor={theme.primary}
                   maximumTrackTintColor={theme.border}
                   thumbTintColor={theme.primary}

@@ -27,7 +27,6 @@ import {
   Edit2,
 } from "lucide-react-native";
 import { Toast } from "../components/Toast";
-import { PremiumGate } from "../components/PremiumGate";
 
 export default function ArchiveScreen() {
   const { theme } = useTheme();
@@ -100,169 +99,157 @@ export default function ArchiveScreen() {
   return (
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <PremiumGate feature="Archive">
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.push("/(tabs)")}>
-              <ChevronLeft size={24} color={theme.textPrimary} />
-            </TouchableOpacity>
-            <Heading style={{ fontSize: 20 }}>Study Archive</Heading>
-            <View style={{ width: 24 }} />
-          </View>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.push("/(tabs)")}>
+            <ChevronLeft size={24} color={theme.textPrimary} />
+          </TouchableOpacity>
+          <Heading style={{ fontSize: 20 }}>Study Archive</Heading>
+          <View style={{ width: 24 }} />
+        </View>
 
-          <View style={styles.calSection}>
-            <View style={styles.calHeader}>
-              <CalendarIcon size={14} color={theme.primary} />
-              <ThemedText style={styles.calTitle}>SUCCESS HISTORY</ThemedText>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.calScroll}
-            >
-              {historyDays.map((d: string) => {
-                const isSelected = selectedDate === d;
-                const dObj = new Date(d + "T00:00:00");
-                return (
-                  <TouchableOpacity
-                    key={d}
-                    style={[
-                      styles.dateCard,
-                      { borderColor: theme.border },
-                      isSelected && {
-                        backgroundColor: theme.primary,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                    onPress={() => setSelectedDate(d)}
+        <View style={styles.calSection}>
+          <View style={styles.calHeader}>
+            <CalendarIcon size={14} color={theme.primary} />
+            <ThemedText style={styles.calTitle}>SUCCESS HISTORY</ThemedText>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.calScroll}
+          >
+            {historyDays.map((d: string) => {
+              const isSelected = selectedDate === d;
+              const dObj = new Date(d + "T00:00:00");
+              return (
+                <TouchableOpacity
+                  key={d}
+                  style={[
+                    styles.dateCard,
+                    { borderColor: theme.border },
+                    isSelected && {
+                      backgroundColor: theme.primary,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                  onPress={() => setSelectedDate(d)}
+                >
+                  <ThemedText
+                    style={[styles.dateDay, isSelected && { color: "#fff" }]}
                   >
-                    <ThemedText
-                      style={[styles.dateDay, isSelected && { color: "#fff" }]}
-                    >
-                      {dObj.toLocaleDateString("en-US", { weekday: "short" })}
-                    </ThemedText>
-                    <ThemedText
-                      style={[styles.dateNum, isSelected && { color: "#fff" }]}
-                    >
-                      {dObj.getDate()}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+                    {dObj.toLocaleDateString("en-US", { weekday: "short" })}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.dateNum, isSelected && { color: "#fff" }]}
+                  >
+                    {dObj.getDate()}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color={theme.primary} />
-            </View>
-          ) : (
-            <ScrollView contentContainerStyle={styles.container}>
-              {plans.length === 0 ? (
-                <View style={styles.empty}>
-                  <Clock size={48} color={theme.textSecondary} opacity={0.2} />
-                  <ThemedText style={styles.emptyText}>
-                    No sessions recorded for this day.
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={theme.primary} />
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.container}>
+            {plans.length === 0 ? (
+              <View style={styles.empty}>
+                <Clock size={48} color={theme.textSecondary} opacity={0.2} />
+                <ThemedText style={styles.emptyText}>
+                  No sessions recorded for this day.
+                </ThemedText>
+              </View>
+            ) : (
+              plans.map((p) => (
+                <View
+                  key={p.id}
+                  style={[
+                    styles.planItem,
+                    {
+                      borderColor: theme.border,
+                      flexDirection: isSmallScreen ? "column" : "column",
+                    },
+                  ]}
+                >
+                  <View style={styles.planHeader}>
+                    <ThemedText style={styles.planTag}>
+                      {p.section.toUpperCase()}
+                    </ThemedText>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Alert.alert("Delete Plan", "Are you sure?", [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Delete",
+                              style: "destructive",
+                              onPress: async () => {
+                                // Delete associated logs first
+                                await supabase
+                                  .from("daily_log")
+                                  .delete()
+                                  .eq("plan_id", p.id);
+
+                                const { error } = await supabase
+                                  .from("study_plan")
+                                  .delete()
+                                  .eq("id", p.id);
+                                if (error) setToastMessage(error.message);
+                                else {
+                                  setToastMessage("Plan deleted");
+                                  setToastType("success");
+                                  loadData(selectedDate);
+                                }
+                                setToastVisible(true);
+                              },
+                            },
+                          ]);
+                        }}
+                      >
+                        <Trash2 size={16} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <ThemedText style={styles.planTasks}>
+                      {p.tasks_text}
+                    </ThemedText>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor:
+                            p.status === "done"
+                              ? "#10b981"
+                              : p.status === "missed"
+                                ? "#ef4444"
+                                : "rgba(0,0,0,0.05)",
+                        },
+                      ]}
+                    >
+                      <ThemedText style={styles.statusText}>
+                        {p.status.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <ThemedText style={styles.planTime}>
+                    {p.start_time} - {p.end_time}
                   </ThemedText>
                 </View>
-              ) : (
-                plans.map((p) => (
-                  <View
-                    key={p.id}
-                    style={[
-                      styles.planItem,
-                      {
-                        borderColor: theme.border,
-                        flexDirection: isSmallScreen ? "column" : "column",
-                      },
-                    ]}
-                  >
-                    <View style={styles.planHeader}>
-                      <ThemedText style={styles.planTag}>
-                        {p.section.toUpperCase()}
-                      </ThemedText>
-                      <View style={{ flexDirection: "row", gap: 8 }}>
-                        <TouchableOpacity
-                          onPress={() =>
-                            router.push({
-                              pathname: "/(tabs)/plan",
-                              params: { editId: p.id },
-                            })
-                          }
-                        >
-                          <Edit2 size={16} color={theme.primary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => {
-                            Alert.alert("Delete Plan", "Are you sure?", [
-                              { text: "Cancel", style: "cancel" },
-                              {
-                                text: "Delete",
-                                style: "destructive",
-                                onPress: async () => {
-                                  // Delete associated logs first
-                                  await supabase
-                                    .from("daily_log")
-                                    .delete()
-                                    .eq("plan_id", p.id);
-
-                                  const { error } = await supabase
-                                    .from("study_plan")
-                                    .delete()
-                                    .eq("id", p.id);
-                                  if (error) setToastMessage(error.message);
-                                  else {
-                                    setToastMessage("Plan deleted");
-                                    setToastType("success");
-                                    loadData(selectedDate);
-                                  }
-                                  setToastVisible(true);
-                                },
-                              },
-                            ]);
-                          }}
-                        >
-                          <Trash2 size={16} color="#ef4444" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <ThemedText style={styles.planTasks}>
-                        {p.tasks_text}
-                      </ThemedText>
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          {
-                            backgroundColor:
-                              p.status === "done"
-                                ? "#10b981"
-                                : p.status === "missed"
-                                  ? "#ef4444"
-                                  : "rgba(0,0,0,0.05)",
-                          },
-                        ]}
-                      >
-                        <ThemedText style={styles.statusText}>
-                          {p.status.toUpperCase()}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <ThemedText style={styles.planTime}>
-                      {p.start_time} - {p.end_time}
-                    </ThemedText>
-                  </View>
-                ))
-              )}
-            </ScrollView>
-          )}
-        </PremiumGate>
+              ))
+            )}
+          </ScrollView>
+        )}
       </SafeAreaView>
       <Toast
         visible={toastVisible}

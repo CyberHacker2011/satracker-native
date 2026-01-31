@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -180,43 +180,103 @@ export default function DashboardScreen() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [todayPlans, setTodayPlans] = useState<any[]>([]);
   const [streak, setStreak] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [hasPlans, setHasPlans] = useState(false);
   const { isPremium } = usePremium();
 
-  const fetchData = async () => {
+  // Cache timestamp
+  const lastFetchTime = useRef<number>(0);
+  const CACHE_DURATION = 60 * 1000; // 1 minute
+
+  const fetchData = async (force = false) => {
+    const now = Date.now();
+    if (
+      !force &&
+      lastFetchTime.current &&
+      now - lastFetchTime.current < CACHE_DURATION
+    ) {
+      // Data is fresh enough, skip fetch
+      setLoading(false);
+      return;
+    }
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
       if (user) {
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("name, exam_date, target_math, target_reading_writing")
-          .eq("user_id", user.id)
-          .single();
-        setUserProfile(profile);
+        const todayDate = getLocalDateString();
 
-        // Fetch streak from daily_log (consecutive days)
-        // Limit to reasonable history (e.g. last 365 entries) to avoid perf issues
-        const { data: logHistory } = await supabase
-          .from("daily_log")
-          .select("date")
-          .eq("user_id", user.id)
-          .order("date", { ascending: false })
-          .limit(365);
+        // 1. Parallelize all independent fetches
+        const [
+          profileRes,
+          logHistoryRes,
+          plansRes,
+          todayLogsRes,
+          totalPlansRes,
+          completedLogsRes,
+        ] = await Promise.all([
+          // Profile
+          supabase
+            .from("user_profiles")
+            .select("name, exam_date, target_math, target_reading_writing")
+            .eq("user_id", user.id)
+            .single(),
 
-        if (logHistory) {
-          const dates = Array.from(new Set(logHistory.map((l) => l.date)));
+          // Streak History (last 365 days)
+          supabase
+            .from("daily_log")
+            .select("date")
+            .eq("user_id", user.id)
+            .order("date", { ascending: false })
+            .limit(365),
+
+          // Today's Plans (specific columns)
+          supabase
+            .from("study_plan")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("date", todayDate),
+
+          // Today's Logs (to check completion)
+          supabase
+            .from("daily_log")
+            .select("plan_id")
+            .eq("user_id", user.id)
+            .eq("date", todayDate),
+
+          // Total Plans Count (for progress & onboarding check)
+          supabase
+            .from("study_plan")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", user.id),
+
+          // Completed Logs Count (for progress)
+          supabase
+            .from("daily_log")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", user.id),
+        ]);
+
+        // 2. Process Profile
+        if (profileRes.data) {
+          setUserProfile(profileRes.data);
+        }
+
+        // 3. Process Streak
+        const logHistory = logHistoryRes.data;
+        if (logHistory && logHistory.length > 0) {
+          const dates = Array.from(new Set(logHistory.map((l: any) => l.date)));
           let currentStreak = 0;
-          let today = getLocalDateString();
-          let checkDate = new Date(today);
-
-          // Check if today or yesterday was the last log to continue streak
-          const lastLog = dates[0];
+          const today = getLocalDateString();
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayStr = yesterday.toISOString().split("T")[0];
 
+          const lastLog = dates[0];
           if (lastLog === today || lastLog === yesterdayStr) {
+            let checkDate = new Date(lastLog);
             for (let i = 0; i < dates.length; i++) {
               const dStr = checkDate.toISOString().split("T")[0];
               if (dates.includes(dStr)) {
@@ -228,20 +288,13 @@ export default function DashboardScreen() {
             }
           }
           setStreak(currentStreak);
+        } else {
+          setStreak(0);
         }
 
-        const todayDate = getLocalDateString();
-        const { data: plans } = await supabase
-          .from("study_plan")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("date", todayDate);
-
-        const { data: todayLogs } = await supabase
-          .from("daily_log")
-          .select("plan_id")
-          .eq("user_id", user.id)
-          .eq("date", todayDate);
+        // 4. Process Today's Plans
+        const plans = plansRes.data;
+        const todayLogs = todayLogsRes.data;
 
         if (plans) {
           const now = new Date();
@@ -257,18 +310,33 @@ export default function DashboardScreen() {
                   isCompleted,
                 };
               })
-              // Sort: Active/Upcoming first, then Completed/Past
               .sort((a, b) => {
                 const aActive = !a.isCompleted && !a.isPast;
                 const bActive = !b.isCompleted && !b.isPast;
-
                 if (aActive && !bActive) return -1;
                 if (!aActive && bActive) return 1;
-
                 return a.start_time.localeCompare(b.start_time);
               }),
           );
         }
+
+        // 5. Process Progress & Onboarding Check
+        const totalPlans = totalPlansRes.count || 0;
+        const completedLogs = completedLogsRes.count || 0;
+
+        if (totalPlans > 0) {
+          setHasPlans(true);
+          setProgress(Math.round((completedLogs / totalPlans) * 100));
+        } else {
+          setHasPlans(false);
+          setProgress(0);
+          // If 0 total plans, user might need onboarding
+          // We do this check here instead of a separate useEffect
+          // Only redirect if we are not already refreshing/loading to avoid flicker
+          router.replace("/onboarding");
+        }
+
+        lastFetchTime.current = Date.now();
       }
     } catch (e) {
       console.error(e);
@@ -280,13 +348,13 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
+      fetchData(false);
     }, []),
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchData();
+    fetchData(true);
   }, []);
 
   const { width: windowWidth } = useWindowDimensions();
@@ -369,15 +437,30 @@ export default function DashboardScreen() {
           <View style={styles.mainGrid}>
             <View style={styles.pathCol}>
               <ThemedText style={styles.sectionTitle}>YOUR PROGRESS</ThemedText>
-              <PathStep
-                title="Profile"
-                subtitle="Personalized"
-                done={!!userProfile?.name && !!userProfile?.exam_date}
-                onPress={() => router.push("/profile")}
-              />
+
+              {/* Conditional Steps */}
+              {(!userProfile?.name || !userProfile?.exam_date) && (
+                <PathStep
+                  title="Personalize Profile"
+                  subtitle="Set Name & Date"
+                  active={true}
+                  onPress={() => router.push("/profile")}
+                />
+              )}
+
+              {!hasPlans && (
+                <PathStep
+                  title="Generate Plan"
+                  subtitle="Create your path"
+                  active={true}
+                  onPress={() => router.push("/onboarding")}
+                />
+              )}
+
+              {/* Static Steps */}
               <PathStep
                 title="Daily Plan"
-                subtitle={todayPlans.length > 0 ? "Ready" : "Not Set"}
+                subtitle={todayPlans.length > 0 ? "Ready" : "View"}
                 done={todayPlans.length > 0}
                 onPress={() => router.push("/plan")}
               />
@@ -385,6 +468,11 @@ export default function DashboardScreen() {
                 title="Check-in"
                 subtitle="Track Today"
                 onPress={() => router.push("/check-in")}
+              />
+              <PathStep
+                title="Study Room"
+                subtitle="Focus Mode"
+                onPress={() => router.push("/study-room")}
               />
             </View>
           </View>
@@ -413,6 +501,9 @@ export default function DashboardScreen() {
                     {
                       backgroundColor: theme.card,
                       borderColor: plan.isActive ? theme.primary : theme.border,
+                      borderLeftWidth: 5,
+                      borderLeftColor:
+                        plan.section === "math" ? "#3b82f6" : "#ec4899",
                       opacity: plan.isCompleted || plan.isPast ? 0.5 : 1,
                     },
                   ]}
@@ -420,7 +511,40 @@ export default function DashboardScreen() {
                   onPress={() =>
                     router.push(`/(tabs)/study-room?planId=${plan.id}`)
                   }
+                  onLongPress={async () => {
+                    // Quick mark as done feature
+                    try {
+                      const {
+                        data: { user },
+                      } = await supabase.auth.getUser();
+                      if (!user) return;
+
+                      const today = getLocalDateString();
+                      if (plan.isCompleted) {
+                        await supabase
+                          .from("daily_log")
+                          .delete()
+                          .eq("plan_id", plan.id)
+                          .eq("date", today);
+                      } else {
+                        await supabase.from("daily_log").insert({
+                          user_id: user.id,
+                          plan_id: plan.id,
+                          date: today,
+                          status: "done",
+                        });
+                      }
+                      fetchData();
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
                 >
+                  {plan.ai_generated && (
+                    <View style={styles.planAiBadge}>
+                      <Zap size={10} color="#fff" fill="#fff" />
+                    </View>
+                  )}
                   <View
                     style={[
                       styles.timeTag,
@@ -445,41 +569,25 @@ export default function DashboardScreen() {
                     <ThemedText style={styles.planTasks}>
                       {plan.tasks_text}
                     </ThemedText>
-                    <ThemedText style={styles.planSub}>
-                      {plan.section} • {plan.duration} mins
-                    </ThemedText>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <ThemedText style={styles.planSub}>
+                        {plan.section.toUpperCase()} • {plan.duration} mins
+                      </ThemedText>
+                      {plan.isCompleted && (
+                        <CheckCircle2 size={12} color="#10b981" />
+                      )}
+                    </View>
                   </View>
                   <ArrowRight size={18} color={theme.textSecondary} />
                 </TouchableOpacity>
               ))}
             </View>
-          )}
-
-          {/* Additional Guidance */}
-          {!isPremium && (
-            <TouchableOpacity
-              style={[
-                styles.premiumBanner,
-                {
-                  backgroundColor: theme.primaryLight,
-                  borderColor: theme.primary,
-                },
-              ]}
-              onPress={() => router.push("/profile")}
-            >
-              <Zap size={20} color={theme.primary} />
-              <View style={{ flex: 1 }}>
-                <ThemedText style={{ color: theme.primary, fontWeight: "800" }}>
-                  Upgrade to Premium
-                </ThemedText>
-                <ThemedText
-                  style={{ color: theme.primary, fontSize: 12, opacity: 0.8 }}
-                >
-                  Get personalized study plans and AI feedback.
-                </ThemedText>
-              </View>
-              <ChevronRight size={20} color={theme.primary} />
-            </TouchableOpacity>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -750,5 +858,24 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     gap: 16,
+  },
+  planAiBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#a855f7",
+    padding: 4,
+    borderRadius: 8,
+    zIndex: 10,
+  },
+  miniBarContainer: {
+    width: "100%",
+    height: 4,
+    borderRadius: 2,
+    marginTop: 8,
+    overflow: "hidden",
+  },
+  miniBarFill: {
+    height: "100%",
   },
 });

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface SidebarContextType {
@@ -10,7 +11,9 @@ interface SidebarContextType {
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 768;
+  const [sidebarVisible, setSidebarVisible] = useState(!isSmallScreen);
 
   useEffect(() => {
     const loadState = async () => {
@@ -19,7 +22,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
         if (value !== null) {
           setSidebarVisible(value === "true");
         } else {
-          setSidebarVisible(true);
+          setSidebarVisible(!isSmallScreen);
         }
       } catch (e) {
         console.error("SidebarContext: Error loading state", e);

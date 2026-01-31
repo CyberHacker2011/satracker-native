@@ -22,6 +22,8 @@ import {
   ChevronLeft,
   Clock,
   X,
+  Sparkles,
+  Zap,
 } from "lucide-react-native";
 import { supabase } from "../lib/supabase";
 
@@ -113,26 +115,24 @@ export function CustomDrawerContent({ onClose }: { onClose?: () => void }) {
 
       <DrawerContentScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
-          <DrawerLink href="/(tabs)" icon={LayoutDashboard} label="Dashboard" />
+          <DrawerLink href="/index" icon={LayoutDashboard} label="Dashboard" />
+          <DrawerLink href="/study-room" icon={BookOpen} label="Study Room" />
           <DrawerLink
-            href="/(tabs)/study-room"
-            icon={BookOpen}
-            label="Study Room"
-          />
-          <DrawerLink
-            href="/(tabs)/check-in"
+            href="/check-in"
             icon={CheckSquare}
             label="Daily Check-in"
           />
-          <DrawerLink href="/(tabs)/plan" icon={Calendar} label="Study Plan" />
-          <DrawerLink href="/(tabs)/focus" icon={Clock} label="Classic Timer" />
+          <DrawerLink href="/plan" icon={Calendar} label="Study Plan" />
+          <DrawerLink href="/ai" icon={Sparkles} label="AI Assistant" />
+          <DrawerLink href="/onboarding" icon={Zap} label="AI Onboarding" />
+          <DrawerLink href="/focus" icon={Clock} label="Classic Timer" />
         </View>
 
         <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
         <View style={styles.section}>
-          <DrawerLink href="/(tabs)/profile" icon={User} label="Profile" />
-          <DrawerLink href="/edit-profile" icon={Settings} label="Settings" />
+          <DrawerLink href="/edit-profile" icon={User} label="Profile" />
+          <DrawerLink href="/(tabs)/profile" icon={Settings} label="Settings" />
         </View>
       </DrawerContentScrollView>
 

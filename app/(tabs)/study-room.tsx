@@ -39,7 +39,6 @@ import {
 import { playBeep, playSound } from "../../lib/audio";
 import storage from "../../lib/storage";
 import { ConfirmModal } from "../../components/ConfirmModal";
-import { PremiumGate } from "../../components/PremiumGate";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -48,6 +47,7 @@ import Animated, {
   withSequence,
   Easing,
 } from "react-native-reanimated";
+import { StudyAssistant } from "../../components/StudyAssistant";
 
 export default function StudyRoomScreen() {
   const { theme } = useTheme();
@@ -348,10 +348,46 @@ export default function StudyRoomScreen() {
           </View>
           <ScrollView contentContainerStyle={styles.container}>
             <View style={styles.setupCard}>
-              <ThemedText style={styles.setupLabel}>SESSION TOPIC</ThemedText>
+              <ThemedText style={styles.setupLabel}>
+                SESSION TOPIC & DETAILS
+              </ThemedText>
               <ThemedText style={styles.setupTitle}>
                 {plan.tasks_text}
               </ThemedText>
+              <View style={{ flexDirection: "row", gap: 10, marginTop: -12 }}>
+                <View
+                  style={[
+                    styles.miniBadge,
+                    { backgroundColor: theme.primary + "15" },
+                  ]}
+                >
+                  <ThemedText
+                    style={[styles.miniBadgeText, { color: theme.primary }]}
+                  >
+                    {plan.study_type || "Learning"}
+                  </ThemedText>
+                </View>
+                <View
+                  style={[
+                    styles.miniBadge,
+                    {
+                      backgroundColor:
+                        plan.section === "Math" ? "#3b82f615" : "#ec489915",
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.miniBadgeText,
+                      {
+                        color: plan.section === "Math" ? "#3b82f6" : "#ec4899",
+                      },
+                    ]}
+                  >
+                    {plan.section.toUpperCase()}
+                  </ThemedText>
+                </View>
+              </View>
 
               <View style={styles.configGroup}>
                 <ThemedText style={styles.configLabel}>SESSIONS</ThemedText>
@@ -462,126 +498,150 @@ export default function StudyRoomScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <PremiumGate feature="Study Room">
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={styles.execHeader}>
-            <TouchableOpacity onPress={() => setQuitModalVisible(true)}>
-              <ThemedText style={{ opacity: 0.5, fontWeight: "700" }}>
-                QUIT
-              </ThemedText>
-            </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.execHeader}>
+          <TouchableOpacity onPress={() => setQuitModalVisible(true)}>
+            <ThemedText style={{ opacity: 0.5, fontWeight: "700" }}>
+              QUIT
+            </ThemedText>
+          </TouchableOpacity>
 
-            <View
-              style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
-            >
-              <View style={styles.statusBadge}>
+          <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+            <View style={styles.statusBadge}>
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor:
+                      mode === "focus" ? theme.primary : "#10b981",
+                  },
+                ]}
+              />
+              <ThemedText style={styles.statusText}>
+                {mode.toUpperCase()}
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.container}>
+          {/* Session Tracker */}
+          <View style={styles.sessionTracker}>
+            <View style={styles.sessionDots}>
+              {Array.from({ length: settings.sessions }).map((_, i) => (
                 <View
+                  key={i}
                   style={[
-                    styles.statusDot,
+                    styles.sessionDot,
                     {
                       backgroundColor:
-                        mode === "focus" ? theme.primary : "#10b981",
+                        i < currentSession ? theme.primary : "rgba(0,0,0,0.1)",
+                      opacity: i < currentSession ? 1 : 0.5,
                     },
                   ]}
                 />
-                <ThemedText style={styles.statusText}>
-                  {mode.toUpperCase()}
-                </ThemedText>
-              </View>
+              ))}
+            </View>
+            <View style={styles.progressBarBg}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    backgroundColor: theme.primary,
+                    width: `${Math.min(
+                      100,
+                      Math.max(
+                        0,
+                        ((currentSession -
+                          1 +
+                          (mode === "focus"
+                            ? 1 - timeLeft / (settings.focus * 60)
+                            : 0)) /
+                          settings.sessions) *
+                          100,
+                      ),
+                    )}%`,
+                  },
+                ]}
+              />
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={styles.container}>
-            {/* Session Tracker */}
-            <View style={styles.sessionTracker}>
-              <View style={styles.sessionDots}>
-                {Array.from({ length: settings.sessions }).map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.sessionDot,
-                      {
-                        backgroundColor:
-                          i < currentSession
-                            ? theme.primary
-                            : "rgba(0,0,0,0.1)",
-                        opacity: i < currentSession ? 1 : 0.5,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-              <View style={styles.progressBarBg}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      backgroundColor: theme.primary,
-                      width: `${Math.min(
-                        100,
-                        Math.max(
-                          0,
-                          ((currentSession -
-                            1 +
-                            (mode === "focus"
-                              ? 1 - timeLeft / (settings.focus * 60)
-                              : 0)) /
-                            settings.sessions) *
-                            100,
-                        ),
-                      )}%`,
-                    },
-                  ]}
+          <View style={styles.timerContainer}>
+            <Animated.View style={[styles.timerRing, animatedRingStyle]}>
+              <ThemedText style={styles.timerVal}>
+                {formatTime(timeLeft)}
+              </ThemedText>
+              <ThemedText style={styles.sessionInfo}>
+                Session {currentSession} of {settings.sessions}
+              </ThemedText>
+            </Animated.View>
+          </View>
+
+          <View style={styles.controls}>
+            <TouchableOpacity
+              style={[styles.playBtn, { backgroundColor: theme.primary }]}
+              onPress={toggle}
+            >
+              {isRunning ? (
+                <Pause color="#fff" size={32} fill="#fff" />
+              ) : (
+                <Play
+                  color="#fff"
+                  size={32}
+                  fill="#fff"
+                  style={{ marginLeft: 4 }}
                 />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.resetBtn}
+              onPress={() => setResetModalVisible(true)}
+            >
+              <RefreshCw color={theme.textPrimary} size={24} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.objectiveCard}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
+              <ThemedText style={styles.objectiveLabel}>
+                CURRENT MISSION • {plan.study_type || "Learning"}
+              </ThemedText>
+              <View
+                style={[
+                  styles.miniBadge,
+                  {
+                    backgroundColor:
+                      plan.section === "Math" ? "#3b82f620" : "#ec489920",
+                    paddingVertical: 2,
+                    paddingHorizontal: 6,
+                  },
+                ]}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: 9,
+                    fontWeight: "900",
+                    color: plan.section === "Math" ? "#3b82f6" : "#ec4899",
+                  }}
+                >
+                  {plan.section.toUpperCase()}
+                </ThemedText>
               </View>
             </View>
-
-            <View style={styles.timerContainer}>
-              <Animated.View style={[styles.timerRing, animatedRingStyle]}>
-                <ThemedText style={styles.timerVal}>
-                  {formatTime(timeLeft)}
-                </ThemedText>
-                <ThemedText style={styles.sessionInfo}>
-                  Session {currentSession} of {settings.sessions}
-                </ThemedText>
-              </Animated.View>
-            </View>
-
-            <View style={styles.controls}>
-              <TouchableOpacity
-                style={[styles.playBtn, { backgroundColor: theme.primary }]}
-                onPress={toggle}
-              >
-                {isRunning ? (
-                  <Pause color="#fff" size={32} fill="#fff" />
-                ) : (
-                  <Play
-                    color="#fff"
-                    size={32}
-                    fill="#fff"
-                    style={{ marginLeft: 4 }}
-                  />
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.resetBtn}
-                onPress={() => setResetModalVisible(true)}
-              >
-                <RefreshCw color={theme.textPrimary} size={24} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.objectiveCard}>
-              <ThemedText style={styles.objectiveLabel}>
-                CURRENT OBJECTIVE
-              </ThemedText>
-              <ThemedText style={styles.objectiveText}>
-                {plan.tasks_text}
-              </ThemedText>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </PremiumGate>
+            <ThemedText style={styles.objectiveText}>
+              {plan.tasks_text}
+            </ThemedText>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
 
       <ConfirmModal
         visible={quitModalVisible}
@@ -613,6 +673,7 @@ export default function StudyRoomScreen() {
         confirmLabel="Reset"
         isDestructive
       />
+      <StudyAssistant />
     </ThemedView>
   );
 }
@@ -756,4 +817,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   progressBarFill: { height: "100%", borderRadius: 3 },
+  miniBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  miniBadgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
 });
