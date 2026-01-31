@@ -56,18 +56,80 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       // Use the configured production URL if available, otherwise fallback to linking
-      const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
+      const siteUrl =
+        process.env.EXPO_PUBLIC_SITE_URL || "https://app.satracker.uz";
 
       // @ts-ignore
       const isElectron = typeof window !== "undefined" && !!window.require;
 
-      let redirectTo = siteUrl ? siteUrl : Linking.createURL("/");
-
       if (isElectron) {
-        // Force deep link for Electron to open system browser then redirect back to app
-        redirectTo = "satracker://google-auth";
+        // ELECTRON POLLING FLOW
+        // 1. Generate ID
+        const handshakeId =
+          Math.random().toString(36).substring(2, 15) +
+          Math.random().toString(36).substring(2, 15);
+
+        // 2. Create Handshake
+        const { error: insertError } = await supabase
+          .from("auth_handshakes")
+          .insert({ id: handshakeId });
+
+        if (insertError)
+          throw new Error(
+            "Failed to initialize login handshake: " + insertError.message,
+          );
+
+        // 3. Open Browser
+        const authUrl = `${siteUrl}/electron-auth?id=${handshakeId}`;
+        await Linking.openURL(authUrl);
+        showToast("Browser opened. Please login there.");
+
+        // 4. Poll for results
+        // Poll for 2 minutes max
+        const startTime = Date.now();
+        const pollInterval = setInterval(async () => {
+          if (Date.now() - startTime > 120000) {
+            clearInterval(pollInterval);
+            setLoading(false);
+            showToast("Login timed out. Please try again.");
+            return;
+          }
+
+          const { data, error } = await supabase
+            .from("auth_handshakes")
+            .select("*")
+            .eq("id", handshakeId)
+            .single();
+
+          if (data && data.access_token && data.refresh_token) {
+            clearInterval(pollInterval);
+
+            // 5. Login Success
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: data.access_token,
+              refresh_token: data.refresh_token,
+            });
+
+            if (sessionError) {
+              showToast("Failed to set session: " + sessionError.message);
+              setLoading(false);
+            } else {
+              // Cleanup
+              await supabase
+                .from("auth_handshakes")
+                .delete()
+                .eq("id", handshakeId);
+              router.replace("/(tabs)");
+            }
+          }
+        }, 2000);
+
+        // Return early, let polling handle the rest
+        return;
       }
 
+      // STANDARD WEB/NATIVE FLOW
+      let redirectTo = siteUrl ? siteUrl : Linking.createURL("/");
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -86,7 +148,6 @@ export default function LoginScreen() {
       }
     } catch (e: any) {
       showToast(e.message || "Google Sign-In failed");
-    } finally {
       setLoading(false);
     }
   };

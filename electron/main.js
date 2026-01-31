@@ -94,6 +94,7 @@ function createWindow() {
 // Widget code removed
 
 // Deep linking handling
+// Deep linking handling
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
     app.setAsDefaultProtocolClient("satracker", process.execPath, [
@@ -114,12 +115,13 @@ if (!gotTheLock) {
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
-    }
-    // Protocol handler for Windows
-    // commandLine looks like: [ 'path/to/exe', 'satracker://...' ]
-    const url = commandLine.pop();
-    if (url && url.startsWith("satracker://")) {
-      win.webContents.send("deep-link", url);
+
+      // Protocol handler for Windows
+      // commandLine looks like: [ 'path/to/exe', 'satracker://...' ]
+      const url = commandLine.find((arg) => arg.startsWith("satracker://"));
+      if (url) {
+        win.webContents.send("deep-link", url);
+      }
     }
   });
 
@@ -127,17 +129,18 @@ if (!gotTheLock) {
     createWindow();
 
     // Check if started with deep link (Windows)
-    if (process.platform === "win32" && process.argv.length > 1) {
+    if (process.platform === "win32") {
       const url = process.argv.find((arg) => arg.startsWith("satracker://"));
-      if (url && win) {
+      if (url) {
         // Wait a bit for window to load
-        setTimeout(() => win.webContents.send("deep-link", url), 3000);
+        setTimeout(() => win && win.webContents.send("deep-link", url), 1500);
       }
     }
   });
 
   app.on("open-url", (event, url) => {
     event.preventDefault();
+    // This is for macOS, but good to keep standard
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
