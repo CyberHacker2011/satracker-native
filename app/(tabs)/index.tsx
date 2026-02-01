@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   useWindowDimensions,
+  Alert,
 } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -303,10 +304,14 @@ export default function DashboardScreen() {
             plans
               .map((p) => {
                 const isCompleted = todayLogs?.some((l) => l.plan_id === p.id);
+                const isNotStarted =
+                  p.start_time >
+                  getLocalTimeString(new Date(Date.now() + 60000));
                 return {
                   ...p,
                   isActive: curTime >= p.start_time && curTime <= p.end_time,
                   isPast: curTime > p.end_time,
+                  isNotStarted,
                   isCompleted,
                 };
               })
@@ -504,13 +509,34 @@ export default function DashboardScreen() {
                       borderLeftWidth: 5,
                       borderLeftColor:
                         plan.section === "math" ? "#3b82f6" : "#ec4899",
-                      opacity: plan.isCompleted || plan.isPast ? 0.5 : 1,
+                      opacity:
+                        plan.isCompleted || plan.isPast || plan.isNotStarted
+                          ? 0.5
+                          : 1,
                     },
                   ]}
-                  disabled={plan.isCompleted || plan.isPast}
-                  onPress={() =>
-                    router.push(`/(tabs)/study-room?planId=${plan.id}`)
-                  }
+                  disabled={false}
+                  onPress={() => {
+                    if (plan.isCompleted) {
+                      Alert.alert(
+                        t("missionUnavailable"),
+                        t("alreadyCompleted"),
+                      );
+                      return;
+                    }
+                    if (plan.isPast) {
+                      Alert.alert(t("missionUnavailable"), t("alreadyExpired"));
+                      return;
+                    }
+                    if (plan.isNotStarted) {
+                      Alert.alert(
+                        t("missionUnavailable"),
+                        "This session has not started yet.",
+                      );
+                      return;
+                    }
+                    router.push(`/(tabs)/study-room?planId=${plan.id}`);
+                  }}
                   onLongPress={async () => {
                     // Quick mark as done feature
                     try {

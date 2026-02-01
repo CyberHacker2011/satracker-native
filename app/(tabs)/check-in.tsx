@@ -843,26 +843,55 @@ export default function CheckInScreen() {
                           <View style={{ flexDirection: "row", gap: 8 }}>
                             {(() => {
                               const isToday = p.date === getLocalDateString();
-                              const isNotStarted =
-                                isToday &&
+                              const nowTime = getLocalTimeString(new Date());
+                              // Time buffer of 1 min for 'starting'
+                              const isTimeNotReached =
                                 p.start_time >
-                                  getLocalTimeString(
-                                    new Date(Date.now() + 60000),
-                                  );
-                              const canCheckIn = isToday && !isNotStarted;
+                                getLocalTimeString(
+                                  new Date(Date.now() + 60000),
+                                );
+                              const isEnded = p.end_time < nowTime;
+
+                              // Check-in logic: allowed only on current day and if time reached
+                              // Future dates blocked. Past dates blocked (by parent grid, but safe to check)
+                              const canCheckIn = isToday && !isTimeNotReached;
+
+                              // Room logic: allowed if today, time reached, not ended, not done
+                              const canEnterRoom =
+                                isToday &&
+                                !isTimeNotReached &&
+                                !isEnded &&
+                                !p.status;
 
                               return (
                                 <>
                                   <TouchableOpacity
-                                    onPress={() =>
+                                    onPress={() => {
+                                      if (
+                                        !isToday &&
+                                        p.date > getLocalDateString()
+                                      ) {
+                                        Alert.alert(
+                                          "Notice",
+                                          "You cannot check-in for future sessions.",
+                                        );
+                                        return;
+                                      }
+                                      if (isToday && isTimeNotReached) {
+                                        Alert.alert(
+                                          "Notice",
+                                          "This session has not started yet.",
+                                        );
+                                        return;
+                                      }
                                       handleUpdateStatus(
                                         p.id,
                                         p.date,
                                         "done",
                                         p,
-                                      )
-                                    }
-                                    disabled={!canCheckIn}
+                                      );
+                                    }}
+                                    disabled={false}
                                     style={[
                                       styles.actionBtn,
                                       {
@@ -881,15 +910,32 @@ export default function CheckInScreen() {
                                     />
                                   </TouchableOpacity>
                                   <TouchableOpacity
-                                    onPress={() =>
+                                    onPress={() => {
+                                      if (
+                                        !isToday &&
+                                        p.date > getLocalDateString()
+                                      ) {
+                                        Alert.alert(
+                                          "Notice",
+                                          "You cannot check-in for future sessions.",
+                                        );
+                                        return;
+                                      }
+                                      if (isToday && isTimeNotReached) {
+                                        Alert.alert(
+                                          "Notice",
+                                          "This session has not started yet.",
+                                        );
+                                        return;
+                                      }
                                       handleUpdateStatus(
                                         p.id,
                                         p.date,
                                         "missed",
                                         p,
-                                      )
-                                    }
-                                    disabled={!canCheckIn}
+                                      );
+                                    }}
+                                    disabled={false}
                                     style={[
                                       styles.actionBtn,
                                       {
@@ -911,6 +957,38 @@ export default function CheckInScreen() {
                                   </TouchableOpacity>
                                   <TouchableOpacity
                                     onPress={() => {
+                                      if (p.status) {
+                                        Alert.alert(
+                                          "Notice",
+                                          "This session is already completed.",
+                                        );
+                                        return;
+                                      }
+                                      if (
+                                        !isToday &&
+                                        p.date > getLocalDateString()
+                                      ) {
+                                        Alert.alert(
+                                          "Notice",
+                                          "This session is in the future.",
+                                        );
+                                        return;
+                                      }
+                                      if (isToday && isEnded) {
+                                        Alert.alert(
+                                          "Notice",
+                                          "This session has already ended.",
+                                        );
+                                        return;
+                                      }
+                                      if (isToday && isTimeNotReached) {
+                                        Alert.alert(
+                                          "Notice",
+                                          "This session has not started yet.",
+                                        );
+                                        return;
+                                      }
+
                                       setIsModalVisible(false);
                                       router.push({
                                         pathname: "/(tabs)/study-room",
@@ -922,6 +1000,7 @@ export default function CheckInScreen() {
                                       {
                                         borderColor: theme.primary,
                                         backgroundColor: theme.primary + "10",
+                                        opacity: canEnterRoom ? 1 : 0.3,
                                       },
                                     ]}
                                   >

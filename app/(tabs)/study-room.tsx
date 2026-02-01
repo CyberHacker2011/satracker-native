@@ -306,10 +306,28 @@ export default function StudyRoomScreen() {
                         p.isMarked || p.isPast || p.isNotStarted ? 0.5 : 1,
                     },
                   ]}
-                  onPress={() =>
-                    router.push(`/(tabs)/study-room?planId=${p.id}`)
-                  }
-                  disabled={p.isMarked || p.isPast || p.isNotStarted}
+                  onPress={() => {
+                    if (p.isMarked) {
+                      Alert.alert(
+                        t("missionUnavailable"),
+                        t("alreadyCompleted"),
+                      );
+                      return;
+                    }
+                    if (p.isPast) {
+                      Alert.alert(t("missionUnavailable"), t("alreadyExpired"));
+                      return;
+                    }
+                    if (p.isNotStarted) {
+                      Alert.alert(
+                        t("missionUnavailable"),
+                        "This session has not started yet.",
+                      );
+                      return;
+                    }
+                    router.push(`/(tabs)/study-room?planId=${p.id}`);
+                  }}
+                  disabled={false}
                 >
                   <View style={{ flex: 1 }}>
                     <ThemedText style={styles.planTag}>
@@ -325,7 +343,14 @@ export default function StudyRoomScreen() {
                   {p.isMarked ? (
                     <CheckCircle2 color="#10b981" size={24} />
                   ) : (
-                    <ArrowRight color={theme.primary} size={20} />
+                    <ArrowRight
+                      color={
+                        p.isPast || p.isNotStarted
+                          ? theme.textSecondary
+                          : theme.primary
+                      }
+                      size={20}
+                    />
                   )}
                 </TouchableOpacity>
               ))}
